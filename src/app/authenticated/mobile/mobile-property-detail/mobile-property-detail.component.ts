@@ -50,6 +50,7 @@ export class MobilePropertyDetailComponent implements OnInit, OnChanges, OnDestr
   ownerOptions: MobileListFieldOption[] = [];
   vendorOptions: MobileListFieldOption[] = [];
   isPageReady = false;
+  agreementPanelOpen = false;
   isSaving = false;
   isDirty = false;
   destroy$ = new Subject<void>();

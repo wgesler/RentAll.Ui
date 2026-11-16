@@ -80,13 +80,14 @@
         }
 
         @if (canShowPropertyAgreement) {
-          <mat-expansion-panel [expanded]="false">
+          <mat-expansion-panel [expanded]="agreementPanelOpen" (opened)="agreementPanelOpen = true" (closed)="agreementPanelOpen = false">
             <mat-expansion-panel-header>
               <mat-panel-title>Property Agreements</mat-panel-title>
             </mat-expansion-panel-header>
             <app-mobile-property-agreement
               [propertyId]="propertyId"
               [isAddMode]="false"
+              [panelOpen]="agreementPanelOpen"
               [canManageAgreement]="canManagePropertyAgreement"
               [canViewManagementAgreement]="canViewManagementAgreement"
               [officeId]="sharedPropertyOfficeId"

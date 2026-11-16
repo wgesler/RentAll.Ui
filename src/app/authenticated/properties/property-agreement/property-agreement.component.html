@@ -1,9 +1,9 @@
-@if (!isPageReady) {
+@if (panelOpen && !isPageReady) {
   <div class="loading-container loading-container--section">
     <mat-spinner [diameter]="40"></mat-spinner>
     <p>Loading agreement…</p>
   </div>
-} @else if (agreementForm) {
+} @else if (panelOpen && agreementForm) {
   <div [formGroup]="agreementForm" class="property-agreement-panel-content">
     <ng-template #agreementLinesSection>
     <div class="property-agreement-lines-wrap mb-4">

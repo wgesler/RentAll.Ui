@@ -45,6 +45,7 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   @Input() bedrooms: number | null = null;
   @Input() propertyLeaseTypeId: number | null = null;
   @Input() vendorContactId: string | null = null;
+  @Input() panelOpen = false;
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private router = inject(Router);

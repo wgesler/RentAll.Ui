@@ -1,9 +1,9 @@
-@if (!isPageReady) {
+@if (panelOpen && !isPageReady) {
   <div class="mobile-maintenance-line-loading">
     <mat-spinner [diameter]="28"></mat-spinner>
     <span>Loading agreement...</span>
   </div>
-} @else if (agreementForm) {
+} @else if (panelOpen && agreementForm) {
   <div [formGroup]="agreementForm" class="mobile-property-agreement-content">
     <div class="mobile-maintenance-lines">
       <div class="mobile-maintenance-lines-header">
