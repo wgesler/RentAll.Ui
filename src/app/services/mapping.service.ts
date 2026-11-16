@@ -6640,14 +6640,6 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
 
   mapTransferToFlatReportRowsFromDepositAllocations(transfer: TransferResponse, lineAllocations: TransferReportLineAllocationResponse[]): TransferFlatReportRowDisplay[] {
     const splits = this.mapTransferSplitsFromApi(transfer.splits);
-    const splitsByLineId = new Map<string, TransferSplit>();
-    splits.forEach(split => {
-      const lineId = (split.journalEntryLineId || '').trim();
-      if (lineId && !splitsByLineId.has(lineId)) {
-        splitsByLineId.set(lineId, split);
-      }
-    });
-
     const transferDate = this.formatter.formatDateString(transfer.transferDate);
     const dateRange = this.formatter.formatListAccountingPeriodDot(transfer.accountingPeriod) || transferDate;
     const location = (transfer.officeName || '').trim();
@@ -6670,39 +6662,30 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
         const allocationDescription = (allocation.description || '').trim().toLowerCase();
         const allocationPropertyId = (allocation.propertyId || '').trim().toLowerCase();
         const allocationReservationId = (allocation.reservationId || '').trim().toLowerCase();
-        const describedSplit = splits.find(split => {
+        const sameDeposit = (split: TransferSplit) => {
+          const splitPropertyId = (split.propertyId || '').trim().toLowerCase();
+          const splitReservationId = (split.reservationId || '').trim().toLowerCase();
+          const splitLineId = (split.journalEntryLineId || '').trim().toLowerCase();
+          if (allocationPropertyId && splitPropertyId !== allocationPropertyId) {
+            return false;
+          }
+          if (allocationReservationId && splitReservationId !== allocationReservationId) {
+            return false;
+          }
+          if (allocationPropertyId || allocationReservationId) {
+            return true;
+          }
+          return hasLineId && splitLineId === lineId.toLowerCase();
+        };
+        const depositSplits = splits.filter(sameDeposit);
+        const describedSplit = depositSplits.find(split => {
           const splitDescription = (split.description || '').trim().toLowerCase();
           return !!allocationDescription && !!splitDescription && splitDescription === allocationDescription;
         });
-        const ownedSplit = describedSplit || splits.find(split => {
-          const splitPropertyId = (split.propertyId || '').trim().toLowerCase();
-          const splitReservationId = (split.reservationId || '').trim().toLowerCase();
-          if (allocationPropertyId && splitPropertyId && splitPropertyId !== allocationPropertyId) {
-            return false;
-          }
-          if (allocationReservationId && splitReservationId && splitReservationId !== allocationReservationId) {
-            return false;
-          }
-          return !!(allocationPropertyId || allocationReservationId);
-        });
-        let context = ownedSplit || (hasLineId ? splitsByLineId.get(lineId) : undefined);
-        if (!context) {
-          const allocationDescription = (allocation.description || '').trim().toLowerCase();
-          const allocationPropertyId = (allocation.propertyId || '').trim();
-          context = splits.find(split => {
-            const splitLineId = (split.journalEntryLineId || '').trim();
-            if (splitLineId && splitLineId !== emptyGuid) {
-              return false;
-            }
-            const splitDescription = (split.description || '').trim().toLowerCase();
-            const splitPropertyId = (split.propertyId || '').trim();
-            const descriptionMatches = !allocationDescription
-              || splitDescription === allocationDescription;
-            const propertyMatches = !allocationPropertyId
-              || !splitPropertyId
-              || splitPropertyId === allocationPropertyId;
-            return descriptionMatches && propertyMatches;
-          });
+        let context = describedSplit || depositSplits[0];
+        if (!context && !allocationPropertyId && !allocationReservationId && hasLineId) {
+          const lineSplits = splits.filter(split => (split.journalEntryLineId || '').trim().toLowerCase() === lineId.toLowerCase());
+          context = lineSplits.length === 1 ? lineSplits[0] : undefined;
         }
         const businessValue = this.roundCurrency(Number(allocation.business) || 0);
         const ownerEscrowValue = this.roundCurrency(Number(allocation.ownerEscrow) || 0);
