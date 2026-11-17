@@ -761,7 +761,7 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
     }
 
     if (!nextValue) {
-      void this.attemptReservationDeactivation(event.reservationId, previousValue, event.reservationTypeId);
+      void this.attemptReservationDeactivation(event.reservationId, previousValue, event.reservationTypeId, event.officeId);
       return;
     }
 
@@ -771,13 +771,14 @@ resolveOfficeIdsForInvoiceCheck(): number[] {
   async attemptReservationDeactivation(
     reservationId: string,
     previousValue: boolean,
-    reservationTypeId?: number | null
+    reservationTypeId?: number | null,
+    officeId?: number | null
   ): Promise<void> {
     try {
       const validation = await firstValueFrom(
         this.reservationService.validateReservationDeactivationAllowed(
           reservationId,
-          this.resolveOfficeIdsForInvoiceCheck(),
+          officeId && officeId > 0 ? [officeId] : this.resolveOfficeIdsForInvoiceCheck(),
           reservationTypeId
         )
       );
