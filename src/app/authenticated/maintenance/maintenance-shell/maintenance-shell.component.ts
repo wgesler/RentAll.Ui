@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
 import { Subject, filter, map, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
@@ -20,6 +21,10 @@ import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/w
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
 import { ReceiptPrefill, ReceiptResponse, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { CreditReportComponent } from '../../accounting/vendors/credit-report/credit-report.component';
+import { RentRollComponent } from '../../accounting/vendors/rent-roll/rent-roll.component';
+import { RentRollCreateBillRequest } from '../../accounting/models/rent-roll.model';
+import { RentRollBillService, RentRollCreateBillQueue } from '../../accounting/services/rent-roll-bill.service';
+import { UserGroups } from '../../users/models/user-enums';
 import { CreditReportLineEdit } from '../../accounting/vendors/credit-report/credit-report.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ReceiptComponent } from '../receipt/receipt.component';
@@ -28,7 +33,7 @@ import { WorkOrderComponent } from '../work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../work-order-create/work-order-create.component';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { WorkOrderPreviewSelection, WorkOrderResponse } from '../models/work-order.model';
-import { isInspectorOnlyUser } from '../../shared/access/role-access';
+import { hasAccountingNavAccess, isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { UserReceiptDraftNoticeService } from '../services/user-receipt-draft-notice.service';
@@ -50,6 +55,7 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     ReceiptComponent,
     ReceiptDraftComponent,
     CreditReportComponent,
+    RentRollComponent,
     WorkOrderComponent,
     WorkOrderCreateComponent,
     MaintenanceComponent
@@ -70,6 +76,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private cdr = inject(ChangeDetectorRef);
   private dashboardNavigation = inject(DashboardNavigationService);
+  private rentRollBillService = inject(RentRollBillService);
+  private toastr = inject(ToastrService);
 
   property: PropertyResponse | null = null;
   routePropertyId: string | null = null;
@@ -154,6 +162,19 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   creditReportEditingLineKey: string | null = null;
   creditReportEditorInstance = 0;
 
+  showRentRollTab = false;
+  rentRollRefreshTrigger = 0;
+  rentRollSearchDateRange: { startDate: string | null; endDate: string | null } = { startDate: null, endDate: null };
+  showRentRollBillDetail = false;
+  rentRollBillReceiptId: string | null = null;
+  rentRollBillProperty: PropertyResponse | null = null;
+  rentRollBillPrefill: ReceiptPrefill | null = null;
+  rentRollBillAgreementLineId: number | null = null;
+  rentRollBillAgreementLineNotes: string | null = null;
+  rentRollBillDetailInstance = 0;
+  rentRollCreateQueue = new RentRollCreateBillQueue();
+  ignoreNextRentRollBillBackEvent = false;
+
   @ViewChild(CreditReportComponent) creditReport?: CreditReportComponent;
 
   private readonly clearPinsEventName = 'rentall-clear-pins';
@@ -200,6 +221,8 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
     this.isInspectorView = isInspectorOnlyUser(this.authService.getUser()?.userGroups as Array<string | number> | undefined);
     this.showWorkOrdersTab = !this.isInspectorView;
+    const userGroups = this.authService.getUser()?.userGroups as Array<string | number> | undefined;
+    this.showRentRollTab = hasAccountingNavAccess(userGroups) || this.authService.hasRole(UserGroups.RentRollAdmin);
     this.inspectorPropertyIds = new Set(
       (this.authService.getUser()?.properties || [])
         .map(propertyId => propertyId.trim().toLowerCase())
@@ -403,6 +426,18 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
     return 2;
   }
 
+  get rentRollTabIndex(): number {
+    return this.showWorkOrdersTab ? 4 : 3;
+  }
+
+  get isRentRollTabActive(): boolean {
+    return this.showRentRollTab && this.selectedTabIndex === this.rentRollTabIndex;
+  }
+
+  get isRentRollBillDetailActive(): boolean {
+    return this.isRentRollTabActive && this.showRentRollBillDetail;
+  }
+
   get showTitleBarReservationDropdown(): boolean {
     if (!this.property) {
       return false;
@@ -496,6 +531,7 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       || this.isReceiptDraftDetailActive
       || this.isWorkOrderDetailActive
       || this.isWorkOrderCreateActive
+      || this.isRentRollBillDetailActive
       || this.hasDashboardReturn;
   }
 
@@ -796,6 +832,13 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
       return;
     }
 
+    if (this.isRentRollTabActive) {
+      if (!this.showRentRollBillDetail) {
+        this.rentRollRefreshTrigger++;
+      }
+      return;
+    }
+
     if (this.isPropertyScopedTab()) {
       this.ensurePropertyScopedTabLoaded(options?.forcePropertyReload === true);
     }
@@ -844,6 +887,9 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
 
   isReceiptsOrWorkOrdersListTab(): boolean {
     if (this.selectedTabIndex === this.receiptsTabIndex && !this.showReceiptDetail && !this.showReceiptDraftDetail) {
+      return true;
+    }
+    if (this.isRentRollTabActive && !this.showRentRollBillDetail) {
       return true;
     }
     return this.showWorkOrdersTab
@@ -1011,7 +1057,9 @@ applyPageOfficeChangeEffects(): void {
         return;
       }
 
-      if (nextTabIndex === this.receiptsTabIndex || nextTabIndex === this.workOrdersTabIndex) {
+      if (nextTabIndex === this.receiptsTabIndex
+        || nextTabIndex === this.workOrdersTabIndex
+        || (this.showRentRollTab && nextTabIndex === this.rentRollTabIndex)) {
         this.clearPropertyForListTab();
         this.skipNextOfficeChange = true;
         this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
@@ -1432,6 +1480,10 @@ applyPageOfficeChangeEffects(): void {
       this.onWorkOrderBack();
       return;
     }
+    if (this.isRentRollBillDetailActive) {
+      this.onRentRollBillBack();
+      return;
+    }
     void this.back();
   }
 
@@ -1451,7 +1503,9 @@ applyPageOfficeChangeEffects(): void {
       return null;
     }
 
-    const maxTab = this.showWorkOrdersTab ? this.workOrdersTabIndex : this.receiptsTabIndex;
+    const maxTab = this.showRentRollTab
+      ? this.rentRollTabIndex
+      : (this.showWorkOrdersTab ? this.workOrdersTabIndex : this.receiptsTabIndex);
     if (tabParam > maxTab) {
       return maxTab;
     }
@@ -1459,6 +1513,141 @@ applyPageOfficeChangeEffects(): void {
     return tabParam;
   }
 
+  //#endregion
+
+  //#region Rent Roll
+  get hasActiveRentRollCreateQueue(): boolean {
+    return this.rentRollCreateQueue.isActive;
+  }
+
+  onRentRollCreateBill(request: RentRollCreateBillRequest): void {
+    this.startRentRollCreateQueue([request]);
+  }
+
+  onRentRollCreateBills(requests: RentRollCreateBillRequest[]): void {
+    const createRequests = Array.isArray(requests) ? requests : [];
+    if (createRequests.length === 0) {
+      this.toastr.warning('Select at least one rent roll row first.', 'Create Bills');
+      return;
+    }
+    this.startRentRollCreateQueue(createRequests);
+  }
+
+  startRentRollCreateQueue(requests: RentRollCreateBillRequest[]): void {
+    const firstRequest = this.rentRollCreateQueue.start(requests);
+    if (!firstRequest) {
+      this.toastr.warning('Select at least one rent roll row first.', 'Create Bills');
+      return;
+    }
+    this.openRentRollBillEditor(firstRequest);
+  }
+
+  clearRentRollCreateQueue(): void {
+    this.rentRollCreateQueue.clear();
+  }
+
+  openRentRollBillEditor(request: RentRollCreateBillRequest): void {
+    const editor = this.rentRollBillService.buildCreateBillEditorState(
+      request,
+      this.organizationId,
+      this.selectedOfficeId,
+      this.utilityService.formatDateOnlyForApi(this.endDate),
+      this.offices
+    );
+    const { propertyId, isCompanyProperty } = editor;
+    const editorPrefillKey = editor.prefill.key;
+
+    this.rentRollBillReceiptId = 'new';
+    this.rentRollBillProperty = editor.property;
+    this.rentRollBillPrefill = editor.prefill;
+    this.rentRollBillAgreementLineId = editor.agreementLineId;
+    this.rentRollBillAgreementLineNotes = editor.agreementLineNotes;
+    this.rentRollBillDetailInstance++;
+    this.showRentRollBillDetail = true;
+    this.cdr.markForCheck();
+
+    if (!propertyId || isCompanyProperty) {
+      return;
+    }
+
+    this.propertyService.getPropertyByGuid(propertyId).pipe(take(1)).subscribe({
+      next: loadedProperty => {
+        if (!this.showRentRollBillDetail || this.rentRollBillPrefill?.key !== editorPrefillKey) {
+          return;
+        }
+        this.rentRollBillProperty = loadedProperty;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        // Keep the stub property in place if full property lookup fails.
+      }
+    });
+  }
+
+  async onRentRollOpenBill(selection: ReceiptSelection): Promise<void> {
+    const receiptId = (selection?.receiptId || '').trim();
+    if (!receiptId) {
+      return;
+    }
+    if (await this.rentRollBillService.ensureAgreementLineLink(selection)) {
+      this.rentRollRefreshTrigger++;
+    }
+
+    this.rentRollBillReceiptId = receiptId;
+    this.rentRollBillProperty = this.rentRollBillService.buildOpenBillProperty(
+      selection,
+      this.organizationId,
+      this.normalizeOfficeId(selection?.officeId ?? this.selectedOfficeId),
+      this.offices,
+      id => this.allProperties.find(item => item.propertyId === id)?.propertyCode
+    );
+    this.rentRollBillPrefill = null;
+    this.rentRollBillAgreementLineId = this.rentRollBillService.toAgreementLineId(selection?.agreementLineId);
+    this.rentRollBillAgreementLineNotes = (selection?.notes || '').trim() || null;
+    this.rentRollBillDetailInstance++;
+    this.showRentRollBillDetail = true;
+    this.cdr.markForCheck();
+  }
+
+  onRentRollBillBack(): void {
+    if (this.ignoreNextRentRollBillBackEvent) {
+      this.ignoreNextRentRollBillBackEvent = false;
+      return;
+    }
+    if (this.hasActiveRentRollCreateQueue) {
+      this.clearRentRollCreateQueue();
+    }
+    this.showRentRollBillDetail = false;
+    this.rentRollBillReceiptId = null;
+    this.rentRollBillProperty = null;
+    this.rentRollBillPrefill = null;
+    this.rentRollBillAgreementLineId = null;
+    this.rentRollBillAgreementLineNotes = null;
+    this.rentRollRefreshTrigger++;
+    this.cdr.markForCheck();
+  }
+
+  onRentRollBillSaved(): void {
+    if (this.hasActiveRentRollCreateQueue) {
+      const nextRequest = this.rentRollCreateQueue.recordSavedAndAdvance();
+      if (nextRequest) {
+        // Receipt can still emit backEvent around savedEvent in embedded shell mode.
+        // Ignore that single back event so queue mode stays in bill detail.
+        this.ignoreNextRentRollBillBackEvent = true;
+        this.openRentRollBillEditor(nextRequest);
+        return;
+      }
+
+      const totalCount = this.rentRollCreateQueue.total;
+      const createdCount = this.rentRollCreateQueue.savedCount;
+      this.clearRentRollCreateQueue();
+      this.onRentRollBillBack();
+      this.toastr.success(`Created ${createdCount} of ${totalCount} selected bill${totalCount === 1 ? '' : 's'}.`, 'Create Bills');
+      return;
+    }
+
+    this.onRentRollBillBack();
+  }
   //#endregion
 
   //#region Navigation Methods
@@ -1566,6 +1755,9 @@ applyPageOfficeChangeEffects(): void {
     if (this.showWorkOrdersTab && this.selectedTabIndex === this.workOrdersTabIndex) {
       this.refreshWorkOrdersTrigger++;
     }
+    if (this.isRentRollTabActive && !this.showRentRollBillDetail) {
+      this.rentRollRefreshTrigger++;
+    }
   }
 
   syncMaintenanceSearchRequests(): void {
@@ -1587,6 +1779,10 @@ applyPageOfficeChangeEffects(): void {
       startDate,
       endDate
     };
+
+    if (this.rentRollSearchDateRange.startDate !== startDate || this.rentRollSearchDateRange.endDate !== endDate) {
+      this.rentRollSearchDateRange = { startDate, endDate };
+    }
   }
 
   /** When title bar is All Offices (null), send every loaded office id — same as documents-shell. */

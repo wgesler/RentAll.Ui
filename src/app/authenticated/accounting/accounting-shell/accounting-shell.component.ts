@@ -27,7 +27,6 @@ import { UserGroups } from '../../users/models/user-enums';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { MaintenanceListSearchRequest } from '../../maintenance/models/maintenance-search.model';
-import { ReceiptType } from '../../maintenance/models/maintenance-enums';
 import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
@@ -88,6 +87,7 @@ import { ReconcileAccountReportContext } from '../models/reconcile-account-repor
 import { ReconcileService } from '../services/reconcile.service';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
+import { RentRollBillService, RentRollCreateBillQueue } from '../services/rent-roll-bill.service';
 import { CostCodesService } from '../services/cost-codes.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
@@ -215,6 +215,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   private securityDepositService = inject(SecurityDepositService);
   private reservationService = inject(ReservationService);
   private receiptService = inject(ReceiptService);
+  private rentRollBillService = inject(RentRollBillService);
   private workOrderService = inject(WorkOrderService);
   private invoiceService = inject(InvoiceService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
@@ -350,9 +351,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   billsReceiptAgreementLineNotes: string | null = null;
   billsReceiptAutoSaveAttemptToken = 0;
   billsReceiptDetailInstance = 0;
-  rentRollCreateQueue: RentRollCreateBillRequest[] = [];
-  rentRollCreateQueueIndex = -1;
-  rentRollCreateQueueSavedCount = 0;
+  rentRollCreateQueue = new RentRollCreateBillQueue();
   ignoreNextBillsReceiptBackEvent = false;
   isRentRollCreateTransitioning = false;
   rentRollTransitionUnlockTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1338,19 +1337,13 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.selectedBillsPropertyId = propertyId;
     this.syncBillsSearchRequest();
 
-    const propertyStub = this.buildBillsReceiptPropertyStub(resolvedOfficeId);
-    if (propertyId) {
-      propertyStub.propertyId = propertyId;
-      const cachedProperty = this.glProperties.find(property => property.propertyId === propertyId);
-      if (cachedProperty?.propertyCode) {
-        propertyStub.propertyCode = cachedProperty.propertyCode;
-      }
-    } else if (
-      isReceiptCompanyPropertyId(selection?.propertyId)
-      || (selection?.receipt?.propertyIds || []).some(id => isReceiptCompanyPropertyId(id))
-    ) {
-      propertyStub.propertyCode = 'Company';
-    }
+    const propertyStub = this.rentRollBillService.buildOpenBillProperty(
+      selection,
+      this.organizationId,
+      resolvedOfficeId,
+      this.offices,
+      id => this.glProperties.find(property => property.propertyId === id)?.propertyCode
+    );
 
     this.selectedTabIndex = this.tabBillsReceipts;
     this.selectedBillsReceiptKind = 'bills';
@@ -1358,7 +1351,7 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.resetBillsReceiptsWorkOrderDetailState();
     this.clearBillsReceiptsWorkOrderReturnContext();
     this.billsReceiptProperty = propertyStub;
-    this.billsReceiptAgreementLineId = this.toAgreementLineId(selection?.agreementLineId);
+    this.billsReceiptAgreementLineId = this.rentRollBillService.toAgreementLineId(selection?.agreementLineId);
     this.billsReceiptAgreementLineNotes = (selection?.notes || '').trim() || null;
     this.billsReceiptAutoSaveAttemptToken = selection?.autoSaveValidationAttempt ? Date.now() : 0;
     const reopeningBillsReceiptAdd = receiptId === 'new'
@@ -1419,20 +1412,19 @@ hydrateSelectedInvoiceForActiveId(): void {
 
   onBillsReceiptSaved(): void {
     if (this.billsReceiptOrigin === 'rentRoll' && this.hasActiveRentRollCreateQueue) {
-      this.rentRollCreateQueueSavedCount++;
+      const nextRequest = this.rentRollCreateQueue.recordSavedAndAdvance();
       this.onJournalEntriesChanged();
-      this.rentRollCreateQueueIndex++;
-      if (this.rentRollCreateQueueIndex < this.rentRollCreateQueue.length) {
+      if (nextRequest) {
         // Receipt can still emit backEvent around savedEvent in embedded shell mode.
         // Ignore that single back event so queue mode stays in bill detail.
         this.ignoreNextBillsReceiptBackEvent = true;
         this.activateRentRollTransitionLock();
-        this.openRentRollBillEditor(this.rentRollCreateQueue[this.rentRollCreateQueueIndex]);
+        this.openRentRollBillEditor(nextRequest);
         return;
       }
 
-      const totalCount = this.rentRollCreateQueue.length;
-      const createdCount = this.rentRollCreateQueueSavedCount;
+      const totalCount = this.rentRollCreateQueue.total;
+      const createdCount = this.rentRollCreateQueue.savedCount;
       this.clearRentRollCreateQueue();
       this.onBillsReceiptBack();
       this.toastr.success(`Created ${createdCount} of ${totalCount} selected bill${totalCount === 1 ? '' : 's'}.`, 'Create Bills');
@@ -1465,66 +1457,38 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   openRentRollBillEditor(request: RentRollCreateBillRequest): void {
-    const propertyId = (request.propertyId || '').trim();
-    const isCompanyProperty = isReceiptCompanyPropertyId(propertyId);
-    const officeId = request.officeId ?? this.selectedOfficeId ?? null;
-    const resolvedOfficeId = officeId != null && Number.isFinite(Number(officeId)) && Number(officeId) > 0
-      ? Number(officeId)
+    const requestOfficeId = request.officeId != null && Number.isFinite(Number(request.officeId)) && Number(request.officeId) > 0
+      ? Number(request.officeId)
       : null;
-    if (resolvedOfficeId != null && this.selectedOfficeId !== resolvedOfficeId) {
-      this.selectedOfficeId = resolvedOfficeId;
+    if (requestOfficeId != null && this.selectedOfficeId !== requestOfficeId) {
+      this.selectedOfficeId = requestOfficeId;
       this.selectedCompanyId = null;
       this.selectedReservationId = null;
       this.refreshBillsPropertyOptions();
       this.persistPinnedTopBarIfActive();
     }
-    const billDate = request.billDate || this.utilityService.formatDateOnlyForApi(this.endDate) || this.utilityService.formatDateOnlyForApi(new Date());
-    const dueDate = request.dueDate || billDate;
-    const editorPrefillKey = `${request.agreementLineId || 'line'}-${Date.now()}`;
+    const editor = this.rentRollBillService.buildCreateBillEditorState(
+      request,
+      this.organizationId,
+      this.selectedOfficeId,
+      this.utilityService.formatDateOnlyForApi(this.endDate),
+      this.offices
+    );
+    const { propertyId, isCompanyProperty } = editor;
+    const editorPrefillKey = editor.prefill.key;
     this.selectedBillsPropertyId = isCompanyProperty ? null : (propertyId || null);
     this.syncBillsSearchRequest();
-    const openBillEditor = (property: PropertyResponse | null) => {
-      this.selectedTabIndex = this.tabBillsReceipts;
-      this.selectedBillsReceiptKind = 'bills';
-      this.billsReceiptOrigin = 'rentRoll';
-      this.selectedBillsReceiptId = 'new';
-      this.billsReceiptProperty = property;
-      this.billsReceiptPrefill = {
-        key: editorPrefillKey,
-        officeId: resolvedOfficeId ?? officeId,
-        propertyIds: propertyId ? [propertyId] : [],
-        agreementLineId: this.toAgreementLineId(request.agreementLineId),
-        agreementLineNotes: (request.notes || '').trim() || null,
-        receiptDate: billDate,
-        dueDate,
-        accountingPeriod: billDate,
-        description: (request.description || '').trim(),
-        amount: Number(request.amount || 0),
-        bankCardId: 0,
-        vendorId: request.vendorId,
-        vendorName: request.vendorName,
-        split: {
-          amount: Number(request.amount || 0),
-          description: (request.description || '').trim(),
-          receiptTypeId: isReceiptCompanyPropertyId(propertyId) ? ReceiptType.Company : ReceiptType.Owner,
-          chartOfAccountId: request.chartOfAccountId
-        },
-        businessPrivate: isCompanyProperty
-      };
-      this.billsReceiptAgreementLineId = this.toAgreementLineId(request.agreementLineId);
-      this.billsReceiptAgreementLineNotes = (request.notes || '').trim() || null;
-      this.billsReceiptAutoSaveAttemptToken = 0;
-      this.showBillsReceiptDetail = true;
-    };
 
-    const initialProperty = this.buildBillsReceiptPropertyStub(resolvedOfficeId ?? officeId);
-    if (isCompanyProperty) {
-      initialProperty.propertyId = propertyId;
-      initialProperty.propertyCode = 'Company';
-    } else if (propertyId) {
-      initialProperty.propertyId = propertyId;
-    }
-    openBillEditor(initialProperty);
+    this.selectedTabIndex = this.tabBillsReceipts;
+    this.selectedBillsReceiptKind = 'bills';
+    this.billsReceiptOrigin = 'rentRoll';
+    this.selectedBillsReceiptId = 'new';
+    this.billsReceiptProperty = editor.property;
+    this.billsReceiptPrefill = editor.prefill;
+    this.billsReceiptAgreementLineId = editor.agreementLineId;
+    this.billsReceiptAgreementLineNotes = editor.agreementLineNotes;
+    this.billsReceiptAutoSaveAttemptToken = 0;
+    this.showBillsReceiptDetail = true;
 
     if (!propertyId || isCompanyProperty) {
       return;
@@ -1548,7 +1512,10 @@ hydrateSelectedInvoiceForActiveId(): void {
     if (!receiptId) {
       return;
     }
-    await this.ensureRentRollBillAgreementLineLink(selection);
+    if (await this.rentRollBillService.ensureAgreementLineLink(selection)) {
+      this.billsRefreshTrigger++;
+      this.rentRollRefreshTrigger++;
+    }
     this.onBillsReceiptSelect(selection, 'rentRoll');
   }
 
@@ -1562,26 +1529,21 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   get hasActiveRentRollCreateQueue(): boolean {
-    return this.rentRollCreateQueueIndex >= 0 && this.rentRollCreateQueueIndex < this.rentRollCreateQueue.length;
+    return this.rentRollCreateQueue.isActive;
   }
 
   startRentRollCreateQueue(requests: RentRollCreateBillRequest[]): void {
-    const queue = (requests || []).filter(request => !!request);
-    if (queue.length === 0) {
+    const firstRequest = this.rentRollCreateQueue.start(requests);
+    if (!firstRequest) {
       this.toastr.warning('Select at least one rent roll row first.', 'Create Bills');
       return;
     }
-    this.rentRollCreateQueue = queue;
-    this.rentRollCreateQueueIndex = 0;
-    this.rentRollCreateQueueSavedCount = 0;
     this.activateRentRollTransitionLock();
-    this.openRentRollBillEditor(queue[0]);
+    this.openRentRollBillEditor(firstRequest);
   }
 
   clearRentRollCreateQueue(): void {
-    this.rentRollCreateQueue = [];
-    this.rentRollCreateQueueIndex = -1;
-    this.rentRollCreateQueueSavedCount = 0;
+    this.rentRollCreateQueue.clear();
   }
 
   activateRentRollTransitionLock(): void {
@@ -1655,7 +1617,7 @@ hydrateSelectedInvoiceForActiveId(): void {
       organizationId,
       officeId,
       propertyIds: [propertyId],
-      agreementLineId: this.toAgreementLineId(request.agreementLineId),
+      agreementLineId: this.rentRollBillService.toAgreementLineId(request.agreementLineId),
       receiptDate: billDate,
       dueDate,
       accountingPeriod: billDate,
@@ -1680,62 +1642,6 @@ hydrateSelectedInvoiceForActiveId(): void {
       businessPrivate: isReceiptCompanyPropertyId(propertyId),
       isActive: true
       };
-  }
-
-  toAgreementLineId(value: string | number | null | undefined): number | null {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return null;
-    }
-    return Math.trunc(parsed);
-  }
-
-  async ensureRentRollBillAgreementLineLink(selection: ReceiptSelection): Promise<void> {
-    const receiptId = (selection?.receiptId || '').trim();
-    const agreementLineId = this.toAgreementLineId(selection?.agreementLineId);
-    const notes = (selection?.notes || '').trim();
-    if (!receiptId || !agreementLineId || !notes) {
-      return;
-    }
-    try {
-      const receipt = await firstValueFrom(this.receiptService.getReceiptById(receiptId));
-      if (this.toAgreementLineId(receipt?.agreementLineId)) {
-        return;
-      }
-      const updateRequest: ReceiptRequest = {
-        receiptId: receipt.receiptId,
-        organizationId: receipt.organizationId,
-        officeId: receipt.officeId,
-        propertyIds: [...(receipt.propertyIds || [])],
-        agreementLineId,
-        receiptDate: receipt.receiptDate,
-        dueDate: receipt.dueDate,
-        accountingPeriod: receipt.accountingPeriod,
-        billNumber: receipt.billNumber ?? null,
-        ticketId: receipt.ticketId || '',
-        amount: Number(receipt.amount || 0),
-        paidAmount: Number(receipt.paidAmount || 0),
-        paidDate: receipt.paidDate ?? null,
-        description: (receipt.description || '').trim(),
-        bankCardId: receipt.bankCardId ?? null,
-        vendorId: receipt.vendorId ?? null,
-        vendorName: receipt.vendorName ?? null,
-        splits: [...(receipt.splits || [])],
-        receiptPath: receipt.receiptPath ?? null,
-        noReceiptAvailable: receipt.noReceiptAvailable === true,
-        fileDetails: null,
-        paymentTypeId: Number(receipt.paymentTypeId || 0),
-        checkPrinted: !!receipt.checkPrinted,
-        isUtility: !!receipt.isUtility,
-        businessPrivate: !!receipt.businessPrivate,
-        isActive: !!receipt.isActive
-      };
-      await firstValueFrom(this.receiptService.updateReceipt(updateRequest));
-      this.billsRefreshTrigger++;
-      this.rentRollRefreshTrigger++;
-    } catch {
-      // Do not block opening the bill editor if this background link fails.
-    }
   }
 
   onPreBillingInvoicesCreated(): void {
@@ -2371,16 +2277,7 @@ hydrateSelectedInvoiceForActiveId(): void {
   }
 
   buildBillsReceiptPropertyStub(officeId: number | null): PropertyResponse {
-    const resolvedOfficeId = officeId ?? 0;
-    const officeName = this.offices.find(office => office.officeId === resolvedOfficeId)?.name ?? '';
-    return {
-      propertyId: '',
-      organizationId: this.organizationId,
-      propertyCode: '',
-      officeId: resolvedOfficeId,
-      officeName,
-      isActive: true
-    } as PropertyResponse;
+    return this.rentRollBillService.buildPropertyStub(this.organizationId, officeId, this.offices);
   }
 
   onOwnersUtilityReceiptSelect(selection: ReceiptSelection): void {

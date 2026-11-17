@@ -317,6 +317,36 @@
               }
             </mat-tab>
           }
+          @if (showRentRollTab) {
+            <mat-tab label="Rent Roll">
+              @if (isRentRollTabActive) {
+                @if (showRentRollBillDetail) {
+                  @for (instance of [rentRollBillDetailInstance]; track instance) {
+                    <app-receipt
+                      [property]="rentRollBillProperty"
+                      [receiptId]="rentRollBillReceiptId"
+                      [prefill]="rentRollBillPrefill"
+                      [agreementLineIdOverride]="rentRollBillAgreementLineId"
+                      [agreementLineNotesOverride]="rentRollBillAgreementLineNotes"
+                      [autoBackOnSave]="false"
+                      [officeId]="selectedOfficeId"
+                      [shellContext]="'accounting'"
+                      (backEvent)="onRentRollBillBack()"
+                      (savedEvent)="onRentRollBillSaved()" />
+                  }
+                } @else {
+                  <app-rent-roll
+                    [officeId]="selectedOfficeId"
+                    [searchDateRange]="rentRollSearchDateRange"
+                    [refreshTrigger]="rentRollRefreshTrigger"
+                    (createBill)="onRentRollCreateBill($event)"
+                    (createBills)="onRentRollCreateBills($event)"
+                    (openBill)="onRentRollOpenBill($event)">
+                  </app-rent-roll>
+                }
+              }
+            </mat-tab>
+          }
         </mat-tab-group>
       </mat-card>
     </section>
