@@ -577,7 +577,7 @@ onWorkOrderIdChanged(): void {
   }
 
   continueWorkOrderSave(saveWorkOrder: () => void): void {
-    this.journalEntryService.confirmUpdateIfAllowed(this.workOrder?.postingStatusId, 'Work Order').pipe(take(1)).subscribe(canProceed => {
+    this.journalEntryService.confirmUpdateIfAllowed(this.workOrder?.postingStatusId).pipe(take(1)).subscribe(canProceed => {
       this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.workOrder?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         this.pendingSaveAndNew = false;

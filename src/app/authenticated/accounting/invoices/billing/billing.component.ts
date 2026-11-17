@@ -5,7 +5,7 @@ import { FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFo
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -258,7 +258,6 @@ export class BillingComponent implements OnInit, OnDestroy {
     }
 
     const formValue = this.form.getRawValue();
-    const user = this.authService.getUser();
 
     this.moveFeeLinesBeforePayments();
     this.recomputeLedgerLineNumbers();
@@ -361,7 +360,7 @@ export class BillingComponent implements OnInit, OnDestroy {
         }
 
         this.toastr.warning('Saved successfully, but response did not include invoiceId. Returning to Billing list.', 'Missing invoice id');
-        this.navigateBack(formValue);
+        this.navigateBack();
       },
       error: (err: HttpErrorResponse) => {
         const closedDocumentMessage = this.utilityService.handleClosedDocumentSaveFailure(err, () => this.restoreDocumentAfterClosedSaveFailure());
@@ -383,7 +382,6 @@ export class BillingComponent implements OnInit, OnDestroy {
   //#region Form methods
   buildForm(): void {
     this.ledgerLineDatesFormArray = this.fb.array<FormControl<Date | null>>([]);
-    const user = this.authService.getUser();
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of day for consistency
     
@@ -689,7 +687,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       return;
     }
     
-    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
+    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes);
     this.syncLedgerLineDatesFormArray();
     this.recomputeLedgerLineNumbers();
     this.ledgerLines.forEach(line => {
@@ -1111,7 +1109,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.invoiceService.getBillingMonthlyLedgerLines(request).pipe(take(1)).subscribe({
       next: (response: BillingMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || [];
-        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes, this.transactionTypes);
+        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.billingCostCodes);
     this.syncLedgerLineDatesFormArray();
         this.recomputeLedgerLineNumbers();
         this.normalizePaymentLineSigns();
@@ -1238,7 +1236,7 @@ recomputeLedgerLineNumbers(): void {
     return null;
   }
 
-  navigateBack(formValue: any): void {
+  navigateBack(): void {
     if (this.shellMode) {
       this.backEvent.emit();
       return;
@@ -1253,7 +1251,7 @@ recomputeLedgerLineNumbers(): void {
 
   navigateToBillingCreate(invoiceToUse: InvoiceResponse | null | undefined, formValue?: any): void {
     if (!invoiceToUse?.invoiceId) {
-      this.navigateBack(formValue || this.form?.getRawValue() || {});
+      this.navigateBack();
       return;
     }
 

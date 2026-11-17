@@ -10,8 +10,6 @@ import { BehaviorSubject, finalize, Observable, Subject, of, take, takeUntil, sw
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
-import { DocumentExportService } from '../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -19,9 +17,7 @@ import { ContactResponse } from '../../contacts/models/contact.model';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
-import { DocumentService } from '../../documents/services/document.service';
 import { EmailType } from '../../email/models/email.enum';
-import { EmailService } from '../../email/services/email.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { TerminologyService } from '../../organizations/services/terminology.service';
@@ -812,11 +808,6 @@ tryLoadPropertyByLeadOwnerCode(): void {
     const today = this.formatterService.formatDateStringLong(this.utilityService.todayAsCalendarDateString()) || '';
     const agreementStartDate = this.getAgreementStartDate();
     const signerName = `${this.authService.getUser()?.firstName || ''} ${this.authService.getUser()?.lastName || ''}`.trim();
-    const logoOfficeId = Number(this.selectedProperty?.officeId || this.selectedOffice?.officeId || this.officeId || 0);
-    const selectedAccountingOffice = Number.isFinite(logoOfficeId) && logoOfficeId > 0
-      ? this.accountingOffices.find(accounting => accounting.officeId === logoOfficeId) || null
-      : null;
-    const accountingOfficeLogo = this.getFileDetailsDataUrl(selectedAccountingOffice?.fileDetails);
     const selectedOfficeLogo = this.getFileDetailsDataUrl(this.selectedOffice?.fileDetails);
     const organizationLogo = this.getFileDetailsDataUrl(this.organization?.fileDetails);
     const officeLogo = this.getAccountingOfficeLogoDataUrl()

@@ -2,7 +2,6 @@ import { Component, OnDestroy, OnInit, inject, ChangeDetectorRef } from '@angula
 import { NavigationEnd, NavigationStart, Router, RouterOutlet } from '@angular/router';
 import { RouterToken } from './app.routes.tokens';
 import { teardownCdkOverlayStateAfterPaint } from './shared/utils/cdk-overlay.util';
-import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ChartOfAccountsService } from './authenticated/accounting/services/chart-of-accounts.service';
 import { CostCodesService } from './authenticated/accounting/services/cost-codes.service';
@@ -66,7 +65,6 @@ export class AppComponent implements OnInit, OnDestroy {
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
   private router = inject(Router);
-  private toastr = inject(ToastrService);
   private appDeployVersionService = inject(AppDeployVersionService);
 
   title = 'RentAll.Ui';

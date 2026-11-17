@@ -19,7 +19,6 @@ import { Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
 import { ChecklistIssuesDialogData } from '../../maintenance/inspection/dialog-checklist-issues.component';
 import { InspectionComponent } from '../../maintenance/inspection/inspection.component';
-import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';

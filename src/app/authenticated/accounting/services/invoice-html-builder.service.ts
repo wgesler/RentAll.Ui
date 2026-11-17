@@ -393,8 +393,8 @@ export class InvoiceHtmlBuilderService {
     const blocks = contacts.map(contact => {
       const pContact = ctx.contacts.find(c => c.contactId === ctx.reservation.companyId) ?? contact;
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(ctx.reservation, pContact));
-      const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(ctx.reservation, pContact);
-      const responsiblePartyAddress2Raw = this.utilityService.getResponsiblePartyAddress2(ctx.reservation, pContact);
+      const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(pContact);
+      const responsiblePartyAddress2Raw = this.utilityService.getResponsiblePartyAddress2(pContact);
       const responsiblePartyAddress1 = this.escapeHtml(responsiblePartyAddress1Raw);
       const responsiblePartyAddress2 = this.escapeHtml(responsiblePartyAddress2Raw);
       const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');

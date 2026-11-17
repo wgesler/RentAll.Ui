@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { MatDialog } from '@angular/material/dialog';
-import {BehaviorSubject, Subject, catchError, concatMap, filter, finalize, from, map, of, skip, switchMap, take, takeUntil, toArray} from 'rxjs';
+import {BehaviorSubject, Subject, catchError, concatMap, finalize, from, map, of, skip, switchMap, take, takeUntil, toArray} from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -426,7 +426,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     const mapped = this.mappingService.mapCostCodes(
       filtered,
       this.offices,
-      this.transactionTypes,
       this.allChartOfAccounts
     );
     this.costCodesDisplay = mapped;

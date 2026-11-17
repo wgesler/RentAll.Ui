@@ -2,17 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { AlertGetRequest, AlertRequest, AlertResponse } from '../models/alert.model';
-
-/** Body for POST email/alert/search — matches API GetAlertDto. */
-interface GetAlertsApiDto {
-  officeIds: number[];
-  propertyId?: string | null;
-  reservationId?: string | null;
-  isActive?: boolean | null;
-  startDate?: string | null;
-  endDate?: string | null;
-}
+import { AlertRequest, AlertResponse } from '../models/alert.model';
 
 @Injectable({
   providedIn: 'root'
@@ -22,23 +12,6 @@ export class AlertService {
   private configService = inject(ConfigService);
 
   private readonly controller = this.configService.config().apiUrl + 'email/alert/';
-
-  searchAlerts(request: AlertGetRequest): Observable<AlertResponse[]> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to load alerts.');
-    }
-
-    const body: GetAlertsApiDto = {
-      officeIds,
-      propertyId: request.propertyId ?? null,
-      reservationId: request.reservationId ?? null,
-      isActive: request.isActive ?? null,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null
-    };
-    return this.http.post<AlertResponse[]>(`${this.controller}search`, body);
-  }
 
   getAlerts(): Observable<AlertResponse[]> {
     return this.http.get<AlertResponse[]>(this.controller);

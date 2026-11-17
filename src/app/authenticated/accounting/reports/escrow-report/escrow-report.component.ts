@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, firstValueFrom, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
-import { AuthService } from '../../../../services/auth.service';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
@@ -166,7 +165,7 @@ export class EscrowReportComponent extends BaseDocumentComponent implements OnIn
     amount: number,
     propertyId?: string | null
   ): void {
-    if (!this.canDrillDownAmount(metric, amount)) {
+    if (!this.canDrillDownAmount(amount)) {
       return;
     }
 
@@ -177,7 +176,7 @@ export class EscrowReportComponent extends BaseDocumentComponent implements OnIn
     });
   }
 
-  canDrillDownAmount(metric: EscrowReportDrillDownMetric, amount: number): boolean {
+  canDrillDownAmount(amount: number): boolean {
     return Math.abs(Number(amount) || 0) > 0.005;
   }
 

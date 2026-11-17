@@ -1,5 +1,3 @@
-import { OwnerCashReportResponse } from './owner-report.model';
-
 export interface OwnerStatementSearchRequest {
   officeIds: number[];
   propertyId?: string | null;

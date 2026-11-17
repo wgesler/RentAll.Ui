@@ -3,9 +3,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, filter, finalize, forkJoin, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -31,7 +31,6 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
   colorService = inject(ColorService);
   router = inject(Router);
   fb = inject(FormBuilder);
-  private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private utilityService = inject(UtilityService);
@@ -119,7 +118,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
         this.populateForm();
         this.loadCheckedInNoticeVariants();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'color');
       }
@@ -144,7 +143,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
 
     if (this.isAddMode) {
       this.colorService.createColor(colorRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: ColorResponse) => {
+        next: () => {
           this.toastr.success('Color created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();
@@ -167,7 +166,7 @@ export class ColorComponent implements OnInit, OnDestroy, OnChanges {
       }
 
       this.colorService.updateColor(colorRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: ColorResponse) => {
+        next: () => {
           this.toastr.success('Color updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();

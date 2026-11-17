@@ -103,10 +103,6 @@ export class TerminologyService {
     return this.http.get<TerminologyResponse>(this.controller + termId);
   }
 
-  getTerminologyByTerm(term: string, officeId: number): Observable<TerminologyResponse> {
-    return this.http.get<TerminologyResponse>(this.controller + 'by-term', { params: { term, officeId: String(officeId) } });
-  }
-
   createTerminology(terminology: TerminologyRequest): Observable<TerminologyResponse> {
     return this.refreshCacheAfterMutation(this.http.post<TerminologyResponse>(this.controller, terminology));
   }

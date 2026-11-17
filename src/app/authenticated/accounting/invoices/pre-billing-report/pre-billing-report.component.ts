@@ -230,7 +230,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
       const { organizationId: _organizationId, reservationId: _reservationId, ...invoiceWithoutIds } = invoice;
       const totalAmount = Number(invoice.totalAmount) || 0;
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
-      const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
+      const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice);
 
       return {
         ...invoiceWithoutIds,

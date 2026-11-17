@@ -227,7 +227,7 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
         ...invoiceWithoutIds
       } = invoice;
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
-      const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
+      const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice);
       const previewRow = buildInvoicePreviewListRowDisplay(invoice, this.formatter, this.utilityService, {
         rowKey,
         expanded: rowKey ? this.expandedRowKeys.has(rowKey) : false,

@@ -635,15 +635,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   //#endregion
 
   //#region Data Loading Methods
-  clearOwnerStatementDisplay(): void {
-    this.allLines = [];
-    this.lines = [];
-    this.selectedOwnerStatementLines = [];
-    this.customToBePaidByLineId.clear();
-    this.isServiceError = false;
-    this.markViewForCheck();
-  }
-
   loadOrganization(): void {
     const cachedOrganization = this.commonService.getOrganizationValue();
     if (cachedOrganization?.name) {

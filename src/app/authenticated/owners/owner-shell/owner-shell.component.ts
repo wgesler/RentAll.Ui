@@ -342,17 +342,6 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
     return [{ value: selectedOfficeId, label: resolvedOfficeName }, ...base];
   }
 
-  get selectedOfficeLabel(): string {
-    const selected = this.offices.find(office => office.officeId === this.selectedOfficeId);
-    if (selected) {
-      return String(selected.name || '').trim();
-    }
-    if (isOwnerUnauthorized(this.ownerAuthorization)) {
-      return this.tokenPropertyOffice || '';
-    }
-    return '';
-  }
-
   onOfficeDropdownChange(value: string | number | null): void {
     this.propertyContextLoaded = false;
     const officeId = value == null || value === '' ? null : Number(value);

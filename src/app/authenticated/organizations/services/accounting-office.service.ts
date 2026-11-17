@@ -110,10 +110,6 @@ export class AccountingOfficeService {
     this.refreshAccountingOffices().pipe(take(1)).subscribe();
   }
 
-  areAccountingOfficesLoaded(): Observable<boolean> {
-    return this.accountingOfficesLoaded$.asObservable();
-  }
-
   clearAccountingOffices(): void {
     this.accountingOfficesLoad$ = null;
     this.accountingOfficesLoadOrganizationId = null;

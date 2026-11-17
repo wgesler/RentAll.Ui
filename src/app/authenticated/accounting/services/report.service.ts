@@ -3,9 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { JournalEntryRecapSearchRequest, RecapReportResponse, TransferReportResponse, TransferReportSearchRequest } from '../models/journal-entry.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportSearchRequest, OwnerCashReportResponse, OwnerCashReportSearchRequest, OwnerReportJournalEntryLineResponse, OwnerReportJournalEntryLineSearchRequest, OwnerReportsBundleResponse } from '../models/owner-report.model';
-import { CloseOwnerStatementMonthRequest, CloseOwnerStatementMonthResult, OwnerInvoiceOutstandingResponse } from '../models/owner-statement.model';
+import { CloseOwnerStatementMonthRequest, CloseOwnerStatementMonthResult } from '../models/owner-statement.model';
 import { EscrowReportResult, EscrowReportSearchRequest, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
 
 @Injectable({
@@ -17,46 +16,6 @@ export class ReportService {
   private mappingService = inject(MappingService);
 
   private readonly controller = this.configService.config().apiUrl + 'report/';
-
-  searchJournalEntryRecap(request: JournalEntryRecapSearchRequest): Observable<RecapReportResponse> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to search journal entry recap.');
-    }
-
-    const body: Record<string, unknown> = {
-      officeIds,
-      propertyId: request.propertyId ?? null,
-      reservationId: request.reservationId ?? null,
-      includeUnposted: request.includeUnposted,
-      startDate: request.startDate || null,
-      endDate: request.endDate || null,
-      recapCategory: (request.recapCategory ?? '').trim() || ''
-    };
-
-    return this.http.post<RecapReportResponse>(`${this.controller}journal-entry-recap/search`, body).pipe(
-      map(report => this.mappingService.mapRecapReportResponse(report as unknown as Record<string, unknown>))
-    );
-  }
-
-  searchTransferReport(request: TransferReportSearchRequest): Observable<TransferReportResponse> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to search transfer report.');
-    }
-
-    const body: Record<string, unknown> = {
-      officeIds,
-      propertyId: request.propertyId ?? null,
-      reservationId: request.reservationId ?? null,
-      startDate: request.startDate || null,
-      endDate: request.endDate || null
-    };
-
-    return this.http.post<TransferReportResponse>(`${this.controller}transfer/search`, body).pipe(
-      map(report => this.mappingService.mapTransferReportResponse(report as unknown as Record<string, unknown>))
-    );
-  }
 
   searchOwnerCashReport(request: OwnerCashReportSearchRequest): Observable<OwnerCashReportResponse> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);
@@ -136,24 +95,6 @@ export class ReportService {
     };
 
     return this.http.post<CloseOwnerStatementMonthResult>(`${this.controller}owner-statement-list/close-month`, body);
-  }
-
-  searchOwnerInvoiceOutstanding(request: OwnerCashReportSearchRequest): Observable<OwnerInvoiceOutstandingResponse[]> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to search owner invoice outstanding rows.');
-    }
-
-    const body: Record<string, unknown> = {
-      officeIds,
-      propertyId: request.propertyId ?? null,
-      startDate: request.startDate || null,
-      endDate: request.endDate || null
-    };
-
-    return this.http.post<OwnerInvoiceOutstandingResponse[]>(`${this.controller}owner-invoice-outstanding/search`, body).pipe(
-      map(rows => this.mappingService.mapOwnerInvoiceOutstandingRows(rows))
-    );
   }
 
   searchEscrowReport(request: EscrowReportSearchRequest): Observable<EscrowReportResult> {

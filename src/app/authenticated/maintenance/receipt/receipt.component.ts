@@ -7,7 +7,7 @@ import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, Reacti
 import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
-import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { FileDetails } from '../../documents/models/document.model';
 import { FormatterService } from '../../../services/formatter-service';
 import { MaterialModule } from '../../../material.module';
@@ -415,7 +415,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   continueReceiptSave(saveReceipt: () => void): void {
-    this.journalEntryService.confirmUpdateIfAllowed(this.receipt?.postingStatusId, 'Receipt').pipe(take(1)).subscribe(canProceed => {
+    this.journalEntryService.confirmUpdateIfAllowed(this.receipt?.postingStatusId).pipe(take(1)).subscribe(canProceed => {
       this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.receipt?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         this.pendingSaveAndNew = false;
@@ -1704,15 +1704,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.form.get('dueDate')?.setValue(dueDate, { emitEvent: false });
   }
 
-  getDefaultBillAccountingPeriodFromReceiptDate(receiptDate: string | null | undefined): string | null {
-    const normalizedReceiptDate = this.normalizeReceiptDate(receiptDate);
-    if (!normalizedReceiptDate) {
-      return null;
-    }
-    const match = /^(\d{4})-(\d{2})/.exec(normalizedReceiptDate);
-    return match ? `${match[1]}-${match[2]}-01` : normalizedReceiptDate;
-  }
-
   normalizeReceiptDate(value: string | null | undefined): string | null {
     return this.utilityService.toDateOnlyJsonString(value);
   }
@@ -1943,10 +1934,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     this.manualSplitAccountIndexes.add(splitIndex);
   }
 
-  isSplitAccountManuallySet(splitIndex: number): boolean {
-    return this.manualSplitAccountIndexes.has(splitIndex);
-  }
-
   shiftManualSplitAccountIndexesAfterRemove(removedIndex: number): void {
     const nextManualSplitAccountIndexes = new Set<number>();
     this.manualSplitAccountIndexes.forEach(index => {
@@ -2172,11 +2159,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   resetExplicitPropertySelection(): void {
     this.headerPropertyExplicitlySelected = false;
     this.splitPropertyExplicitlySelected.clear();
-  }
-
-  onHeaderPropertySelectionChange(): void {
-    this.headerPropertyExplicitlySelected = true;
-    this.markViewForCheck();
   }
 
   onSplitPropertySelectionChange(splitIndex: number): void {
@@ -2433,10 +2415,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     return this.utilityService.isSplitTotalGreaterThanDocumentAmount(splitTotal, receiptAmount);
   }
  
-  haveSplitsChanged(nextSplits: Split[], currentSplits: Split[]): boolean {
-    return JSON.stringify(this.normalizeSplits(nextSplits)) !== JSON.stringify(this.normalizeSplits(currentSplits));
-  }
-
   normalizeSplits(splits: Split[]): Split[] {
     return (splits || []).map(split => {
       const chartOfAccountId = this.isNonExpenseReceiptType(split.receiptTypeId)
@@ -3128,15 +3106,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  havePropertyIdsChanged(nextPropertyIds: string[], currentPropertyIds: string[]): boolean {
-    const normalize = (ids: string[]) =>
-      (ids || [])
-        .map(id => (id || '').trim())
-        .filter(id => id.length > 0)
-        .sort();
-    return JSON.stringify(normalize(nextPropertyIds)) !== JSON.stringify(normalize(currentPropertyIds));
-  }
-
   getPropertyCodesDisplay(propertyIds: string[] | null | undefined): string {
     const ids = propertyIds || [];
     const hasCompany = ids.some(propertyId => isReceiptCompanyPropertyId(propertyId));
@@ -3694,10 +3663,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
       this.resetForm();
     }
     this.applyPrefillIfNeeded();
-  }
-
-  resetForNextEmbeddedPrefill(): void {
-    this.resetForm();
   }
 
   applyAgreementLineOverrides(): void {

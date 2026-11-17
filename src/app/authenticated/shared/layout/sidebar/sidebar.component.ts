@@ -14,7 +14,6 @@ import { SecurityDepositService } from '../../../accounting/services/security-de
 import { UserReceiptDraftNoticeService } from '../../../maintenance/services/user-receipt-draft-notice.service';
 import { ReservationEventsService } from '../../../reservations/services/reservation-events.service';
 import { OrganizationFeatureService } from '../../../organizations/services/organization-feature.service';
-import { UserGroups } from '../../../users/models/user-enums';
 import { SidebarStateService } from '../services/sidebar-state.service';
 import { SidebarAttentionService } from '../services/sidebar-attention.service';
 

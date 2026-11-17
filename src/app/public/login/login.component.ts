@@ -6,7 +6,6 @@ import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { finalize, map, of, switchMap, take } from 'rxjs';
 import { StorageKey } from '../../enums/storage-keys.enum';
-import { CommonMessage, CommonTimeouts } from '../../enums/common-message.enum';
 import { MaterialModule } from '../../material.module';
 import { GlobalSelectionService } from '../../authenticated/organizations/services/global-selection.service';
 import { OrganizationFeatureService } from '../../authenticated/organizations/services/organization-feature.service';
@@ -166,10 +165,6 @@ export class LoginComponent implements OnInit, AfterViewInit {
         }
       }
     });
-  }
-
-  returnToHome(): void {
-      this.router.navigate(['']);
   }
 
   onCredentialFieldFocus(event: FocusEvent): void {

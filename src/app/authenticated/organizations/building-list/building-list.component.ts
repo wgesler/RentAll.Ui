@@ -89,7 +89,7 @@ export class BuildingListComponent implements OnInit, OnChanges, OnDestroy {
         this.applyFilters();
         this.markViewForCheck();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'buildings');
         this.markViewForCheck();

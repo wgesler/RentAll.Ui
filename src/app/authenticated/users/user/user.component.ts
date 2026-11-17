@@ -4,7 +4,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, finalize, forkJoin, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, finalize, forkJoin, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -1240,10 +1240,6 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
     return this.form.get('userGroups')?.value || [];
   }
 
-  get allUserGroupOptions(): string[] {
-    return this.availableUserGroups.map(g => g.value);
-  }
-
   get showInspectorPropertiesField(): boolean {
     const selectedGroups = this.form?.get('userGroups')?.value || [];
     return Array.isArray(selectedGroups) && selectedGroups.some(group => ['Inspector', 'Housekeeping', 'Facilities'].includes(group));
@@ -1471,14 +1467,6 @@ syncCurrentUserPagePreferences(response: UserResponse | null | undefined, userRe
     }
   }
 
-  get shouldShowPasswordHint(): boolean {
-    const passwordControl = this.form.get('password');
-    if (!passwordControl) return false;
-    
-    // Show hint only if password is invalid (not if it's valid)
-    // This means if password fulfills criteria, no hint will be shown
-    return passwordControl.invalid && (passwordControl.touched || passwordControl.value);
-  }
   //#endregion
 
   //#region Profile Picture Methods

@@ -141,7 +141,6 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
     const restoredHtml = String(this.restoreProcessedHtml || '').trim();
     const restoredStyles = String(this.restoreProcessedStyles || '').trim();
     if (restoredHtml && restoredStyles) {
-      const templateHtml = String(this.templateHtml || '').trim();
       this.baseTemplateHtml = String(this.templateHtml || '').trim() || restoredHtml;
       this.setEditorHtmlFromProcessed(restoredHtml, restoredStyles);
       this.changeDetectorRef.markForCheck();

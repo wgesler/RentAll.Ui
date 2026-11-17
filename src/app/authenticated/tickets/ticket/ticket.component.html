@@ -166,7 +166,7 @@
                 (paste)="onEditorPaste($event, descriptionEditor, 'description')"
                 (dragenter)="onEditorDragEnter($event, 'description')"
                 (dragover)="onEditorDragOver($event)"
-                (dragleave)="onEditorDragLeave($event, 'description')"
+                (dragleave)="onEditorDragLeave('description')"
                 (drop)="onEditorDrop($event, descriptionEditor, 'description')">
               </div>
             </div>
@@ -201,7 +201,7 @@
                 (paste)="onEditorPaste($event, stepsToReproduceEditor, 'stepsToReproduce')"
                 (dragenter)="onEditorDragEnter($event, 'steps')"
                 (dragover)="onEditorDragOver($event)"
-                (dragleave)="onEditorDragLeave($event, 'steps')"
+                (dragleave)="onEditorDragLeave('steps')"
                 (drop)="onEditorDrop($event, stepsToReproduceEditor, 'stepsToReproduce')">
               </div>
             </div>
@@ -235,7 +235,7 @@
                   (paste)="onEditorPaste($event, noteEditor, 'newNote')"
                   (dragenter)="onEditorDragEnter($event, 'note')"
                   (dragover)="onEditorDragOver($event)"
-                  (dragleave)="onEditorDragLeave($event, 'note')"
+                  (dragleave)="onEditorDragLeave('note')"
                   (drop)="onEditorDrop($event, noteEditor, 'newNote')">
                 </div>
               </div>

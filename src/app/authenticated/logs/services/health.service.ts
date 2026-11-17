@@ -72,12 +72,6 @@ export class HealthService {
   //#endregion
 
   //#region Payment Methods
-  checkPayments(officeIds: number[] = [], paymentKindId?: number | null): Observable<DocumentHealthResult> {
-    return this.http.post<unknown>(this.controller + 'payment/check', { officeIds, paymentKindId: paymentKindId ?? null }).pipe(
-      map(result => this.mapDocumentHealthResult(result))
-    );
-  }
-
   checkInvoicePayments(officeIds: number[] = []): Observable<DocumentHealthResult> {
     return this.postCheck('payment-invoice/check', officeIds);
   }

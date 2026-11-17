@@ -9,23 +9,18 @@ import { BehaviorSubject, Observable, Subject, filter, finalize, firstValueFrom,
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
-import { DocumentExportService } from '../../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../../services/document-html.service';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
-import { EmailService } from '../../../email/services/email.service';
 import { EmailType } from '../../../email/models/email.enum';
 import { EmailCreateDraftService } from '../../../email/services/email-create-draft.service';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
-import { DocumentService } from '../../../documents/services/document.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { OrganizationResponse } from '../../../organizations/models/organization.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { OrganizationListService } from '../../../organizations/services/organization-list.service';
-import { OrganizationService } from '../../../organizations/services/organization.service';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { InvoiceService } from '../../services/invoice.service';
@@ -59,7 +54,6 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   private emailHtmlService = inject(EmailHtmlService);
   private accountingOfficeService = inject(AccountingOfficeService);
   private organizationListService = inject(OrganizationListService);
-  private organizationService = inject(OrganizationService);
   private destroy$ = new Subject<void>();
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -214,7 +208,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
         fileName: fileName
       };
 
-      const documentResponse = await firstValueFrom(this.documentService.generate(generateDto));
+      await firstValueFrom(this.documentService.generate(generateDto));
       this.toastr.success('Document generated successfully', 'Success');
       this.isSubmitting = false;
       this.iframeKey++;
@@ -693,7 +687,7 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
       return '';
     }
 
-    const rows = this.selectedInvoice.ledgerLines.map((line, index) => {
+    const rows = this.selectedInvoice.ledgerLines.map(line => {
       const date = this.formatterService.formatDateString(line.ledgerLineDate || this.selectedInvoice.invoiceDate) || '';
       const description = (line.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const amount = this.formatterService.currency(line.amount || 0);

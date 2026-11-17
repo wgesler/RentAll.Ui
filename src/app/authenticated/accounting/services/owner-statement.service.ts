@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { map, Observable, of } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';
-import { OwnerPaymentResponse, OwnerPaymentsRequest, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerInvoiceOutstandingResponse, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest } from '../models/owner-statement.model';
+import { OwnerPaymentResponse, OwnerPaymentsRequest, OwnerInvoiceOutstandingResponse, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest } from '../models/owner-statement.model';
 import { OwnerReportsCacheService } from './owner-reports-cache.service';
 import { ReportService } from './report.service';
 
@@ -17,27 +17,6 @@ export class OwnerStatementService {
   private mappingService = inject(MappingService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private readonly ownerPaymentUrl = this.configService.config().apiUrl + 'accounting/owner/payment';
-
-  searchOwnerStatementMonthLines(request: OwnerStatementMonthLineSearchRequest): Observable<OwnerStatementMonthLineResponse[]> {
-    const officeIds = (request.officeIds ?? []).filter(id => id > 0);
-    if (officeIds.length === 0) {
-      throw new Error('At least one office ID is required to search owner statement month lines.');
-    }
-
-    const cachedCashReport = this.ownerReportsCacheService.getCashReport();
-    if (cachedCashReport) {
-      return of(this.mappingService.mapOwnerCashReportToMonthLines(cachedCashReport, request));
-    }
-
-    return this.reportService.searchOwnerReports({
-      officeIds,
-      propertyId: null,
-      startDate: request.startDate ?? null,
-      endDate: request.endDate ?? null
-    }).pipe(
-      map(bundle => this.mappingService.mapOwnerCashReportToMonthLines(bundle.cash, request))
-    );
-  }
 
   searchOwnerStatementPropertyActivityLines(request: OwnerStatementPropertyActivityLineSearchRequest): Observable<OwnerStatementPropertyActivityLineResponse[]> {
     const officeIds = (request.officeIds ?? []).filter(id => id > 0);

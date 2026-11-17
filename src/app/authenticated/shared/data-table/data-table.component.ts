@@ -12,7 +12,6 @@ import { Subject, take, takeUntil } from 'rxjs';
 import { effectiveBedTypeIdForPropertySlot, getBedSizeType } from '../../properties/models/property-enums';
 import { FormatterService } from '../../../../app/services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
-import { getStatus } from '../../../enums/status.enum';
 import { getJournalEntryPostingStatusVisual, getPostingStatusLabel, JournalEntryPostingStatusVisual } from '../../accounting/models/accounting-enum';
 import { MaterialModule } from '../../../material.module';
 import { GenericModalComponent } from '../modals/generic/generic-modal.component';
@@ -1012,13 +1011,6 @@ markViewForCheck(): void {
     return rowItem?.[columnName]?.searchableDropdown === true || column.searchableDropdown === true;
   }
 
-  getDropdownSearchPlaceholder(rowItem: PurposefulAny, column: ColumnData): string {
-    const columnName = column?.name || '';
-    return rowItem?.[columnName]?.dropdownSearchPlaceholder
-      || column.dropdownSearchPlaceholder
-      || 'Type to filter...';
-  }
-
   getDropdownSearchText(rowItem: PurposefulAny, columnName: string): string {
     const searchMap = this.dropdownSearchTextByRow.get(rowItem);
     return searchMap?.get(columnName) || '';
@@ -1349,11 +1341,6 @@ parseDateValue(value: unknown): Date | null {
     return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
   }
 
-  openDropdown(event: Event, dropdown: { open: () => void } | undefined): void {
-    event.stopPropagation();
-    dropdown?.open();
-  }
-
   onDatatableDropdownTriggerClick(
     event: Event,
     dropdown: { open: () => void } | undefined,
@@ -1396,10 +1383,6 @@ parseDateValue(value: unknown): Date | null {
     }
     const newColumnName = columnName[0].toUpperCase() + columnName.substring(1);
     return newColumnName.replace(/([a-z])([A-Z])/g, '$1 $2');
-  }
-
-  getStatusText(status: number): string {
-    return getStatus(status);
   }
 
   obfuscateValue(value: string): string {
@@ -1942,10 +1925,6 @@ applyStickySortIfNeeded(): void {
     this.selectAllToolTip = this.isAllSelected ? 'Unselect all visible checks' : 'Select all visible checks';
   }
 
-
-  isMainRowVisible = (_row?: PurposefulAny): boolean => {
-    return true;
-  }
 
   /** MatTable multiTemplateDataRows passes (dataIndex, row); use row — index lookup breaks after sort. */
   isRowExpanded = (_index: number, row: PurposefulAny): boolean => {

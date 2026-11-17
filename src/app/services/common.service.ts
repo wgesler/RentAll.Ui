@@ -49,20 +49,8 @@ export class CommonService {
     return this.validStates$.value;
   }
 
-  getStatesFull(): Observable<StateResponse[]> {
-    return this.states$;
-  }
-
   getStatesFullValue(): StateResponse[] {
     return this.states$.value;
-  }
-
-  getValidStates(): Observable<string[]> {
-    return this.validStates$;
-  }
-
-  getValidStatesValue(): string[] {
-    return this.validStates$.value;
   }
 
   loadStates(): void {
@@ -108,10 +96,6 @@ export class CommonService {
 
   getOrganizationTypeId(): number {
     return Number(this.organization$.value?.organizationTypeId ?? 0);
-  }
-
-  getOrganizationTypeName(): string {
-    return this.organization$.value?.organizationType || getOrganizationType(this.getOrganizationTypeId());
   }
 
   withOrganizationType(organization: OrganizationResponse | null): OrganizationResponse | null {

@@ -19,7 +19,7 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 import { InspectionComponent } from '../inspection/inspection.component';
 import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
-import { ReceiptPrefill, ReceiptResponse, ReceiptSelection, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
+import { ReceiptPrefill, ReceiptResponse, ReceiptSelection, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { CreditReportComponent } from '../../accounting/vendors/credit-report/credit-report.component';
 import { RentRollComponent } from '../../accounting/vendors/rent-roll/rent-roll.component';
 import { RentRollCreateBillRequest } from '../../accounting/models/rent-roll.model';

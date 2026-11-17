@@ -2,16 +2,16 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
-import { AgentRequest, AgentResponse, agentHasOfficeAccess, normalizeAgentOffices } from '../models/agent.model';
+import { AgentRequest, AgentResponse, normalizeAgentOffices } from '../models/agent.model';
 import { OfficeResponse } from '../models/office.model';
 import { AgentService } from '../services/agent.service';
 import { GlobalSelectionService } from '../services/global-selection.service';
@@ -36,7 +36,6 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   agentService = inject(AgentService);
   router = inject(Router);
   fb = inject(FormBuilder);
-  private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private terminologyService = inject(TerminologyService);
@@ -122,7 +121,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
         this.buildForm();
         this.populateForm();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'agent');
       }
@@ -149,7 +148,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
 
     if (this.isAddMode) {
       this.agentService.createAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: AgentResponse) => {
+        next: () => {
           this.toastr.success(this.terminologyService.replaceAgent('Agent created successfully', this.agentLabelOfficeId()), CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();
@@ -162,7 +161,7 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
       agentRequest.agentId = agentIdStr;
       agentRequest.organizationId = this.agent?.organizationId || user?.organizationId || '';
       this.agentService.updateAgent(agentRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: AgentResponse) => {
+        next: () => {
           this.toastr.success(this.terminologyService.replaceAgent('Agent updated successfully', this.agentLabelOfficeId()), CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();

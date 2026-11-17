@@ -22,7 +22,6 @@ export class SecurityDepositService {
   private utility = inject(UtilityService);
 
   private readonly controller = this.configService.config().apiUrl + 'accounting/security-deposit/';
-  private readonly loginBadgeRefreshDelayMs = 3000;
   private readonly securityDepositsOutstandingSubject = new BehaviorSubject<boolean>(false);
   securityDepositsOutstanding$ = this.securityDepositsOutstandingSubject.asObservable();
   private securityDepositsOutstandingLoadId = 0;
@@ -88,11 +87,6 @@ export class SecurityDepositService {
   }
 
   /** Remaining tenant return after the Paid column. */
-  getRemainingTbrAmount(row: ReservationDepartureResponse): number {
-    const paidAmount = Number(row.returnedAmount ?? 0);
-    return Math.max(0, this.getTbrBalanceAmount(row) - paidAmount);
-  }
-
   shouldBlockReservationInactivationFromRows(
     rows: ReservationDepartureResponse[] | null | undefined,
     reservationId: string
@@ -151,10 +145,6 @@ export class SecurityDepositService {
     }
 
     this.executeSecurityDepositsOutstandingRefresh();
-  }
-
-  scheduleSecurityDepositsOutstandingRefreshAfterLogin(): void {
-    this.refreshSecurityDepositsOutstanding({ delayMs: this.loginBadgeRefreshDelayMs });
   }
 
   updateSecurityDepositsOutstandingBadge(rows: ReservationDepartureResponse[] | null | undefined): void {

@@ -204,7 +204,7 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
         this.loadOfficeOrganizationType();
         this.cdr.markForCheck();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'office');
         this.cdr.markForCheck();

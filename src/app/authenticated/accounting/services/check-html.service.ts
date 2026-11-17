@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, switchMap } from 'rxjs';
 import { ConfigService } from '../../../services/config.service';
-import { CheckHtmlResponse, CreateCheckHtmlRequest, UpdateCheckHtmlRequest } from '../models/check-html.model';
+import { CheckHtmlResponse } from '../models/check-html.model';
 
 @Injectable({
   providedIn: 'root'
@@ -26,14 +26,6 @@ export class CheckHtmlService {
     return this.http.get<CheckHtmlResponse>(`${this.controller}${params}`).pipe(
       catchError(() => of(null))
     );
-  }
-
-  createCheckHtml(request: CreateCheckHtmlRequest): Observable<CheckHtmlResponse> {
-    return this.http.post<CheckHtmlResponse>(this.controller, request);
-  }
-
-  updateCheckHtml(request: UpdateCheckHtmlRequest): Observable<CheckHtmlResponse> {
-    return this.http.put<CheckHtmlResponse>(this.controller, request);
   }
 
   loadAssetCheckHtml(): Observable<string> {

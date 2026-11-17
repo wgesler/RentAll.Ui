@@ -314,7 +314,6 @@ export class DashboardScheduleSnapshotService {
     context: DashboardScheduleSnapshotContext,
     slices: MaintenanceSlices
   ): MaintenanceListDisplay[] {
-    const timeline = this.buildPropertyReservationTimeline(context);
     const reservationById = new Map(
       context.filteredReservationPropertyMaintenanceList.map(row => [
         context.utilityService.normalizeId(row.reservationId),
@@ -351,7 +350,7 @@ export class DashboardScheduleSnapshotService {
           continue;
         }
         seen.add(key);
-        const dateCells = this.buildScheduleDateCells(context, row, timeline, reservationById, slot.serviceDate);
+        const dateCells = this.buildScheduleDateCells(context, row, reservationById, slot.serviceDate);
         rows.push({
           ...row,
           eventTypeDisplay: row.eventType != null ? getServiceType(row.eventType) : '—',
@@ -522,41 +521,6 @@ export class DashboardScheduleSnapshotService {
     return slots;
   }
 
-  private buildPropertyReservationTimeline(context: DashboardScheduleSnapshotContext) {
-    const byProperty = new Map<
-      string,
-      {
-        reservationId: string;
-        arrivalDateOrdinal: number;
-        departureDateOrdinal: number;
-        arrivalDateDisplay: string;
-        departureDateDisplay: string;
-      }[]
-    >();
-    for (const reservation of context.filteredReservationPropertyMaintenanceList) {
-      const propertyId = context.utilityService.normalizeId(reservation.propertyId);
-      const reservationId = context.utilityService.normalizeId(reservation.reservationId);
-      const arrivalDateOrdinal = reservation.arrivalDateOrdinal;
-      const departureDateOrdinal = reservation.departureDateOrdinal;
-      if (!propertyId || !reservationId || arrivalDateOrdinal == null || departureDateOrdinal == null) {
-        continue;
-      }
-      const list = byProperty.get(propertyId) ?? [];
-      list.push({
-        reservationId,
-        arrivalDateOrdinal,
-        departureDateOrdinal,
-        arrivalDateDisplay: reservation.arrivalDateDisplay || '',
-        departureDateDisplay: reservation.departureDateDisplay || ''
-      });
-      byProperty.set(propertyId, list);
-    }
-    for (const list of byProperty.values()) {
-      list.sort((a, b) => a.arrivalDateOrdinal - b.arrivalDateOrdinal);
-    }
-    return byProperty;
-  }
-
   private buildScheduleDateCell(text: string, emphasis: 'primary' | 'muted' | 'none'): ScheduleDateCell {
     const trimmed = String(text || '').trim();
     if (!this.isValidScheduleDate(trimmed)) {
@@ -568,14 +532,11 @@ export class DashboardScheduleSnapshotService {
   private buildScheduleDateCells(
     context: DashboardScheduleSnapshotContext,
     row: MaintenanceListDisplay,
-    timeline: ReturnType<DashboardScheduleSnapshotService['buildPropertyReservationTimeline']>,
     reservationById: Map<string, ReservationPropertyMaintenance>,
     serviceDate: string
   ) {
     const reservationId = context.utilityService.normalizeId(row.reservationId ?? '');
     const reservation = reservationId ? reservationById.get(reservationId) : undefined;
-    const propertyId = context.utilityService.normalizeId(row.propertyId);
-    const propertyTimeline = timeline.get(propertyId) ?? [];
     const eventDate = String(row.eventDate || '').trim();
 
     if (row.eventType === ServiceType.Departure) {

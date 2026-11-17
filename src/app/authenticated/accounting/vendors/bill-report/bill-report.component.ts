@@ -22,7 +22,7 @@ import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../../shared/base-document.component';
 
 @Component({
   selector: 'app-bill-report',

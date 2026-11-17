@@ -8,7 +8,6 @@ import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enu
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
-import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../models/office.model';
 import { TrackerContextType, getTrackerContextTypes, toTrackerContextType } from '../models/tracker-enum';
 import { TrackerDefinitionListDisplay, TrackerDefinitionOptionRequest, TrackerDefinitionOptionResponse, TrackerDefinitionRequest } from '../models/tracker.model';
@@ -46,7 +45,6 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   private officeService = inject(OfficeService);
   private mappingService = inject(MappingService);
   private toastr = inject(ToastrService);
-  private utilityService = inject(UtilityService);
   @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
 
   isServiceError: boolean = false;

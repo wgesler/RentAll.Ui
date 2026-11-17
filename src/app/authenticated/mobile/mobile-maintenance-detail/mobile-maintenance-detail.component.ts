@@ -18,7 +18,6 @@ import { MobileMaintenanceItemListComponent } from './mobile-maintenance-item-li
 import { MobileMaintenanceApplianceListComponent } from './mobile-maintenance-appliance-list/mobile-maintenance-appliance-list.component';
 import { MobileMaintenanceUtilityListComponent } from './mobile-maintenance-utility-list/mobile-maintenance-utility-list.component';
 import { MaintenanceComponent } from '../../maintenance/maintenance/maintenance.component';
-import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 
 @Component({

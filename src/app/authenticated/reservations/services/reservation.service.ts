@@ -57,10 +57,6 @@ export class ReservationService {
     return this.http.get<ReservationListResponse[]>(this.controller + 'list');
   }
 
-  getReservationActiveList(): Observable<ReservationListResponse[]> {
-    return this.http.get<ReservationListResponse[]>(this.controller + 'active-list');
-  }
-
   getReservationsByOwner(ownerId: string): Observable<ReservationListResponse[]> {
     return this.http.get<ReservationListResponse[]>(this.controller + 'owner/' + ownerId);
   }
@@ -132,10 +128,6 @@ export class ReservationService {
       return;
     }
     this.refreshReservationCodes().pipe(take(1)).subscribe();
-  }
-
-  areReservationCodesLoaded(): Observable<boolean> {
-    return this.reservationCodesLoaded$.asObservable();
   }
 
   clearReservationCodes(): void {
@@ -238,17 +230,9 @@ export class ReservationService {
     this.notifyReservationCodesChanged();
   }
 
-  getReservationTrackerResponses(reservationId: string): Observable<ReservationTrackerResponse[]> {
-    return this.http.get<ReservationTrackerResponse[]>(this.controller + 'tracker-response/reservation/' + reservationId);
-  }
-
   getReservationTrackerResponsesByIds(reservationIds: string[]): Observable<ReservationTrackerResponseGetByIdsResponse> {
     const request: ReservationTrackerResponseGetByIdsRequest = { reservationIds };
     return this.http.post<ReservationTrackerResponseGetByIdsResponse>(this.controller + 'tracker-response/reservations', request);
-  }
-
-  getReservationTrackerResponseOptions(reservationId: string): Observable<ReservationTrackerResponseOption[]> {
-    return this.http.get<ReservationTrackerResponseOption[]>(this.controller + 'tracker-response-option/reservation/' + reservationId);
   }
 
   createReservationTrackerResponse(request: ReservationTrackerResponseRequest): Observable<ReservationTrackerResponse> {
@@ -292,17 +276,6 @@ export class ReservationService {
   }
 
   /** Rebuilds Accounting.Billed for active reservations in the selected offices (Missing Invoice report). */
-  rebuildBilledMatchup(officeIds: number[]): Observable<BilledMatchupResponse[]> {
-    const ids = (officeIds ?? []).filter(id => id > 0);
-    if (ids.length === 0) {
-      throw new Error('At least one office ID is required to rebuild billed matchup rows.');
-    }
-
-    return this.http.post<BilledMatchupResponse[]>(`${this.controller}billed/rebuild`, {
-      officeIds: ids.join(',')
-    });
-  }
-
   setBilledIgnore(billedId: number, ignore: boolean): Observable<BilledMatchupResponse> {
     if (billedId <= 0) {
       throw new Error('BilledId is required to update ignore.');

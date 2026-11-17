@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { MaintenanceListResponse, MaintenanceListStatusDropdownCell, MaintenanceListUserDropdownCell, MaintenanceRequest, MaintenanceResponse } from '../authenticated/maintenance/models/maintenance.model';
+import { MaintenanceListResponse, MaintenanceListStatusDropdownCell, MaintenanceListUserDropdownCell } from '../authenticated/maintenance/models/maintenance.model';
 import { PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
 import { getReservationStatus } from '../authenticated/reservations/models/reservation-enum';
 import { normalizeInvoiceMethodId } from '../authenticated/accounting/models/accounting-enum';
@@ -833,16 +833,6 @@ export class MixedMappingService {
     return { ...base, ...(overrides ?? {}) };
   }
 
-  mapMaintenanceResponseToRequest(maintenance: MaintenanceResponse, overrides?: Partial<MaintenanceRequest>): MaintenanceRequest {
-    const { propertyCode: _propertyCode, ...requestBase } = maintenance;
-    void _propertyCode;
-    const base = {
-      ...requestBase,
-      notes: maintenance.notes ?? null
-    } as MaintenanceRequest;
-    return { ...base, ...(overrides ?? {}) };
-  }
-
   mapReservationResponseToRequest(
     reservation: ReservationResponse,
     overrides?: Partial<ReservationRequest>
@@ -935,8 +925,5 @@ export class MixedMappingService {
     return this.mappingService.toBooleanValue(value);
   }
 
-  toEventDateSortTime(value: string | null | undefined): number {
-    return this.utilityService.parseCalendarDateToOrdinal(value) ?? MixedMappingService.maintenanceListNoDepartureSortTime;
-  }
   //#endregion
 }

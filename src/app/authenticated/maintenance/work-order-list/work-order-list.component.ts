@@ -469,7 +469,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
       )
     );
 
-    this.journalEntryService.confirmDeleteIfAllowed(targetWorkOrder?.postingStatusId, 'Work Order').pipe(
+    this.journalEntryService.confirmDeleteIfAllowed(targetWorkOrder?.postingStatusId).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {

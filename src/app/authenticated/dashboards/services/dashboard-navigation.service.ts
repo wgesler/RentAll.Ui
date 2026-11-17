@@ -39,10 +39,6 @@ export class DashboardNavigationService {
     this.tabIndex = Number.isFinite(tabIndex) ? Math.max(0, Math.floor(tabIndex)) : 0;
   }
 
-  getTabIndex(): number {
-    return this.tabIndex;
-  }
-
   getDashboardReturnUrl(): string {
     return `/${RouterUrl.Dashboard}?tab=${this.tabIndex}`;
   }

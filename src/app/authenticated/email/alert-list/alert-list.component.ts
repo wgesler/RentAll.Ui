@@ -450,18 +450,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  applyAlertsRouteOfficeScope(): void {
-    this.showOfficeDropdown = this.offices.length > 1;
-    let officeIdToUse = this.selectedOfficeId;
-    if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
-      officeIdToUse = null;
-    }
-    if (this.offices.length === 1) {
-      officeIdToUse = this.offices[0].officeId;
-    }
-    this.resolveOfficeScope(officeIdToUse, false);
-  }
-
   resolveOfficeScope(officeId: number | null, emitChange: boolean): void {
     this.selectedOfficeId = this.offices.length > 0
       ? this.utilityService.resolveSelectedOfficeById(this.offices, officeId)?.officeId ?? officeId ?? null

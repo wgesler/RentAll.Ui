@@ -28,18 +28,6 @@ const COMPANY_ROLES: UserGroups[] = [
   UserGroups.PartnerAdmin,
   UserGroups.RentRollAdmin
 ];
-
-const OUTSIDE_ROLES: UserGroups[] = [
-  UserGroups.Facilities,
-  UserGroups.Housekeeping,
-  UserGroups.Company,
-  UserGroups.Vendor,
-  UserGroups.Tenant,
-  UserGroups.Owner,
-  UserGroups.Inspector,
-  UserGroups.Realtor,
-  
-];
 //#endregion
 
 
@@ -128,11 +116,6 @@ const settingsAccess: AccessRule = {
 const ownerOnly: AccessRule = {
   requiredRoles: [UserGroups.Owner],
   excludedRoles: []
-};
-
-const noAccess: AccessRule = {
-  requiredRoles: [UserGroups.SuperAdmin],
-  excludedRoles: [UserGroups.SuperAdmin]
 };
 //#endregion
 

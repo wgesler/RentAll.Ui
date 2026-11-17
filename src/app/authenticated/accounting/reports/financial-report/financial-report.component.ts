@@ -1117,13 +1117,6 @@ refreshDrillDownView(): void {
     return `${minRem}rem`;
   }
 
-  get frameMinWidth(): string | null {
-    if (this.fillsAvailableWidth || !this.hasMultipleAmountColumns) {
-      return null;
-    }
-    return this.reportTableMinWidth;
-  }
-
   isTotalColumn(columnId: string): boolean {
     return columnId === FINANCIAL_REPORT_TOTAL_COLUMN_ID;
   }

@@ -9,8 +9,6 @@ import { BehaviorSubject, Subject, catchError, filter, finalize, firstValueFrom,
 import { RouterUrl } from '../../../../app.routes';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
-import { DocumentExportService } from '../../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../../services/document-html.service';
 import { FormatterService } from '../../../../services/formatter-service';
 import { UtilityService } from '../../../../services/utility.service';
 import { ContactResponse } from '../../../contacts/models/contact.model';
@@ -37,8 +35,6 @@ import { OwnerStatementPrintContext } from '../../models/owner-statement-print-c
 import { OwnerStatementMonthLineListDisplay, OwnerInvoiceOutstandingResponse, OwnerStatementPropertyActivityLineResponse } from '../../models/owner-statement.model';
 import { OwnerStatementHtmlBuilderService } from '../../services/owner-statement-html-builder.service';
 import { OwnerStatementService } from '../../services/owner-statement.service';
-import { DocumentService } from '../../../documents/services/document.service';
-import { EmailService } from '../../../email/services/email.service';
 import { environment } from '../../../../../environments/environment';
 
 @Component({

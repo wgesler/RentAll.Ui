@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, input, OnChanges, OnDestroy, OnInit, output, SimpleChanges, inject } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, concatMap, finalize, take, takeUntil } from 'rxjs';
-import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';

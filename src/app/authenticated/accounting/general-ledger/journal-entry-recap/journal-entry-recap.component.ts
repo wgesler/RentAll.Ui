@@ -177,13 +177,6 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   //#endregion
 
   //#region Data Loading Methods
-  clearRecapDisplay(): void {
-    this.rowsDisplay = [];
-    this.isServiceError = false;
-    this.noActivityMessage = 'Loading journal entry recap...';
-    this.markViewForCheck();
-  }
-
   loadRecapLines(): void {
     const officeIds = this.officeId != null && this.officeId > 0 ? [this.officeId] : [];
     if (officeIds.length === 0) {

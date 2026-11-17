@@ -3,7 +3,6 @@ import { ChangeDetectorRef, Component, Input, OnDestroy, OnInit, inject } from '
 import { MatDialog } from '@angular/material/dialog';
 import { finalize, last, map, Observable, of, Subject, switchMap, take, takeUntil, tap, throwError } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
-import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { JournalEntrySyncResult } from '../../accounting/models/journal-entry.model';
@@ -446,34 +445,6 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
         return this.healthService.checkManualJournalEntries(officeIds);
       default:
         throw new Error(`Unknown health check key: ${key}`);
-    }
-  }
-
-  runFix(key: HealthCheckKey): Observable<JournalEntrySyncResult> {
-    const officeIds = this.getOfficeIdsForRequest();
-    switch (key) {
-      case 'receipt':
-        return this.healthService.fixReceipts(officeIds);
-      case 'bill':
-        return this.healthService.fixBills(officeIds);
-      case 'workOrder':
-        return this.healthService.fixWorkOrders(officeIds);
-      case 'invoice':
-        return this.healthService.fixInvoices(officeIds);
-      case 'paymentInvoice':
-        return this.healthService.fixInvoicePayments(officeIds);
-      case 'paymentBill':
-        return this.healthService.fixBillPayments(officeIds);
-      case 'paymentOwner':
-        return this.healthService.fixOwnerPayments(officeIds);
-      case 'deposit':
-        return this.healthService.fixDeposits(officeIds);
-      case 'transfer':
-        return this.healthService.fixTransfers(officeIds);
-      case 'documentLinks':
-        return this.healthService.repairDocumentLinks(officeIds);
-      default:
-        return throwError(() => new Error(`Fix is not available for: ${key}`));
     }
   }
 

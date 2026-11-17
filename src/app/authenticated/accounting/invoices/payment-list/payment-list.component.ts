@@ -322,7 +322,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const payment = this.payments.find(item => item.paymentId === event.paymentId);
-    this.journalEntryService.confirmDeleteIfAllowed(payment?.postingStatusId, 'Payment').pipe(
+    this.journalEntryService.confirmDeleteIfAllowed(payment?.postingStatusId).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {
@@ -816,22 +816,6 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     return this.getPaymentLedgerLineColumnValue(line as PaymentLedgerLine, columnName, lineIndex);
-  }
-
-  getPaymentLedgerLineColumnNames(): string[] {
-    return this.getPaymentAllocationColumnNames();
-  }
-
-  getPaymentLedgerLineColumnWidth(columnName: string): string | null {
-    return this.getPaymentAllocationColumnWidth(columnName);
-  }
-
-  getPaymentLedgerLineColumnMinWidth(columnName: string): string | null {
-    return this.getPaymentAllocationColumnMinWidth(columnName);
-  }
-
-  isPaymentLedgerLineGrowColumn(columnName: string): boolean {
-    return this.isPaymentAllocationGrowColumn(columnName);
   }
 
   getPaymentLedgerLineColumnValue(line: PaymentLedgerLine, columnName: string, lineIndex: number): string {

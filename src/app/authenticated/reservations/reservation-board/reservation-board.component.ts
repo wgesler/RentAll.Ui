@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, distinctUntilChanged, filter, finalize, forkJoin, interval, map, of, skip, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, distinctUntilChanged, filter, finalize, forkJoin, interval, map, of, skip, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -79,7 +79,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   readonly petDepartureColor = '#8B5A2B';
   readonly reservationPollIntervalMs = 60_000;
   getPropertyStatusLetter = getPropertyStatusLetter;  
-  readonly noticeStatusType = NoticeStatusType;
   properties: BoardProperty[] = [];
   allPropertyRows: PropertyListResponse[] = [];
   standardPropertyRowsCache: PropertyListResponse[] | null = null;
@@ -902,100 +901,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
       },
       error: () => {
         this.standardPropertyRowsCache = [];
-        this.partnerPropertyRowsCache = [];
-        this.clearBoardPropertyRows();
-        this.isPartnerBoardLoading = false;
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  fetchStandardAndInactivePropertyCaches(onReady: () => void): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
-    if (!this.userId) {
-      this.standardPropertyRowsCache = [];
-      this.inactivePropertyRowsCache = [];
-      this.clearBoardPropertyRows();
-      this.completeBoardPropertyLoad();
-      onReady();
-      return;
-    }
-
-    forkJoin({
-      standard: this.propertyService.getActivePropertiesBySelectionCriteria(this.userId),
-      allStandard: this.propertyService.getPropertiesBySelectionCriteria(this.userId)
-    }).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
-      next: ({ standard, allStandard }) => {
-        this.standardPropertyRowsCache = standard || [];
-        this.inactivePropertyRowsCache = (allStandard || []).filter(property => !this.mappingService.toBooleanValue(property.isActive));
-        onReady();
-      },
-      error: () => {
-        this.standardPropertyRowsCache = [];
-        this.inactivePropertyRowsCache = [];
-        this.clearBoardPropertyRows();
-        this.isPartnerBoardLoading = false;
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  fetchInactiveAndPartnerPropertyCaches(onReady: () => void): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
-    if (!this.userId) {
-      this.inactivePropertyRowsCache = [];
-      this.partnerPropertyRowsCache = [];
-      this.clearBoardPropertyRows();
-      this.completeBoardPropertyLoad();
-      onReady();
-      return;
-    }
-
-    forkJoin({
-      allStandard: this.propertyService.getPropertiesBySelectionCriteria(this.userId),
-      partner: this.partnerService.getActivePropertiesBySelectionCriteria(this.userId)
-    }).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
-      next: ({ allStandard, partner }) => {
-        this.inactivePropertyRowsCache = (allStandard || []).filter(property => !this.mappingService.toBooleanValue(property.isActive));
-        this.partnerPropertyRowsCache = partner || [];
-        onReady();
-      },
-      error: () => {
-        this.inactivePropertyRowsCache = [];
-        this.partnerPropertyRowsCache = [];
-        this.clearBoardPropertyRows();
-        this.isPartnerBoardLoading = false;
-        this.markViewForCheck();
-      }
-    });
-  }
-
-  fetchStandardInactiveAndPartnerPropertyCaches(onReady: () => void): void {
-    this.utilityService.addLoadItem(this.itemsToLoad$, 'properties');
-    if (!this.userId) {
-      this.standardPropertyRowsCache = [];
-      this.inactivePropertyRowsCache = [];
-      this.partnerPropertyRowsCache = [];
-      this.clearBoardPropertyRows();
-      this.completeBoardPropertyLoad();
-      onReady();
-      return;
-    }
-
-    forkJoin({
-      standard: this.propertyService.getActivePropertiesBySelectionCriteria(this.userId),
-      allStandard: this.propertyService.getPropertiesBySelectionCriteria(this.userId),
-      partner: this.partnerService.getActivePropertiesBySelectionCriteria(this.userId)
-    }).pipe(take(1), finalize(() => this.completeBoardPropertyLoad())).subscribe({
-      next: ({ standard, allStandard, partner }) => {
-        this.standardPropertyRowsCache = standard || [];
-        this.inactivePropertyRowsCache = (allStandard || []).filter(property => !this.mappingService.toBooleanValue(property.isActive));
-        this.partnerPropertyRowsCache = partner || [];
-        onReady();
-      },
-      error: () => {
-        this.standardPropertyRowsCache = [];
-        this.inactivePropertyRowsCache = [];
         this.partnerPropertyRowsCache = [];
         this.clearBoardPropertyRows();
         this.isPartnerBoardLoading = false;

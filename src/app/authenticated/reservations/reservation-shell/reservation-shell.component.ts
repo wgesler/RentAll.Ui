@@ -258,38 +258,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   // #endregion
 
   //#region Header Dropdown Mehtods
-  async onHeaderReservationDropdownChange(reservationId: string | number | null): Promise<void> {
-    const nextReservationId = reservationId == null ? null : String(reservationId);
-    const previousReservationId = this.selectedHeaderReservationId;
-    this.selectedHeaderReservationId = nextReservationId;
-    if (nextReservationId) {
-      this.routeReservationId = nextReservationId;
-    }
-    this.selectedReservationSummary = this.reservationList.find(r => r.reservationId === nextReservationId) || null;
-    if (this.selectedReservationSummary) {
-      this.applyReservationScope(
-        this.selectedReservationSummary.officeId,
-        this.selectedReservationSummary.propertyId,
-        this.selectedReservationSummary.reservationId
-      );
-    } else {
-      this.clearReservationScope();
-    }
-
-    if (this.selectedTabIndex === 0 && this.reservationSection && nextReservationId) {
-      const canLeave = await this.reservationSection.confirmNavigationWithUnsavedChanges();
-      if (!canLeave) {
-        this.selectedHeaderReservationId = previousReservationId;
-        this.selectedReservationSummary = this.reservationList.find(r => r.reservationId === previousReservationId) || null;
-        return;
-      }
-      this.reservationSection.reservationId = nextReservationId;
-      this.reservationSection.loadReservation();
-    }
-
-    this.onHeaderReservationChange();
-  }
-
   onHeaderReservationChange(): void {
     if (this.selectedTabIndex === 0) {
       const reservation = this.reservationSection;
@@ -472,10 +440,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
       && !!this.selectedHeaderReservationId;
   }
 
-  get isInvoicePreviewAllActive(): boolean {
-    return this.selectedTabIndex === this.getInvoicesTabIndex() && this.showInvoicePreviewAll;
-  }
-
   get activeReservationCode(): string {
     return (this.selectedReservationSummary?.reservationCode || '').trim();
   }
@@ -509,14 +473,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
     return this.selectedTabIndex === this.getInvoicesTabIndex()
       && this.showInvoiceCreate
       && !!this.invoiceCreateContext;
-  }
-
-  get isInvoiceEditorActive(): boolean {
-    return this.selectedTabIndex === this.getInvoicesTabIndex()
-      && !!this.activeInvoiceId
-      && !this.showInvoiceCreate
-      && !this.showInvoicePreviewAll
-      && !this.showPreviewAllInvoiceEditor;
   }
 
   get invoiceCreateOfficeTitleBarOptions(): SearchableSelectOption[] {

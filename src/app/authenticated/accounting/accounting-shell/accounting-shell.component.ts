@@ -11,7 +11,6 @@ import { RouterUrl } from '../../../app.routes';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { FormatterService } from '../../../services/formatter-service';
-import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -88,7 +87,6 @@ import { ReconcileService } from '../services/reconcile.service';
 import { FinancialReportKind } from '../models/financial-report.model';
 import { RentRollCreateBillRequest } from '../models/rent-roll.model';
 import { RentRollBillService, RentRollCreateBillQueue } from '../services/rent-roll-bill.service';
-import { CostCodesService } from '../services/cost-codes.service';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../models/chart-of-accounts.model';
 import { Class, ClassLabels } from '../models/accounting-enum';
@@ -200,12 +198,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
   private organizationService = inject(OrganizationService);
-  private costCodesService = inject(CostCodesService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private generalLedgerService = inject(GeneralLedgerService);
   private reconcileService = inject(ReconcileService);
   private formatterService = inject(FormatterService);
-  private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private officeService = inject(OfficeService);
   private accountingOfficeService = inject(AccountingOfficeService);
@@ -1081,12 +1077,6 @@ hydrateSelectedInvoiceForActiveId(): void {
     this.cdr.markForCheck();
   }
 
-  get isBalanceSheetDrillDownActive(): boolean {
-    return this.isFinancialReportDrillDownActive
-      && this.selectedTabIndex === this.tabReports
-      && this.selectedReportKind === 'balanceSheet';
-  }
-
   onFinancialReportJournalEntryDetailChange(active: boolean): void {
     this.isFinancialReportJournalEntryDetailActive = active;
     this.cdr.markForCheck();
@@ -1179,12 +1169,6 @@ hydrateSelectedInvoiceForActiveId(): void {
 
   get usesApAgingSortByOptions(): boolean {
     return this.isOwnerApAgingViewActive || this.isApAgingReportKind(this.selectedReportKind);
-  }
-
-  get selectedAgingSortByValue(): string {
-    return this.usesApAgingSortByOptions
-      ? this.selectedApAgingSortBy
-      : this.selectedArAgingSortBy;
   }
 
   isApAgingReportKind(kind: AccountingShellReportKind | null | undefined): boolean {
@@ -1568,31 +1552,6 @@ hydrateSelectedInvoiceForActiveId(): void {
       clearTimeout(this.rentRollTransitionUnlockTimer);
       this.rentRollTransitionUnlockTimer = null;
     }
-  }
-
-  getRentRollBillValidationMessage(request: RentRollCreateBillRequest): string | null {
-    const propertyId = (request.propertyId || '').trim();
-    const officeId = Number(request.officeId || 0);
-    const amount = Number(request.amount || 0);
-    const vendorId = (request.vendorId || '').trim();
-    const chartOfAccountId = Number(request.chartOfAccountId || 0);
-
-    if (!propertyId) {
-      return 'Skipped one row: missing property.';
-    }
-    if (!Number.isFinite(officeId) || officeId <= 0) {
-      return 'Skipped one row: missing office.';
-    }
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return 'Skipped one row: amount must be greater than zero.';
-    }
-    if (!vendorId) {
-      return 'Skipped one row: vendor is required for a bill.';
-    }
-    if (!Number.isFinite(chartOfAccountId) || chartOfAccountId <= 0) {
-      return 'Skipped one row: chart of account is required.';
-    }
-    return null;
   }
 
   buildRentRollReceiptRequest(
@@ -4887,14 +4846,6 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
       && !(this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'missingInvoiceReport');
   }
 
-  get isPreBillingReportActive(): boolean {
-    return this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'preBillingReport';
-  }
-
-  get isMissingInvoiceReportActive(): boolean {
-    return this.selectedTabIndex === this.tabInvoices && this.selectedInvoiceKind === 'missingInvoiceReport';
-  }
-
   get preBillingMonthTitleBarOptions(): { value: string; label: string }[] {
     return this.buildInvoiceReportMonthOptions();
   }
@@ -5086,22 +5037,6 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
     );
   }
 
-  get isVendorPaymentsListActive(): boolean {
-    return this.selectedTabIndex === this.tabBillsReceipts
-      && this.selectedBillsReceiptKind === 'payments'
-      && !this.showPaymentsDetail;
-  }
-
-  get activePaymentKind(): PaymentKind {
-    if (this.selectedTabIndex === this.tabBillsReceipts && this.selectedBillsReceiptKind === 'payments') {
-      return PaymentKind.Bill;
-    }
-    if (this.selectedTabIndex === this.tabOwners && this.selectedOwnerKind === 'ownerPayments') {
-      return PaymentKind.OwnerOutbound;
-    }
-    return PaymentKind.Invoice;
-  }
-
   shouldRefreshPaymentsList(): boolean {
     if (!this.paymentsListEngaged) {
       return false;
@@ -5194,12 +5129,6 @@ finishJournalEntrySyncTools(markSyncProgressComplete: boolean = false): void {
       && this.isOwnerEscrowViewActive
       && this.showEscrowJournalEntryLines
       && !this.showGeneralLedgerDetail;
-  }
-
-  get ownerStatementSubviewTitle(): string {
-    return this.selectedOwnerStatementReportKind === 'cash'
-      ? 'Owner Cash Report'
-      : 'Owner Accrual Report';
   }
 
   get selectedOwnerReportKind(): OwnerStatementReportKind {
@@ -5435,10 +5364,6 @@ captureOwnerStatementReturnContext(): void {
       && !this.usesAccountingShellAsOfDateReport();
   }
 
-  get showAccountingShellRangeDates(): boolean {
-    return this.showAccountingShellStartDate || this.showAccountingShellEndDate;
-  }
-
   get showAccountingShellEndDate(): boolean {
     return !this.isReconcileAccountReportActive();
   }
@@ -5464,10 +5389,6 @@ captureOwnerStatementReturnContext(): void {
 
   get shellEndDateApi(): string | null {
     return this.utilityService.formatDateOnlyForApi(this.endDate);
-  }
-
-  get shellStartDateApi(): string | null {
-    return this.utilityService.formatDateOnlyForApi(this.startDate);
   }
 
   get isReconcileBankActivityActive(): boolean {

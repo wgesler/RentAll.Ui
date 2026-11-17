@@ -59,7 +59,6 @@ export class OwnerStatementHtmlBuilderService {
     const startingBalance = this.mappingService.parseCurrencyValue(line.startingBalance);
     const income = this.mappingService.parseCurrencyValue(line.income);
     const expenses = this.mappingService.parseCurrencyValue(line.expenses);
-    const workingCapital = this.mappingService.parseCurrencyValue(line.workingCapital);
     const remainingOwed = this.mappingService.parseCurrencyValue(line.ownerPayment);
     const ownerPaymentPaid = this.mappingService.parseCurrencyValue(line.ownerPaymentPaid);
     const incomeActivities = (ctx.statementActivityLines || [])
@@ -328,24 +327,6 @@ export class OwnerStatementHtmlBuilderService {
       }))
       .filter(entry => entry.unpaidAmount > 0)
       .sort((a, b) => this.utilityService.compareCalendarDateStrings(a.line.activityDate, b.line.activityDate));
-  }
-
-  private buildCollectedIncomeBySourceRef(statementActivityLines: OwnerStatementPropertyActivityLineResponse[]): Map<string, number> {
-    const collectedIncomeBySourceRef = new Map<string, number>();
-    (statementActivityLines || []).forEach(line => {
-      const sourceRef = (line.sourceDocumentCode || '').trim().toLowerCase();
-      const receivedIncome = Number(line.receivedIncome) || 0;
-      if (!sourceRef || receivedIncome === 0) {
-        return;
-      }
-
-      collectedIncomeBySourceRef.set(
-        sourceRef,
-        (collectedIncomeBySourceRef.get(sourceRef) || 0) + receivedIncome
-      );
-    });
-
-    return collectedIncomeBySourceRef;
   }
 
   private buildChargeRow(

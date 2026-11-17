@@ -69,10 +69,6 @@ export class RegionService {
     return this.allRegions$.asObservable();
   }
 
-  getAllRegionsValue(): RegionResponse[] {
-    return this.allRegions$.value;
-  }
-
   getRegions(): Observable<RegionResponse[]> {
     return this.http.get<RegionResponse[]>(this.controller);
   }

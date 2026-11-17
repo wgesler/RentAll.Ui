@@ -200,7 +200,7 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
 
   deleteTransfer(event: TransferDisplayList): void {
     const transfer = this.transfers.find(item => item.transferId === event.transferId);
-    this.journalEntryService.confirmDeleteIfAllowed(transfer?.postingStatusId, 'Transfer').pipe(
+    this.journalEntryService.confirmDeleteIfAllowed(transfer?.postingStatusId).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {

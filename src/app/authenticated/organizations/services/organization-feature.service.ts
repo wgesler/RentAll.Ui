@@ -59,18 +59,6 @@ export class OrganizationFeatureService {
     return this.loadAllFeatures(organizationId).pipe(take(1), switchMap(() => this.getAllFeatures().pipe(take(1))));
   }
 
-  notifyFeaturesChanged(organizationId: string): void {
-    const id = organizationId?.trim();
-    if (!id) {
-      return;
-    }
-    this.refreshFeatures(id).pipe(take(1)).subscribe();
-  }
-
-  areFeaturesLoaded(): Observable<boolean> {
-    return this.featuresLoaded$.asObservable();
-  }
-
   clearFeatures(): void {
     this.allFeatures$.next([]);
     this.featuresLoaded$.next(false);
@@ -105,10 +93,6 @@ export class OrganizationFeatureService {
 
   getAllFeatures(): Observable<FeatureResponse[]> {
     return this.allFeatures$.asObservable();
-  }
-
-  getAllFeaturesValue(): FeatureResponse[] {
-    return this.allFeatures$.value;
   }
 
   hasFeatureAccess(organizationId: string, featureTypeId: number, features?: FeatureResponse[]): boolean {
@@ -151,10 +135,6 @@ coerceHasAccess(value: boolean | string | number | null | undefined): boolean {
     return this.http.get<FeatureResponse[]>(this.controller + id);
   }
 
-  getFeatureById(featureId: number): Observable<FeatureResponse> {
-    return this.http.get<FeatureResponse>(this.controller + featureId);
-  }
-
   createFeature(feature: FeatureRequest): Observable<FeatureResponse> {
     return this.http.post<FeatureResponse>(this.controller, feature).pipe(
       tap((response) => this.upsertFeatureInCache(response))
@@ -164,12 +144,6 @@ coerceHasAccess(value: boolean | string | number | null | undefined): boolean {
   updateFeature(feature: FeatureRequest): Observable<FeatureResponse> {
     return this.http.put<FeatureResponse>(this.controller, feature).pipe(
       tap((response) => this.upsertFeatureInCache(response))
-    );
-  }
-
-  deleteFeature(featureId: number, organizationId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + featureId).pipe(
-      tap(() => this.removeFeatureFromCache(featureId, organizationId))
     );
   }
 

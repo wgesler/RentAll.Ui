@@ -121,10 +121,6 @@ refreshCachedPropertyCodesAfterMutation(): void {
     this.refreshPropertyCodes().pipe(take(1)).subscribe();
   }
 
-  arePropertyCodesLoaded(): Observable<boolean> {
-    return this.propertyCodesLoaded$.asObservable();
-  }
-
   clearPropertyCodes(): void {
     this.propertyCodesLoad$ = null;
     this.propertyCodesLoadOrganizationId = null;
@@ -135,10 +131,6 @@ refreshCachedPropertyCodesAfterMutation(): void {
 
   getAllPropertyCodes(): Observable<PropertyCodeResponse[]> {
     return this.allPropertyCodes$.asObservable();
-  }
-
-  getAllPropertyCodesValue(): PropertyCodeResponse[] {
-    return this.allPropertyCodes$.value;
   }
 
   // GET: Get property by ID
@@ -248,10 +240,6 @@ refreshCachedPropertyCodesAfterMutation(): void {
 
   deletePropertyTrackerResponse(trackerResponseId: string): Observable<void> {
     return this.http.delete<void>(this.controller + 'tracker-response/' + trackerResponseId);
-  }
-
-  deletePropertyTrackerResponsesByPropertyId(propertyId: string): Observable<void> {
-    return this.http.delete<void>(this.controller + 'tracker-response/property/' + propertyId);
   }
 
   createPropertyTrackerResponseOption(request: PropertyTrackerResponseOptionRequest): Observable<PropertyTrackerResponseOption> {

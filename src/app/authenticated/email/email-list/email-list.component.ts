@@ -24,7 +24,7 @@ import { UtilityService } from '../../../services/utility.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { EmailType, getEmailType, getEmailTypes } from '../models/email.enum';
+import { EmailType, getEmailTypes } from '../models/email.enum';
 
 @Component({
   selector: 'app-email-list',
@@ -694,18 +694,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     }
     return false;
   }
-
-  applyEmailsRouteOfficeScope(): void {
-    this.showOfficeDropdown = this.offices.length > 1;
-    let officeIdToUse = this.selectedOfficeId;
-    if (officeIdToUse != null && !this.offices.some(o => o.officeId === officeIdToUse)) {
-      officeIdToUse = null;
-    }
-    if (this.offices.length === 1) {
-      officeIdToUse = this.offices[0].officeId;
-    }
-    this.resolveOfficeScope(officeIdToUse, false);
-  } 
 
   usesServerSearchCriteria(): boolean {
     return this.source === 'emails'

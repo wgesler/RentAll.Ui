@@ -22,7 +22,7 @@ import { PropertyCodeResponse } from '../../../properties/models/property.model'
 import { PropertyService } from '../../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
-import { JournalEntryKind, Perspective, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryKindLabel, getPerspectiveLabel, getPerspectives, getSourceTypeLabel, getPostingStatusLabel, getUserEditableJournalEntryKinds, isJournalEntryHardClosed, isJournalEntrySoftClosed, isUserEditableJournalEntry } from '../../models/accounting-enum';
+import { JournalEntryKind, Perspective, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryKindLabel, getPerspectives, getSourceTypeLabel, getPostingStatusLabel, getUserEditableJournalEntryKinds, isJournalEntryHardClosed, isJournalEntrySoftClosed, isUserEditableJournalEntry } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { JournalEntryLineDetailDisplay, JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
@@ -304,10 +304,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
 
   shouldShowLineContactColumn(): boolean {
     return this.editableLines.some(line => this.shouldShowLineContact(line));
-  }
-
-  getLineContactLabel(): string {
-    return 'Vendor';
   }
 
   getLinePropertyNullLabel(line: EditableJournalEntryLine): string {
@@ -706,7 +702,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.journalEntryService.confirmUpdateIfAllowed(this.journalEntry.postingStatusId, 'Journal Entry').pipe(
+    this.journalEntryService.confirmUpdateIfAllowed(this.journalEntry.postingStatusId).pipe(
       take(1),
       switchMap(canProceed => {
         this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.journalEntry?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
@@ -851,16 +847,6 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     return isValid;
-  }
-
-  validateEditForm(): boolean {
-    if (!this.journalEntry || !this.canEdit) {
-      return false;
-    }
-
-    this.applyAccountingPeriodValidators();
-    this.form.updateValueAndValidity({ emitEvent: false });
-    return !this.shouldShowControlError(this.form.get('accountingPeriod'));
   }
 
   applyAccountingPeriodValidators(): void {

@@ -15,7 +15,7 @@ import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { OwnerCashReportRowResponse } from '../../models/owner-report.model';
-import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, CreatePaymentWithOwnerAllocationsRequest, OwnerOwedAllocationOption, UpdatePaymentWithInvoiceAllocationsRequest, UpdatePaymentWithOwnerAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse } from '../../models/payment.model';
+import { CreatePaymentWithInvoiceAllocationsRequest, CreatePaymentWithBillAllocationsRequest, CreatePaymentWithOwnerAllocationsRequest, OwnerOwedAllocationOption, UpdatePaymentWithInvoiceAllocationsRequest, PaymentBillAllocation, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse } from '../../models/payment.model';
 import { ReceiptResponse, buildBillSplitLineDescription, isReceiptCompanyPropertyId } from '../../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { PropertyService } from '../../../properties/services/property.service';
@@ -473,7 +473,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     };
 
     if (this.isAddMode) {
-      this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Receipt').pipe(take(1)).subscribe(canProceed => {
+      this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds).pipe(take(1)).subscribe(canProceed => {
         if (!canProceed) {
           return;
         }
@@ -1029,10 +1029,6 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.syncPaymentAmountFromSplits();
     this.cdr.markForCheck();
-  }
-
-  onSplitInvoiceSelectionChange(splitIndex: number, value: string | number | null | undefined): void {
-    this.onSplitAllocationSelectionChange(splitIndex, value);
   }
 
   getInvoiceBalanceDue(invoiceId: string): number {

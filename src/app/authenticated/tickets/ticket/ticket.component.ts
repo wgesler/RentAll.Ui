@@ -505,7 +505,7 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     }
   }
 
-  onEditorDragLeave(event: DragEvent, target: 'description' | 'steps' | 'note'): void {
+  onEditorDragLeave(target: 'description' | 'steps' | 'note'): void {
     if (this.imageDragTarget === target) {
       this.imageDragTarget = null;
     }

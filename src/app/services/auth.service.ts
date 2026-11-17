@@ -3,7 +3,7 @@ import { Injector, Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
-import { BehaviorSubject, Observable, catchError, finalize, map, of, take, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, take, tap } from 'rxjs';
 import { RouterToken } from '../app.routes';
 import { FeatureType } from '../authenticated/organizations/models/organization-enum';
 import { FeatureResponse } from '../authenticated/organizations/models/organization-feature.model';

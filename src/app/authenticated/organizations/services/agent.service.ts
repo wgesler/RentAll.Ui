@@ -51,10 +51,6 @@ export class AgentService {
     return this.loadAllAgents().pipe(take(1), switchMap(() => this.getAllAgents().pipe(take(1))));
   }
 
-  notifyAgentsChanged(): void {
-    this.refreshAgents().pipe(take(1)).subscribe({ error: () => {} });
-  }
-
   refreshCacheAfterMutation<T>(source: Observable<T>): Observable<T> {
     return source.pipe(switchMap(result => this.loadAllAgents().pipe(map(() => result))));
   }

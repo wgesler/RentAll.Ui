@@ -35,20 +35,6 @@ export class AdminReceiptService {
   private configService = inject(ConfigService);
   private readonly controller = this.configService.config().apiUrl + 'admin/receipts/';
 
-  getUnmatched(organizationId: string, officeId: number | null, start: string | null, end: string | null): Observable<UnmatchedReceipts> {
-    let params = new HttpParams().set('organizationId', organizationId);
-    if (officeId != null) {
-      params = params.set('officeId', String(officeId));
-    }
-    if (start) {
-      params = params.set('start', start);
-    }
-    if (end) {
-      params = params.set('end', end);
-    }
-    return this.http.get<UnmatchedReceipts>(this.controller + 'unmatched', { params });
-  }
-
   getFiles(organizationId: string, officeId: number | null): Observable<UnassignedReceiptImage[]> {
     let params = new HttpParams().set('organizationId', organizationId);
     if (officeId != null) {

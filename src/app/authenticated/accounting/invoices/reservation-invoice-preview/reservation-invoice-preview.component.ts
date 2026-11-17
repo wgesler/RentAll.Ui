@@ -212,7 +212,7 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
     this.invoicesDisplay = this.invoices.map(invoice => {
       const rowKey = this.getRowKey(invoice);
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
-      const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice, this.transactionTypes);
+      const mappedLedgerLines = this.mappingService.mapLedgerLines(invoice.ledgerLines ?? [], costCodesForInvoice);
       const {
         organizationId: _organizationId,
         reservationId: _reservationId,

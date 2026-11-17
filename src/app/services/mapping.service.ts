@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AccountType, Class, JournalEntryKind, SourceType, SourceTypeLabels, TransactionType, getAccountTypeLabel, getPerspectiveLabel, getSourceTypeLabel, getTransactionType, isCreditNormalAccountType, isJournalEntrySourceNavigable, isManualJournalEntry } from '../authenticated/accounting/models/accounting-enum';
-import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerGroupContext, ArAgingCustomerRow, ArAgingDetailBuildRequest, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, buildArAgingCustomerGroupKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, isArAgingCompanyCustomer, resolveArAgingBucketId, resolveArAgingCompanyName, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
+import { ArAgingBucketDefinition, ArAgingBucketId, ArAgingCustomerGroupContext, ArAgingCustomerRow, ArAgingDetailReportResult, ArAgingDetailRow, ArAgingInvoiceDetail, ArAgingJeDetailBuildRequest, ArAgingReportBuildRequest, ArAgingReportResult, ArAgingReservationRow, buildArAgingBucketDefinitions, buildArAgingCompanySortKey, buildArAgingContactSortKey, buildArAgingCustomerGroupKey, compareArAgingCustomerSortKeys, compareArAgingInvoiceSortKeys, createEmptyArAgingBucketAmounts, isArAgingCompanyCustomer, resolveArAgingBucketId, resolveArAgingCompanyName, sortArAgingCustomerRows } from '../authenticated/accounting/models/ar-aging-report.model';
 import { ApAgingBillDetail, ApAgingBucketDefinition, ApAgingBucketId, ApAgingDetailBuildRequest, ApAgingDetailReportResult, ApAgingDetailRow, ApAgingOfficeRow, ApAgingPropertyRow, ApAgingReportBuildRequest, ApAgingReportResult, ApAgingSortBy, ApAgingVendorRow, OwnerApAgingReportBuildRequest, buildApAgingBucketDefinitions, compareApAgingBillSortKeys, compareApAgingVendorSortKeys, createEmptyApAgingBucketAmounts, resolveApAgingBucketId, sortApAgingVendorRows } from '../authenticated/accounting/models/ap-aging-report.model';
 import { FINANCIAL_REPORT_TOTAL_COLUMN_ID, FINANCIAL_REPORT_UNASSIGNED_COLUMN_ID, FinancialReportBuildRequest, FinancialReportColumn, FinancialReportColumnContext, FinancialReportDrillDownContext, FinancialReportDrillDownSpec, FinancialReportKind, FinancialReportResult, FinancialReportTreeNode } from '../authenticated/accounting/models/financial-report.model';
 import { ChartOfAccountListDisplay, ChartOfAccountRequest, ChartOfAccountResponse } from '../authenticated/accounting/models/chart-of-accounts.model';
@@ -10,9 +10,9 @@ import { JournalEntryLineDetailDisplay, JournalEntryLineListDisplay, JournalEntr
 import { PrintableReportDocument, PrintableReportRow, PrintableReportRowKind } from '../authenticated/accounting/models/printable-report.model';
 import { ReconcileAccountReportBuildRequest, ReconcileAccountReportResult, ReconcileAccountReportRow, ReconcileAccountReportView } from '../authenticated/accounting/models/reconcile-account-report.model';
 import { ReconcileLineDisplay } from '../authenticated/accounting/models/reconcile.model';
-import { OwnerInvoiceOutstandingResponse, OwnerPaymentsRequest, OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow } from '../authenticated/accounting/models/owner-statement.model';
+import { OwnerInvoiceOutstandingResponse, OwnerPaymentsRequest, OwnerStatementListDisplay, OwnerStatementMonthLineListDisplay, OwnerStatementMonthLineResponse, OwnerStatementMonthLineSearchRequest, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse } from '../authenticated/accounting/models/owner-statement.model';
 import { OwnerAccrualReportResponse, OwnerAccrualReportRowResponse, OwnerCashReportResponse, OwnerCashReportRowResponse, OwnerReportsBundleResponse } from '../authenticated/accounting/models/owner-report.model';
-import { EscrowReportBuildRequest, EscrowOfficeBalance, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
+import { EscrowOfficeBalance, EscrowReportResult, EscrowReportRow } from '../authenticated/accounting/models/escrow-report.model';
 import { SecurityDepositDetailLineResponse, SecurityDepositDetailResponse, SecurityDepositDetailReturnLineResponse } from '../authenticated/accounting/models/security-deposit-report.model';
 import { RentRollPropertyAgreement, RentRollRow } from '../authenticated/accounting/models/rent-roll.model';
 import { CreditReportLineDisplay, CreditReportLineResponse, CreditReportResponse } from '../authenticated/accounting/vendors/credit-report/credit-report.model';
@@ -27,14 +27,14 @@ import { EmailHtmlResponse } from '../authenticated/email/models/email-html.mode
 import { isReceiptCompanyPropertyId, RECEIPT_COMPANY_PROPERTY_ID } from '../authenticated/maintenance/models/receipt.model';
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
-import { InspectionDisplayList, InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
+import { InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
 import { ReceiptDraftRequest, ReceiptDraftResponse, ReceiptDraftSourceFlags } from '../authenticated/maintenance/models/receipt-draft.model';
 import { ReceiptDisplayList, ReceiptPrefill, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, OwnerOwedAllocationOption, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';
-import { PaymentKind, getInvoiceMethod, getInvoiceMethods, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
+import { PaymentKind, getInvoiceMethods, getPaymentKind, getPaymentTypeLabel } from '../authenticated/accounting/models/accounting-enum';
 import { TransferDisplayList, TransferFlatReportAccountIds, TransferFlatReportRowDisplay, TransferReportLineAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../authenticated/accounting/models/transfer.model';
-import { getInspectionType, getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
+import { getReceiptType, getWorkOrderType, ReceiptType } from '../authenticated/maintenance/models/maintenance-enums';
 import { WorkOrderDisplayList, WorkOrderRequest, WorkOrderResponse } from '../authenticated/maintenance/models/work-order.model';
 import { AccountingOfficeListDisplay, AccountingOfficeResponse } from '../authenticated/organizations/models/accounting-office.model';
 import { AgentListDisplay, AgentResponse, agentDropdownLabel, filterAgentsByOffice, normalizeAgentOffices } from '../authenticated/organizations/models/agent.model';
@@ -54,8 +54,8 @@ import { getTrackerContextCode, getTrackerContextType } from '../authenticated/o
 import { ManagementFeeType, PropertyLeaseType, PropertyType, TrashDays, effectiveBedTypeIdForPropertySlot, getBedSizeType, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatus, getPropertyStatusLetter, getPropertyStatuses, getPropertyStyles, getPropertyType, getPropertyTypes, getTrashPickupDay } from '../authenticated/properties/models/property-enums';
 import { PropertyAgreementLineResponse } from '../authenticated/properties/models/property-agreement.model';
 import { comparePropertyCodes, PropertyBedDropdownCell, PropertyListDisplay, PropertyListResponse, PropertyRequest, PropertyResponse } from '../authenticated/properties/models/property.model';
-import { BoardProperty, CalendarDay, PropertyHoverField, PropertyHoverFieldGroups } from '../authenticated/reservations/models/reservation-board-model';
-import { getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getFrequency, getNoticeStatusTypes, getProrateType, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, NoticeStatusType, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
+import { BoardProperty, CalendarDay, PropertyHoverFieldGroups } from '../authenticated/reservations/models/reservation-board-model';
+import { getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getFrequency, getNoticeStatusTypes, getProrateTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, NoticeStatusType, ReservationStatus, ReservationType } from '../authenticated/reservations/models/reservation-enum';
 import { ExternalCalendarImportEvent } from '../authenticated/reservations/models/external-calendar-import.model';
 import { ExtraFeeLineRequest, ExtraFeeLineResponse, ReservationCodeResponse, ReservationDepartureResponse, ReservationListDisplay, ReservationListResponse, ReservationRequest, ReservationResponse, UnreturnedSecurityDepositsResponse, UnreturnedSecurityDepositDisplay } from '../authenticated/reservations/models/reservation-model';
 import { LeadGeneralListDisplay, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../authenticated/leads/models/lead-general.model';
@@ -67,7 +67,6 @@ import { formatLeadStateLabel } from '../authenticated/leads/models/lead-enums';
 import { getTicketStateType, getTicketStateTypes } from '../authenticated/tickets/models/ticket-enum';
 import { TicketListDisplay, TicketNoteRequest, TicketRequest, TicketResponse, TicketStateDropdownCell } from '../authenticated/tickets/models/ticket-models';
 import { hasCompanyRole } from '../authenticated/shared/access/role-access';
-import { MobileTicketListDisplay } from '../authenticated/mobile/mobile-ticket-list/mobile-ticket-list.model';
 import { MobileListField, MobileListFieldOption, MobileListRow, MobileTicketNoteDisplay } from '../authenticated/mobile/mobile-list-table/mobile-list.model';
 import { MaintenanceListDisplay, PropertyMaintenance } from '../authenticated/shared/models/mixed-models';
 import { WorkOrderAmountService } from '../authenticated/maintenance/services/work-order-amount.service';
@@ -619,7 +618,6 @@ groupCardNumber(value: string): string {
   mapCostCodes(
     costCodes: CostCodesResponse[],
     offices?: OfficeResponse[],
-    transactionTypes?: { value: number, label: string }[],
     chartOfAccounts?: ChartOfAccountResponse[]
   ): CostCodesListDisplay[] {
     const chartOfAccountLookup = this.buildChartOfAccountLookupByOfficeAndAccountNo(chartOfAccounts);
@@ -689,29 +687,6 @@ isBankAccountNumber(accountNo: string | null | undefined): boolean {
       transactionTypeId: costCode.transactionTypeId,
       description: costCode.description || '',
       isActive
-    };
-  }
-
-  mapChartOfAccountResponse(raw: Record<string, unknown>): ChartOfAccountResponse {
-    const base = raw as unknown as ChartOfAccountResponse;
-    const endingBalanceRaw = raw['endingBalance'] ?? raw['EndingBalance'] ?? base.endingBalance;
-    const endingBalance = endingBalanceRaw == null || endingBalanceRaw === '' ? null : Number(endingBalanceRaw);
-    const subAccountIdRaw = Number(raw['subAccountId'] ?? raw['SubAccountId'] ?? base.subAccountId ?? 0);
-    const descriptionRaw = raw['description'] ?? raw['Description'] ?? base.description;
-    const noteRaw = raw['note'] ?? raw['Note'] ?? base.note;
-    return {
-      organizationId: String(raw['organizationId'] ?? raw['OrganizationId'] ?? base.organizationId ?? ''),
-      officeId: Number(raw['officeId'] ?? raw['OfficeId'] ?? base.officeId ?? 0),
-      accountId: Number(raw['accountId'] ?? raw['AccountId'] ?? base.accountId ?? 0),
-      accountNo: String(raw['accountNo'] ?? raw['AccountNo'] ?? base.accountNo ?? ''),
-      accountTypeId: Number(raw['accountTypeId'] ?? raw['AccountTypeId'] ?? base.accountTypeId ?? 0),
-      name: String(raw['name'] ?? raw['Name'] ?? base.name ?? ''),
-      isSubaccount: (raw['isSubaccount'] ?? raw['IsSubaccount'] ?? base.isSubaccount) === true,
-      subAccountId: Number.isFinite(subAccountIdRaw) && subAccountIdRaw > 0 ? subAccountIdRaw : null,
-      description: descriptionRaw == null || descriptionRaw === '' ? null : String(descriptionRaw),
-      endingBalance: endingBalance != null && Number.isFinite(endingBalance) ? endingBalance : null,
-      statementDate: this.utility.coerceCalendarDateStringFromApi(raw['statementDate'] ?? raw['StatementDate'] ?? base.statementDate) ?? null,
-      note: noteRaw == null || noteRaw === '' ? null : String(noteRaw)
     };
   }
 
@@ -1399,7 +1374,7 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[], transactionTypes?: { value: number, label: string }[]): LedgerLineListDisplay[] {
+  mapLedgerLines(ledgerLines: LedgerLineResponse[], costCodes?: CostCodesResponse[]): LedgerLineListDisplay[] {
     return ledgerLines.map<LedgerLineListDisplay>((line: LedgerLineResponse) => {
       const costCodeId = line.costCodeId ?? null;
       let matchingCostCode: CostCodesResponse | undefined = undefined;
@@ -1633,14 +1608,6 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       options: ticketStateTypeOptions,
       panelClass: ['datatable-dropdown-panel', 'datatable-dropdown-panel-open-left'],
       toString: () => normalizedLabel
-    };
-  }
-
-  mapMobileTicketListDisplay(ticket: TicketResponse): MobileTicketListDisplay {
-    return {
-      ticketId: ticket.ticketId,
-      title: ticket.title || '',
-      property: ticket.propertyCode || ''
     };
   }
 
@@ -2861,19 +2828,6 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     };
   }
 
-  mapLeadOwnerListRowToUpdateRequest(row: LeadOwnerListDisplay, isActive: boolean): LeadOwnerUpdateRequest {
-    const rest = { ...row };
-    delete (rest as Partial<LeadOwnerListDisplay>).fullName;
-    delete (rest as Partial<LeadOwnerListDisplay>).leadAttentionDot;
-    delete (rest as Partial<LeadOwnerListDisplay>).leadStateDropdown;
-    return {
-      ...rest,
-      isActive,
-      emailPhoneConsent: rest.emailPhoneConsent ?? false,
-      smsConsent: rest.smsConsent ?? false
-    };
-  }
-
   mapLeadOwnerResponseToUpdateRequest(lead: LeadOwnerResponse): LeadOwnerUpdateRequest {
     return {
       ownerId: lead.ownerId,
@@ -3221,11 +3175,6 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       confirmationNo: confirmationNo == null ? null : String(confirmationNo),
       ...(bldgNo !== undefined ? { bldgNo } : {})
     } as unknown as PropertyResponse;
-  }
-
-  mapPropertyToHoverFields(property: PropertyResponse | null | undefined): PropertyHoverField[] {
-    const groups = this.mapPropertyToHoverFieldGroups(property);
-    return groups.lead.concat(groups.beds, groups.restLeft, groups.restRight, groups.description ? [groups.description] : []);
   }
 
   mapPropertyToHoverFieldGroups(property: PropertyResponse | null | undefined): PropertyHoverFieldGroups {
@@ -3700,27 +3649,6 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
     };
   }
   
-  mapInspectionDisplays(inspections: InspectionResponse[]): InspectionDisplayList[] {
-    return inspections.map<InspectionDisplayList>((inspection: InspectionResponse) => {
-      return {
-        inspectionId: inspection.inspectionId,
-        officeId: inspection.officeId,
-        officeName: inspection.officeName,
-        propertyId: inspection.propertyId,
-        propertyCode: inspection.propertyCode,
-        reservationId: inspection.reservationId ?? '',
-        reservationCode: inspection.reservationCode ?? '',
-        maintenanceId: inspection.maintenanceId,
-        inspectionTypeId: inspection.inspectionTypeId,
-        inspectionType: getInspectionType(inspection.inspectionTypeId),
-        documentPath: inspection.documentPath,
-        isActive: inspection.isActive,
-        modifiedOn: this.formatter.formatDateTimeString(inspection.modifiedOn),
-        modifiedBy: inspection.modifiedBy
-      };
-    });
-  }
-
   mergeWorkOrderForQuickSave(
     sourceWorkOrder: WorkOrderResponse,
     cachedWorkOrder?: WorkOrderResponse | null,
@@ -3936,10 +3864,6 @@ resolveWorkOrderTitle(
       workingCapitalValue,
       workingCapitalBalanceDueValue
     };
-  }
-
-  mapOwnerStatementDisplays(statements: OwnerStatementResponse[]): OwnerStatementListDisplay[] {
-    return (statements || []).map(statement => this.mapOwnerStatementDisplay(statement));
   }
 
   mapOwnerReportSearchRequest(searchRequest?: MaintenanceListSearchRequest | null): OwnerStatementSearchRequest {
@@ -4382,44 +4306,6 @@ resolveWorkOrderTitle(
     return `${month}.${year}`;
   }
 
-  mapOwnerReportPropertyActivityStateRow(propertyRowId: string, message: string): OwnerStatementVisibleRow {
-    return {
-      rowId: `${propertyRowId}:state`,
-      kind: 'propertyActivity',
-      depth: 3,
-      primaryLabel: message,
-      propertyCode: '',
-      itemDescription: '',
-      activityCode: '',
-      expected: '',
-      expectedValue: 0,
-      prePaid: '',
-      prePaidValue: 0,
-      paidIncome: '',
-      paidIncomeValue: 0,
-      outstanding: '',
-      outstandingValue: 0,
-      income: '',
-      incomeValue: 0,
-      expenses: '',
-      expensesValue: 0,
-      balance: '',
-      balanceValue: 0,
-      startingBalance: '',
-      startingBalanceValue: 0,
-      workingCapital: '',
-      workingCapitalValue: 0,
-      workingCapitalBalanceDue: '',
-      workingCapitalBalanceDueValue: 0,
-      ownerPayment: '',
-      ownerPaymentValue: 0,
-      endingBalance: '',
-      endingBalanceValue: 0,
-      expandable: false,
-      expanded: false
-    };
-  }
-
   mapOwnerStatementMonthLineSearchRequest(searchRequest?: MaintenanceListSearchRequest | null): OwnerStatementMonthLineSearchRequest {
     return {
       officeIds: (searchRequest?.officeIds ?? []).filter(id => id > 0),
@@ -4634,11 +4520,6 @@ resolveWorkOrderTitle(
       grouped.set(key, bucket);
     }
     return grouped;
-  }
-
-  calculateOwnerStatementOwed(startingBalance: number, income: number, expenses: number, workingCapital: number): number {
-    const owed = startingBalance + income - expenses - workingCapital;
-    return owed < 0 ? 0 : Math.round(owed * 100) / 100;
   }
 
   calculateOwnerStatementRemainingOwed(grossOwed: number, paidAmount: number): number {
@@ -4956,11 +4837,6 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
 
   isReceiptWorkOrderMissingDisplay(value: string | null | undefined): boolean {
     return String(value ?? '').trim() === this.receiptWorkOrderMissingLabel;
-  }
-
-  isOwnerOrTenantReceiptSplitType(receiptTypeId: number | null | undefined): boolean {
-    const normalizedTypeId = Number(receiptTypeId ?? -1);
-    return normalizedTypeId === ReceiptType.Owner || normalizedTypeId === ReceiptType.Tenant;
   }
 
   shouldShowMissingWorkOrderForSplit(
@@ -5511,15 +5387,6 @@ getOwnerReportActivityLineSortOrder(line: OwnerStatementPropertyActivityLineResp
       cardPaymentDetected: true,
       description: (source?.description || '').trim() || null
     };
-  }
-
-  resolveCreditReportCardDisplay(line: CreditReportLineResponse): string {
-    const officeCard = (line.bankCardDisplayName || '').trim();
-    if (officeCard && officeCard.toLowerCase() !== 'bill')
-      return officeCard;
-
-    const lastFour = String(line.cardLastFour || '').replace(/\D/g, '');
-    return lastFour ? `****${lastFour.slice(-4)}` : '—';
   }
 
   resolveCreditReportWorkOrderDisplay(line: CreditReportLineResponse): string {
@@ -6629,18 +6496,6 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
   transferReportAccountMatches(accountId: number, configuredAccountId: number | null | undefined): boolean {
     const configured = Number(configuredAccountId ?? 0);
     return configured > 0 && accountId === configured;
-  }
-
-  sumTransferSplitAmountForAccount(splits: TransferSplit[], accountId: number | null | undefined): number {
-    const id = Number(accountId ?? 0);
-    if (!(id > 0)) {
-      return 0;
-    }
-    return this.roundCurrency(
-      splits
-        .filter(split => Number(split.chartOfAccountId) === id)
-        .reduce((sum, split) => sum + (Number(split.amount) || 0), 0)
-    );
   }
 
   mapTransferToFlatReportRowsFromDepositAllocations(transfer: TransferResponse, lineAllocations: TransferReportLineAllocationResponse[]): TransferFlatReportRowDisplay[] {
@@ -8910,75 +8765,6 @@ roundCurrency(value: number): number {
     return Math.round(amount * 100) / 100;
   }
 
-  buildEscrowReport(request: EscrowReportBuildRequest): EscrowReportResult {
-    const selectedPropertyId = (request.propertyId || '').trim() || null;
-    const recapAmountsByProperty = this.buildEscrowLastRecapAmountsByProperty(request.recapRows || []);
-    const rows: EscrowReportRow[] = (request.accrualRows || [])
-      .filter(row => {
-        const propertyId = String(row.propertyId || '').trim();
-        return !selectedPropertyId || propertyId === selectedPropertyId;
-      })
-      .map(row => {
-        const propertyId = String(row.propertyId || '').trim();
-        const arBalance = this.roundFinancialReportAmount(Number(row.invoicedIncome) || 0);
-        const recapAmounts = recapAmountsByProperty.get(propertyId) || { prepaids: 0, notCollected: 0 };
-        const prepaids = this.roundFinancialReportAmount(Math.max(0, recapAmounts.prepaids));
-        const notCollected = this.roundFinancialReportAmount(recapAmounts.notCollected);
-        const total = this.roundFinancialReportAmount(arBalance + prepaids - notCollected);
-        const e2 = total > 0 ? total : 0;
-        return {
-          rowId: `${row.officeId}-${propertyId || row.propertyCode}`,
-          ownerName: (row.ownerNames || row.ownerNameLine || row.companyName || '').trim() || '—',
-          propertyId,
-          propertyCode: (row.propertyCode || '').trim() || '—',
-          officeId: row.officeId,
-          arBalance,
-          prepaids,
-          notCollected,
-          total,
-          e2
-        };
-      })
-      .filter(row =>
-        Math.abs(row.arBalance) > 0.005
-        || Math.abs(row.prepaids) > 0.005
-        || Math.abs(row.notCollected) > 0.005
-        || Math.abs(row.total) > 0.005
-      )
-      .sort((left, right) =>
-        left.propertyCode.localeCompare(right.propertyCode, undefined, { numeric: true, sensitivity: 'base' })
-        || left.ownerName.localeCompare(right.ownerName, undefined, { sensitivity: 'base' })
-      );
-
-    const totals = rows.reduce(
-      (acc, row) => ({
-        arBalance: this.roundFinancialReportAmount(acc.arBalance + row.arBalance),
-        prepaids: this.roundFinancialReportAmount(acc.prepaids + row.prepaids),
-        notCollected: this.roundFinancialReportAmount(acc.notCollected + row.notCollected),
-        total: this.roundFinancialReportAmount(acc.total + row.total),
-        e2: this.roundFinancialReportAmount(acc.e2 + row.e2)
-      }),
-      { arBalance: 0, prepaids: 0, notCollected: 0, total: 0, e2: 0 }
-    );
-
-    const cushion = this.normalizeEscrowOwnerEscrowAmount(Number(request.cushion) || 0);
-    const escrowBankBalance = this.normalizeEscrowOwnerEscrowAmount(Number(request.escrowBankBalance) || 0);
-    const officeName = (request.officeName || '').trim();
-
-    return {
-      reportTitle: 'Escrow Report',
-      periodLabel: `As of ${request.asOfDateLabel}`,
-      entityLineLabel: officeName || null,
-      rows,
-      totals,
-      cushion,
-      escrowBankBalance,
-      escrowBankAccountLabel: (request.escrowBankAccountLabel || '').trim() || 'Escrow Owners',
-      escrowOfficeBalances: [],
-      transfer: this.calculateEscrowTransferAmount(escrowBankBalance, totals.e2, cushion)
-    };
-  }
-
   recalculateEscrowTransfer(result: EscrowReportResult, cushion: number): EscrowReportResult {
     const nextCushion = this.normalizeEscrowOwnerEscrowAmount(cushion);
     const ownerEscrowBalance = this.normalizeEscrowOwnerEscrowAmount(result.escrowBankBalance);
@@ -9162,12 +8948,6 @@ roundCurrency(value: number): number {
       total: this.roundFinancialReportAmount(Number(raw['total'] ?? raw['Total'] ?? 0)),
       e2: this.roundFinancialReportAmount(Number(raw['e2'] ?? raw['E2'] ?? 0))
     };
-  }
-
-  sumEscrowAssetAccountBalance(lines: JournalEntryLineSearchResponse[]): number {
-    return this.roundFinancialReportAmount(
-      (lines || []).reduce((sum, line) => sum + (Number(line.debit) || 0) - (Number(line.credit) || 0), 0)
-    );
   }
 
 buildEscrowLastRecapAmountsByProperty(
@@ -9783,8 +9563,6 @@ buildEscrowLastRecapAmountsByProperty(
 
     const dueDate = this.toDateOnlyJsonString(invoice.dueDate) || invoiceDate || asOfDate;
     const daysPastDue = this.getArAgingDaysPastDue(asOfDate, dueDate);
-    const reservationId = (invoice.reservationId || '').trim();
-    const reservation = reservationId ? reservationsByReservationId.get(reservationId) : null;
     const customerGrouping = this.buildArAgingCustomerGrouping(
       invoice,
       contactsByContactId,
@@ -10167,126 +9945,6 @@ buildEscrowLastRecapAmountsByProperty(
     return {
       reportTitle: 'AR Aging Detail',
       periodLabel: `As of ${this.buildArAgingAsOfLabel(request.asOfDate)}`,
-      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
-      scopeLabel: request.scopeLabel,
-      rows,
-      reportTotal
-    };
-  }
-
-  buildArAgingDetailReport(request: ArAgingDetailBuildRequest): ArAgingDetailReportResult {
-    const asOfDate = request.asOfDate;
-    const transactionRows: ArAgingDetailRow[] = [];
-
-    request.invoiceDetails.forEach(detail => {
-      if (request.bucketFilter && detail.bucketId !== request.bucketFilter) {
-        return;
-      }
-
-      const sourceInvoice = request.invoicesById.get(detail.invoiceId);
-      if (!sourceInvoice) {
-        return;
-      }
-
-      const reservationContext = sourceInvoice.reservationId
-        ? request.reservationContextByReservationId.get(sourceInvoice.reservationId.trim())
-        : undefined;
-      const terms = reservationContext?.termsLabel || 'Due on receipt';
-      const customerName = (detail.customerLabel || '').trim() || 'Unknown Customer';
-      const referenceNo = (detail.invoiceCode || '').trim() || null;
-      const propertyId = (sourceInvoice.propertyId || '').trim() || null;
-      const propertyLabel = propertyId
-        ? ((detail.propertyCode || '').trim() || propertyId)
-        : 'Company';
-
-      transactionRows.push({
-        rowId: `invoice:${detail.invoiceId}`,
-        kind: 'transaction',
-        label: null,
-        bucketId: detail.bucketId,
-        transactionType: 'Invoice',
-        transactionDate: detail.invoiceDate,
-        num: null,
-        referenceNo,
-        name: customerName,
-        terms,
-        dueDate: detail.dueDate,
-        classLabel: propertyLabel,
-        aging: detail.daysPastDue,
-        openBalance: this.roundFinancialReportAmount(Number(sourceInvoice.totalAmount || 0)),
-        invoiceId: detail.invoiceId
-      });
-
-      (sourceInvoice.ledgerLines || []).forEach(line => {
-        const lineDate = this.toDateOnlyJsonString(line.ledgerLineDate);
-        if (lineDate && lineDate > asOfDate) {
-          return;
-        }
-        if (!this.isArAgingPaymentLine(line, sourceInvoice.officeId, request.costCodes)) {
-          return;
-        }
-
-        const amount = Number(line.amount || 0);
-        if (!Number.isFinite(amount) || amount <= 0.005) {
-          return;
-        }
-
-        transactionRows.push({
-          rowId: `payment:${line.ledgerLineId}`,
-          kind: 'transaction',
-          label: null,
-          bucketId: detail.bucketId,
-          transactionType: 'Payment',
-          transactionDate: lineDate || detail.invoiceDate,
-          num: null,
-          referenceNo,
-          name: customerName,
-          terms,
-          dueDate: detail.dueDate,
-          classLabel: propertyLabel,
-          aging: detail.daysPastDue,
-          openBalance: this.roundFinancialReportAmount(-amount),
-          invoiceId: detail.invoiceId
-        });
-      });
-    });
-
-    transactionRows.sort((a, b) =>
-      (a.transactionDate || '').localeCompare(b.transactionDate || '')
-      || (a.referenceNo || '').localeCompare(b.referenceNo || '', undefined, { numeric: true, sensitivity: 'base' })
-      || (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
-    );
-
-    const reportTotal = transactionRows.reduce(
-      (sum, row) => this.roundFinancialReportAmount(sum + Number(row.openBalance || 0)),
-      0
-    );
-    const rows: ArAgingDetailRow[] = [];
-    if (transactionRows.length > 0) {
-      rows.push({
-        rowId: 'ar-aging-total',
-        kind: 'bucketTotal',
-        label: (request.scopeLabel || '').trim() || 'Customer',
-        bucketId: request.bucketFilter,
-        transactionType: null,
-        transactionDate: null,
-        num: null,
-        referenceNo: null,
-        name: null,
-        terms: null,
-        dueDate: null,
-        classLabel: null,
-        aging: null,
-        openBalance: reportTotal,
-        invoiceId: null
-      });
-      rows.push(...transactionRows);
-    }
-
-    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
-    return {
-      reportTitle: 'A/R Aging Detail',
-      periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
       entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
       scopeLabel: request.scopeLabel,
       rows,
@@ -11162,109 +10820,6 @@ buildEscrowLastRecapAmountsByProperty(
     const paidDate = this.toDateOnlyJsonString(receipt.paidDate);
     const effectivePaidAmount = paidDate && paidDate > asOfDate ? 0 : paidAmount;
     return this.roundFinancialReportAmount(totalAmount - effectivePaidAmount);
-  }
-
-  buildApAgingDetailReport(request: ApAgingDetailBuildRequest): ApAgingDetailReportResult {
-    const asOfDate = request.asOfDate;
-    const transactionRows: ApAgingDetailRow[] = [];
-
-    request.billDetails.forEach(detail => {
-      if (request.bucketFilter && detail.bucketId !== request.bucketFilter) {
-        return;
-      }
-
-      const sourceReceipt = request.receiptsById.get(detail.receiptId);
-      if (!sourceReceipt) {
-        return;
-      }
-
-      const vendorName = (detail.vendorLabel || '').trim() || 'Unknown Vendor';
-      const termsLabel = detail.termsLabel || 'Due on receipt';
-      const referenceNo = (detail.receiptCode || '').trim() || null;
-      const propertyLabel = detail.propertyId
-        ? ((detail.propertyCode || '').trim() || detail.propertyId)
-        : 'Company';
-      transactionRows.push({
-        rowId: `bill:${detail.receiptId}`,
-        kind: 'transaction',
-        label: null,
-        bucketId: detail.bucketId,
-        transactionType: 'Bill',
-        transactionDate: detail.receiptDate,
-        num: null,
-        referenceNo,
-        name: vendorName,
-        terms: termsLabel,
-        dueDate: detail.dueDate,
-        classLabel: propertyLabel,
-        aging: detail.daysPastDue,
-        openBalance: this.roundFinancialReportAmount(Number(sourceReceipt.amount || 0)),
-        receiptId: detail.receiptId
-      });
-
-      const paidAmount = this.getApAgingBillPaidAmountForDetail(sourceReceipt, asOfDate);
-      if (paidAmount > 0.005) {
-        transactionRows.push({
-          rowId: `payment:${detail.receiptId}`,
-          kind: 'transaction',
-          label: null,
-          bucketId: detail.bucketId,
-          transactionType: 'Payment',
-          transactionDate: this.toDateOnlyJsonString(sourceReceipt.paidDate) || detail.receiptDate,
-          num: null,
-          referenceNo,
-          name: vendorName,
-          terms: termsLabel,
-          dueDate: detail.dueDate,
-          classLabel: propertyLabel,
-          aging: detail.daysPastDue,
-          openBalance: this.roundFinancialReportAmount(-paidAmount),
-          receiptId: detail.receiptId
-        });
-      }
-    });
-
-    transactionRows.sort((a, b) =>
-      (a.transactionDate || '').localeCompare(b.transactionDate || '')
-      || (a.referenceNo || '').localeCompare(b.referenceNo || '', undefined, { numeric: true, sensitivity: 'base' })
-      || (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
-    );
-
-    const reportTotal = transactionRows.reduce(
-      (sum, row) => this.roundFinancialReportAmount(sum + Number(row.openBalance || 0)),
-      0
-    );
-    const rows: ApAgingDetailRow[] = [];
-    if (transactionRows.length > 0) {
-      rows.push({
-        rowId: 'ap-aging-total',
-        kind: 'bucketTotal',
-        label: (request.scopeLabel || '').trim() || 'Vendor',
-        bucketId: request.bucketFilter,
-        transactionType: null,
-        transactionDate: null,
-        num: null,
-        referenceNo: null,
-        name: null,
-        terms: null,
-        dueDate: null,
-        classLabel: null,
-        aging: null,
-        openBalance: reportTotal,
-        receiptId: null
-      });
-      rows.push(...transactionRows);
-    }
-
-    const entityParts = [request.companyName?.trim(), request.officeName?.trim()].filter(part => !!part);
-    return {
-      reportTitle: 'A/P Aging Detail',
-      periodLabel: `As of ${this.buildArAgingAsOfLabel(asOfDate)}`,
-      entityLineLabel: entityParts.length > 0 ? entityParts.join(' ') : null,
-      scopeLabel: request.scopeLabel,
-      rows,
-      reportTotal
-    };
   }
 
   mapApAgingReportToPrintableDocument(result: ApAgingReportResult): PrintableReportDocument {

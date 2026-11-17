@@ -10,8 +10,6 @@ import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, for
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { CommonService } from '../../../services/common.service';
-import { DocumentExportService } from '../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -19,13 +17,11 @@ import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
-import { DocumentResponse, GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
-import { EmailService } from '../../email/services/email.service';
+import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
-import { DocumentService } from '../../documents/services/document.service';
 import { BuildingResponse } from '../../organizations/models/building.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -33,7 +29,6 @@ import { AccountingOfficeResponse } from '../../organizations/models/accounting-
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { BuildingService } from '../../organizations/services/building.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { TerminologyService } from '../../organizations/services/terminology.service';
 import { getCheckInTime, getCheckOutTime, PropertyType } from '../../properties/models/property-enums';
 import { PropertyHtmlResponse } from '../../properties/models/property-html.model';
@@ -87,7 +82,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   private sanitizer = inject(DomSanitizer);
   private leaseReloadService = inject(LeaseReloadService);
   private mappingService = inject(MappingService);
-  private globalSelectionService = inject(GlobalSelectionService);
   private terminologyService = inject(TerminologyService);
   private http = inject(HttpClient);
   private dynamicFormDraftService = inject(DynamicFormDraftService);
@@ -430,7 +424,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     };
 
     this.documentService.generate(generateDto).pipe(take(1)).subscribe({
-      next: (documentResponse: DocumentResponse) => {
+      next: () => {
         this.toastr.success('Document generated successfully', 'Success');
         this.isSubmitting = false;
         this.generatePreviewIframe();
@@ -658,10 +652,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     this.form.patchValue({ selectedOfficeId: this.selectedOffice.officeId }, { emitEvent: false });
     this.filterReservations();
     return true;
-  }
-
-  get isOfficeSelectionLocked(): boolean {
-    return this.lockOfficeSelection;
   }
 
   get showNoticeToVacateCheckbox(): boolean {
@@ -1257,11 +1247,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   }
 
   getResponsiblePartyAddress1() {
-    return this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, this.getPrimaryResponsibleContact());
+    return this.utilityService.getResponsiblePartyAddress1(this.getPrimaryResponsibleContact());
   }
 
   getResponsiblePartyAddress2() {
-    return this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, this.getPrimaryResponsibleContact());
+    return this.utilityService.getResponsiblePartyAddress2(this.getPrimaryResponsibleContact());
   }
 
   getResponsiblePartyPhone() {
@@ -1284,8 +1274,8 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
 
     const responsiblePartiesBlock = contacts.map(contact => {
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(this.selectedReservation, contact));
-      const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(this.selectedReservation, contact);
-      const responsiblePartyAddress2Raw = this.utilityService.getResponsiblePartyAddress2(this.selectedReservation, contact);
+      const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(contact);
+      const responsiblePartyAddress2Raw = this.utilityService.getResponsiblePartyAddress2(contact);
       const responsiblePartyAddress1 = this.escapeHtml(responsiblePartyAddress1Raw);
       const responsiblePartyAddress2 = this.escapeHtml(responsiblePartyAddress2Raw);
       const responsiblePartyAddressSingleLine = [responsiblePartyAddress1, responsiblePartyAddress2].filter(part => part).join(', ');
@@ -1556,7 +1546,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     // The content can contain placeholders that will be replaced in later layers
     const depositTypeSDWPattern = /\{\{#if depositTypeSDW\}\}([\s\S]*?)\{\{\/if\}\}/g;
     
-    result = result.replace(depositTypeSDWPattern, (match, content) => {
+    result = result.replace(depositTypeSDWPattern, (_match, content) => {
       // Check if there's an else clause
       const elsePattern = /\{\{#else\}\}/;
       if (elsePattern.test(content)) {
@@ -1583,7 +1573,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     // Pattern: {{#if billingTypeMonthly}}...content...{{#else}}...else content...{{/if}}
     const billingTypeMonthlyPattern = /\{\{#if billingTypeMonthly\}\}([\s\S]*?)\{\{\/if\}\}/g;
     
-    result = result.replace(billingTypeMonthlyPattern, (match, content) => {
+    result = result.replace(billingTypeMonthlyPattern, (_match, content) => {
       // Check if there's an else clause
       const elsePattern = /\{\{#else\}\}/;
       if (elsePattern.test(content)) {
@@ -1613,7 +1603,7 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     if (this.selectedReservation?.referenceNo) {
       referenceNo = this.selectedReservation.referenceNo;
     }
-    result = result.replace(referenceNoPattern, (match, content) => {
+    result = result.replace(referenceNoPattern, (_match, content) => {
       return referenceNo && referenceNo.trim().length > 0 ? content : '';
     });
 
@@ -2549,10 +2539,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   //#region DocuSign Methods
   getDocuSignSignerRolesHtmlSource(): string {
     return String(this.baseTemplateHtml || this.previewIframeHtml || '').trim();
-  }
-
-  isCorporateLetterOfResponsibility(): boolean {
-    return this.selectedReservation?.depositTypeId === DepositType.CLR || this.isCompanyRental;
   }
 
   getDocuSignSignerRoles(): string[] {

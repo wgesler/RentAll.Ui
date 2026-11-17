@@ -253,7 +253,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
       return;
     }
 
-    this.journalEntryService.confirmUpdateIfAllowed(this.transfer?.postingStatusId, 'Transfer').pipe(take(1)).subscribe(canProceed => {
+    this.journalEntryService.confirmUpdateIfAllowed(this.transfer?.postingStatusId).pipe(take(1)).subscribe(canProceed => {
       this.journalEntryService.revertFormIfHardClosedUpdateBlocked(this.transfer?.postingStatusId, canProceed, () => this.restoreDocumentAfterClosedSaveFailure());
       if (!canProceed) {
         return;
@@ -875,12 +875,6 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   resolveTransferDestinationAccounts(accounts: ChartOfAccountResponse[], officeId: number): ChartOfAccountResponse[] {
     const destinationAccountIds = new Set(this.getTransferDestinationAccountIds(officeId));
     return (accounts || []).filter(account => destinationAccountIds.has(account.accountId));
-  }
-
-  getDefaultBankAccountId(officeId: number): number | null {
-    const accountingOffice = this.accountingOffices.find(office => Number(office.officeId) === officeId);
-    const accountId = Number(accountingOffice?.defaultBankAccountId ?? 0);
-    return accountId > 0 ? accountId : null;
   }
 
   getTransferDestinationAccountIds(officeId: number): number[] {

@@ -200,7 +200,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
 
   deleteDeposit(event: DepositDisplayList): void {
     const deposit = this.deposits.find(item => item.depositId === event.depositId);
-    this.journalEntryService.confirmDeleteIfAllowed(deposit?.postingStatusId, 'Deposit').pipe(
+    this.journalEntryService.confirmDeleteIfAllowed(deposit?.postingStatusId).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {

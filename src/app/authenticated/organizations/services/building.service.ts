@@ -69,10 +69,6 @@ export class BuildingService {
     return this.allBuildings$.asObservable();
   }
 
-  getAllBuildingsValue(): BuildingResponse[] {
-    return this.allBuildings$.value;
-  }
-
   getBuildings(): Observable<BuildingResponse[]> {
     return this.http.get<BuildingResponse[]>(this.controller);
   }

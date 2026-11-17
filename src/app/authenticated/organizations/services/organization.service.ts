@@ -84,14 +84,6 @@ export class OrganizationService {
     return this.http.post<UserGuideImageUploadResponse>(this.controller + 'user-guide/image', request);
   }
 
-  getUserGuideImageBlob(path: string): Observable<Blob> {
-    return this.http.get(this.controller + 'user-guide/image', {
-      params: { path },
-      responseType: 'blob',
-      context: this.imageHttpContext
-    });
-  }
-
   deleteUserGuideImage(path: string): Observable<void> {
     return this.http.delete<void>(this.controller + 'user-guide/image', {
       params: { path },

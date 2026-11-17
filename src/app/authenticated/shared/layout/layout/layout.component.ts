@@ -38,8 +38,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
   static isIdleModalOn = false;
 
   isLoading = true;
-  isInitialLoad: boolean = true;
-  lastPing?: Date = null;
   idleMonitor: boolean = false;
   destroy$ = new Subject<void>();
   dialogRef: MatDialogRef<GenericModalComponent>;

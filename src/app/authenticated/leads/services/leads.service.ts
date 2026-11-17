@@ -90,10 +90,6 @@ export class LeadsService {
     return this.http.get<OwnerHtmlResponse>(`${this.controller}owners/html/${propertyId}`);
   }
 
-  getOwnerInventoryInformationByOwnerId(ownerId: number): Observable<OwnerInventoryInformationResponse> {
-    return this.http.get<OwnerInventoryInformationResponse>(`${this.controller}owners/inventory-information/${ownerId}`);
-  }
-
   getOwnerAgreementInformationByScope(officeId: number | null = null, propertyId: string | null = null): Observable<OwnerAgreementInformationResponse> {
     const queryParams: string[] = [];
     if (officeId != null) {

@@ -1,7 +1,7 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -21,7 +21,6 @@ export interface PropertyCalendarUrlDialogData {
 })
 export class PropertyCalendarUrlDialogComponent {
   data = inject<PropertyCalendarUrlDialogData>(MAT_DIALOG_DATA);
-  private dialogRef = inject<MatDialogRef<PropertyCalendarUrlDialogComponent>>(MatDialogRef);
   private clipboard = inject(Clipboard);
   private toastr = inject(ToastrService);
 

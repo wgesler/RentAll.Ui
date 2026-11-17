@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Even
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, EMPTY, Subject, filter, finalize, forkJoin, map, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, finalize, forkJoin, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -892,7 +892,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const receipt = this.receipts.find(item => item.receiptId === event.receiptId);
-    this.journalEntryService.confirmDeleteIfAllowed(receipt?.postingStatusId, 'Receipt').pipe(
+    this.journalEntryService.confirmDeleteIfAllowed(receipt?.postingStatusId).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {
@@ -2603,10 +2603,6 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     return this.manualApplyEditableReceiptId != null;
   }
 
-  get isBillSelectionPaymentMode(): boolean {
-    return this.showPaymentForm && this.showBillsTableSelections && !this.isRowScopedPaymentMode;
-  }
-
   getReceiptDueAmountValue(receiptId: string): number {
     const receipt =
       this.allReceipts.find(row => row.receiptId === receiptId) ??
@@ -3040,7 +3036,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
       this.receipts.find(item => item.receiptId === receipt.receiptId)?.postingStatusId
     );
 
-    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Receipt').pipe(
+    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {

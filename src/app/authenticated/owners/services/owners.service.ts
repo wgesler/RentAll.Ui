@@ -7,11 +7,10 @@ import { DocumentService } from '../../documents/services/document.service';
 import { ContactResponse } from '../../contacts/models/contact.model';
 import { EntityType } from '../../contacts/models/contact-enum';
 import { ContactService } from '../../contacts/services/contact.service';
-import { LeadOwnerRequest, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
+import { LeadOwnerResponse, LeadOwnerUpdateRequest } from '../../leads/models/lead-owner.model';
 import { PublicOwnerFormResponse, PublicOwnerFormSubmitRequest } from '../../leads/models/owner-form-share.model';
 import { OwnerInventoryInformationRequest, OwnerInventoryInformationResponse } from '../../leads/models/owner-inventory-information.model';
 import { LeadsService } from '../../leads/services/leads.service';
-import { LeadStateType } from '../../leads/models/lead-enums';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -393,46 +392,6 @@ getOwnerHtmlByContextWithFallback(
     );
   }
 
-  createEmptyOwnerLead(officeId: number): Observable<LeadOwnerResponse> {
-    const body: LeadOwnerRequest = {
-      officeId,
-      leadStateId: LeadStateType.New,
-      agentId: null,
-      firstName: null,
-      lastName: null,
-      email: null,
-      phone: null,
-      locationOfProperty: null,
-      programInterest: null,
-      whatIsPromptingContact: null,
-      timeFrame: null,
-      targetRentReadyDate: null,
-      propertyGoals: null,
-      tellUsMoreAboutYourGoals: null,
-      yearsOfExperienceWithRentals: null,
-      tellUsMoreAboutProperty: null,
-      address: null,
-      city: null,
-      state: null,
-      zip: null,
-      numberOfBeds: null,
-      numberOfBaths: null,
-      approxSqFootage: null,
-      propertyTypeId: null,
-      propertyCode: null,
-      propertyOffice: null,
-      tellUsWhatYouLikeMostAboutYourProperty: null,
-      tellUsAnyDrawbacks: null,
-      preferredContactMethod: null,
-      timeDateForContact: null,
-      notes: null,
-      emailPhoneConsent: false,
-      smsConsent: false,
-      isActive: false
-    };
-    return this.leadsService.createOwnerLead(body);
-  }
-
   createAgreementInformationByContext(body: OwnerAgreementInformationRequest): Observable<OwnerAgreementInformationResponse | null> {
     return this.leadsService.createOwnerAgreementInformation(body);
   }
@@ -474,13 +433,6 @@ getOwnerHtmlByContextWithFallback(
   //#endregion
 
   //#region DELETE
-  deleteOwnerContactByContext(contactId: string | null | undefined): Observable<void> {
-    const normalizedContactId = String(contactId || '').trim();
-    if (!normalizedContactId) {
-      return of(void 0);
-    }
-    return this.contactService.deleteContact(normalizedContactId);
-  }
   //#endregion
 
   //#region Helpers

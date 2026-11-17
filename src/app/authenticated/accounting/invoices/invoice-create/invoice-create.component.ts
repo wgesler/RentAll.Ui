@@ -5,12 +5,10 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule }
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, firstValueFrom, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, firstValueFrom, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
-import { DocumentExportService } from '../../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../../services/document-html.service';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { DebugLayoutBandsService } from '../../../../services/debug-layout-bands.service';
@@ -20,14 +18,12 @@ import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
-import { EmailService } from '../../../email/services/email.service';
 import { EmailHtmlResponse } from '../../../email/models/email-html.model';
 import { EmailType } from '../../../email/models/email.enum';
 import { EmailHtmlService } from '../../../email/services/email-html.service';
 import { EmailCreateDraftService } from '../../../email/services/email-create-draft.service';
 import { buildInvoiceEmailSubject } from '../../../email/utils/invoice-email-subject';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
-import { DocumentService } from '../../../documents/services/document.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OrganizationResponse } from '../../../organizations/models/organization.model';
@@ -296,7 +292,7 @@ initializeInvoicePreview(): void {
         fileName: fileName
       };
 
-      const documentResponse = await firstValueFrom(this.documentService.generate(generateDto));
+      await firstValueFrom(this.documentService.generate(generateDto));
       this.toastr.success('Document generated successfully', 'Success');
       this.isSubmitting = false;
       this.iframeKey++; // Force iframe refresh

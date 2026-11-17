@@ -7,7 +7,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, catchError, concatMap, filter, finalize, firstValueFrom, forkJoin, from, map, of, pairwise, skip, startWith, switchMap, take, takeUntil, tap, toArray } from 'rxjs';
 import { InvoiceService } from '../../accounting/services/invoice.service';
-import { SecurityDepositService } from '../../accounting/services/security-deposit.service';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -122,7 +121,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private userService = inject(UserService);
   private dashboardNavigation = inject(DashboardNavigationService);
   private invoiceService = inject(InvoiceService);
-  private securityDepositService = inject(SecurityDepositService);
   @ViewChildren('extraFeeDescriptionInput') extraFeeDescriptionInputs?: QueryList<ElementRef<HTMLInputElement>>;
 
   isServiceError: boolean = false;
@@ -1595,10 +1593,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   };
 
   referralPercentageAmountValidator: ValidatorFn = (): ValidationErrors | null => {
-    return this.getReferralAmountValidationErrors();
-  };
-
-  referralFlatRateAmountValidator: ValidatorFn = (): ValidationErrors | null => {
     return this.getReferralAmountValidationErrors();
   };
 
@@ -3667,10 +3661,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     this.syncOfficeIdToForm();
   }
 
-  get titleBarOfficeId(): number | null {
-    return this.selectedOffice?.officeId ?? null;
-  }
-
   get titleBarOfficeOptions(): SearchableSelectOption[] {
     if (this.shellOfficeOptions?.length) {
       return this.shellOfficeOptions;
@@ -4874,10 +4864,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     );
   }
 
-  getReservationDepartureDate(): Date | null {
-    return this.parseDateOnly(this.form?.get('departureDate')?.value);
-  }
-
   updateReservationPaymentField(
     index: number,
     field: keyof ReservationPaymentDisplay,
@@ -4887,10 +4873,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
     this.reservationPayments[index] = { ...this.reservationPayments[index], [field]: value };
-  }
-
-  formatPaymentDateInputValue(date: Date | null | undefined): string {
-    return this.formatReservationPaymentDateDisplay(date);
   }
 
   formatReservationPaymentDateDisplay(date: Date | null | undefined): string {

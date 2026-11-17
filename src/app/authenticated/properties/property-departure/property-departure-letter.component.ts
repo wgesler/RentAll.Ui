@@ -9,8 +9,6 @@ import { BehaviorSubject, Observable, Subject, filter, finalize, map, of, take, 
 import { MaterialModule } from '../../../material.module';
 import { RouterUrl } from '../../../app.routes';
 import { CommonService } from '../../../services/common.service';
-import { DocumentExportService } from '../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { UtilityService } from '../../../services/utility.service';
@@ -19,12 +17,10 @@ import { ContactService } from '../../contacts/services/contact.service';
 import { DocumentType } from '../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentReloadService } from '../../documents/services/document-reload.service';
-import { EmailService } from '../../email/services/email.service';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
-import { DocumentService } from '../../documents/services/document.service';
 import { BuildingResponse } from '../../organizations/models/building.model';
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -43,8 +39,6 @@ import { PropertyHtmlService } from '../services/property-html.service';
 import { PropertyInformationService } from '../services/property-information.service';
 import { PropertyService } from '../services/property.service';
 import { DepartureLetterReloadService } from '../services/departure-letter-reload.service';
-import { environment } from '../../../../environments/environment';
-
 @Component({
     standalone: true,
     selector: 'app-property-departure-letter',
@@ -596,7 +590,6 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
   replacePlaceholders(html: string): string {
     let result = html;
     const isBranded = this.form?.get('isBranded')?.value !== false;
-    const includeDepartureDate = this.form?.get('includeDepartureDate')?.value !== false;
 
     if (this.organization) {    
       result = this.mergeLiteralToken(result, 'organizationName', this.getOrganizationName());

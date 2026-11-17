@@ -69,10 +69,6 @@ export class AreaService {
     return this.allAreas$.asObservable();
   }
 
-  getAllAreasValue(): AreaResponse[] {
-    return this.allAreas$.value;
-  }
-
   getAreas(): Observable<AreaResponse[]> {
     return this.http.get<AreaResponse[]>(this.controller);
   }

@@ -5,16 +5,12 @@ import { BehaviorSubject, catchError, finalize, firstValueFrom, forkJoin, map, o
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../../material.module';
 import { CommonService } from '../../../../services/common.service';
-import { DocumentExportService } from '../../../../services/document-export.service';
-import { DocumentHtmlService } from '../../../../services/document-html.service';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
-import { DocumentService } from '../../../documents/services/document.service';
-import { EmailService } from '../../../email/services/email.service';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
 import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
 import { OfficeResponse } from '../../../organizations/models/office.model';
@@ -496,10 +492,6 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     }
 
     return [...accountIds];
-  }
-
-  resolveOwnerApAccountId(officeId: number): number | null {
-    return this.resolveOwnerApAccountIds(officeId)[0] ?? null;
   }
   //#endregion
 

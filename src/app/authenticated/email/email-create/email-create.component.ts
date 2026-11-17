@@ -109,10 +109,6 @@ export class EmailCreateComponent implements OnInit, OnDestroy {
     return this.additionalAttachments.length < this.maxAdditionalAttachments;
   }
 
-  get toRecipientLine(): string {
-    return this.formatAddressLine(this.form.get('toName')?.value, this.form.get('toEmail')?.value);
-  }
-
   get fromRecipientLine(): string {
     return this.formatAddressLine(this.form.get('fromName')?.value, this.form.get('fromEmail')?.value);
   }

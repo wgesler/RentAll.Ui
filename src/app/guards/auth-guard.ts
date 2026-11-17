@@ -10,8 +10,6 @@ import {
   getAuthorizedFallbackUrl,
   getPartnerFallbackUrl
 } from '../authenticated/shared/access/role-access';
-import { OrganizationType } from '../authenticated/organizations/models/organization-enum';
-import { UserGroups } from '../authenticated/users/models/user-enums';
 import { AuthService } from '../services/auth.service';
 import { CommonService } from '../services/common.service';
 import { resetViewportScroll, teardownCdkOverlayState } from '../shared/utils/cdk-overlay.util';

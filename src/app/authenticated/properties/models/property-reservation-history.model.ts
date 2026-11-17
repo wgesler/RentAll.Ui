@@ -1,7 +1,5 @@
 import { InvoiceResponse } from '../../accounting/models/invoice.model';
 import { ReservationHistoryRateRow } from '../../reservations/models/reservation-history-rate-row.model';
-import { ReservationListDisplay } from '../../reservations/models/reservation-model';
-
 export interface InvoiceHistoryDisplayRow {
   invoiceId: string;
   invoiceNumber: string;

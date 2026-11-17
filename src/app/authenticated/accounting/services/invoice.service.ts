@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, Injector, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
-import { catchError, concatMap, EMPTY, finalize, from, map, Observable, of, switchMap, take, tap } from 'rxjs';
+import { catchError, concatMap, EMPTY, finalize, from, map, Observable, switchMap, take, tap } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { ConfigService } from '../../../services/config.service';
 import { MappingService } from '../../../services/mapping.service';

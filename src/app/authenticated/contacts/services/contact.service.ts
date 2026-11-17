@@ -58,10 +58,6 @@ export class ContactService {
   }
 
   /** Reload the global contact cache and push to all getAllContacts() subscribers. */
-  notifyContactsChanged(): void {
-    this.refreshContacts().pipe(take(1)).subscribe({ error: () => {} });
-  }
-
   refreshCacheAfterMutation<T>(source: Observable<T>): Observable<T> {
     return source.pipe(
       switchMap(result =>

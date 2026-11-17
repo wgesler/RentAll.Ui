@@ -8,7 +8,6 @@ import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
 import { OwnerAccrualReportResponse, OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportResponse, OwnerReportSearchResponse, OwnerReportVisibleRow, OwnerCashReportResponse } from '../../models/owner-report.model';
-import { OwnerReportService } from '../../services/owner-report.service';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
 
 interface OwnerReportKindCache {
@@ -44,7 +43,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   @Output() amountDrillDownSelect = new EventEmitter<OwnerReportAmountDrillDownSelection>();
   @Output() viewStateChange = new EventEmitter<OwnerReportListViewState>();
   @Output() reportKindChange = new EventEmitter<OwnerReportKind>();
-  private ownerReportService = inject(OwnerReportService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private commonService = inject(CommonService);
   private formatter = inject(FormatterService);

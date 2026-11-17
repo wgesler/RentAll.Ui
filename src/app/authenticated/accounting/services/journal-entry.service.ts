@@ -20,15 +20,6 @@ import { DepositResponse } from '../models/deposit.model';
 import { InvoiceResponse } from '../models/invoice.model';
 import { PaymentResponse } from '../models/payment.model';
 
-export type JournalEntrySourceDocumentLabel =
-  | 'Invoice'
-  | 'Receipt'
-  | 'Work Order'
-  | 'Deposit'
-  | 'Transfer'
-  | 'Payment'
-  | 'Journal Entry';
-
 const POSTED_JOURNAL_ENTRY_EDIT_ROLES: UserGroups[] = [
   UserGroups.SuperAdmin,
   UserGroups.Admin,
@@ -172,17 +163,11 @@ export class JournalEntryService {
     return this.hasAnyRole(groups, SOFT_CLOSED_JOURNAL_ENTRY_EDIT_ROLES);
   }
 
-  getUpdateBlockedMessage(
-    documentLabel: JournalEntrySourceDocumentLabel,
-    postingStatusId: number | null | undefined
-  ): string {
+  getUpdateBlockedMessage(postingStatusId: number | null | undefined): string {
     return this.getMutationBlockedMessage(postingStatusId);
   }
 
-  getDeleteBlockedMessage(
-    documentLabel: JournalEntrySourceDocumentLabel,
-    postingStatusId: number | null | undefined
-  ): string {
+  getDeleteBlockedMessage(postingStatusId: number | null | undefined): string {
     return this.getMutationBlockedMessage(postingStatusId);
   }
 
@@ -221,42 +206,30 @@ export class JournalEntryService {
     this.revertFormIfClosedDocumentUpdateBlocked(this.strictestPostingStatus(postingStatusIds), canProceed, revert);
   }
 
-  guardCanUpdateJournalEntry(
-    postingStatusId: number | null | undefined,
-    documentLabel: JournalEntrySourceDocumentLabel
-  ): boolean {
+  guardCanUpdateJournalEntry(postingStatusId: number | null | undefined): boolean {
     if (this.canUpdateJournalEntry(postingStatusId)) {
       return true;
     }
 
-    this.toastr.error(this.getUpdateBlockedMessage(documentLabel, postingStatusId), CommonMessage.Error);
+    this.toastr.error(this.getUpdateBlockedMessage(postingStatusId), CommonMessage.Error);
     return false;
   }
 
-  confirmUpdateIfAllowed(
-    postingStatusId: number | null | undefined,
-    documentLabel: JournalEntrySourceDocumentLabel
-  ): Observable<boolean> {
+  confirmUpdateIfAllowed(postingStatusId: number | null | undefined): Observable<boolean> {
     return this.confirmMutationIfAllowed(
       postingStatusId,
       postingStatus => this.canUpdateJournalEntry(postingStatus)
     );
   }
 
-  confirmDeleteIfAllowed(
-    postingStatusId: number | null | undefined,
-    documentLabel: JournalEntrySourceDocumentLabel
-  ): Observable<boolean> {
+  confirmDeleteIfAllowed(postingStatusId: number | null | undefined): Observable<boolean> {
     return this.confirmMutationIfAllowed(
       postingStatusId,
       postingStatus => this.canDeleteApplicationObject(postingStatus)
     );
   }
 
-  confirmPaymentIfAllowed(
-    postingStatusIds: Array<number | null | undefined>,
-    documentLabel: JournalEntrySourceDocumentLabel
-  ): Observable<boolean> {
+  confirmPaymentIfAllowed(postingStatusIds: Array<number | null | undefined>): Observable<boolean> {
     const postingStatusId = this.strictestPostingStatus(postingStatusIds);
     return this.confirmMutationIfAllowed(
       postingStatusId,
@@ -268,7 +241,7 @@ export class JournalEntryService {
     postingStatusId: number | null | undefined,
     invoice: InvoiceResponse | null | undefined
   ): Observable<boolean> {
-    return this.confirmUpdateIfAllowed(postingStatusId, 'Invoice').pipe(
+    return this.confirmUpdateIfAllowed(postingStatusId).pipe(
       switchMap(canProceed => {
         if (!canProceed) {
           return of(false);
@@ -284,10 +257,7 @@ export class JournalEntryService {
     relatedPostingStatusIds: Array<number | null | undefined>,
     payment: PaymentResponse | null | undefined
   ): Observable<boolean> {
-    return this.confirmPaymentIfAllowed(
-      [paymentPostingStatusId, ...relatedPostingStatusIds],
-      'Payment'
-    ).pipe(
+    return this.confirmPaymentIfAllowed([paymentPostingStatusId, ...relatedPostingStatusIds]).pipe(
       switchMap(canProceed => {
         if (!canProceed) {
           return of(false);
@@ -302,7 +272,7 @@ export class JournalEntryService {
     postingStatusId: number | null | undefined,
     deposit: DepositResponse | null | undefined
   ): Observable<boolean> {
-    return this.confirmUpdateIfAllowed(postingStatusId, 'Deposit').pipe(
+    return this.confirmUpdateIfAllowed(postingStatusId).pipe(
       switchMap(canProceed => {
         if (!canProceed) {
           return of(false);

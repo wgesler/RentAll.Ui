@@ -346,10 +346,6 @@ getEditableFieldSelectorList(): string[] {
     doc.head?.appendChild(style);
   }
 
-  removeGlobalEditModeStyles(): void {
-    document.getElementById(this.editableFieldStyleId)?.remove();
-  }
-
   applyViewModeToDocument(doc: Document | null | undefined, options?: OwnerFormViewModeStyleOptions): void {
     const previewHost = doc?.body;
     if (!doc || !previewHost) {

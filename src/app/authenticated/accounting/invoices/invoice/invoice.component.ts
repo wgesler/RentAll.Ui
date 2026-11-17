@@ -4,7 +4,7 @@ import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy
 import { FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, filter, finalize, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, finalize, map, of, skip, switchMap, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
@@ -1274,7 +1274,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.filterCostCodes();
     }
     
-    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
+    this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes);
     this.syncLedgerLineDatesFormArray();
     this.ledgerLines.forEach(line => {
       if (line.isNew === undefined) {
@@ -1311,7 +1311,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
     this.invoiceService.getMonthlyLedgerLines(request).pipe(take(1)).subscribe({
       next: (response: InvoiceMonthlyDataResponse) => {
         const rawLedgerLines = response.ledgerLines || [];
-        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes, this.transactionTypes);
+        this.ledgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, this.officeCostCodes);
         this.syncLedgerLineDatesFormArray();
         this.recomputeLedgerLineNumbers();
         this.originalLedgerLines = JSON.parse(JSON.stringify(this.ledgerLines));
@@ -1431,7 +1431,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       const officeId = this.form.get('officeId')?.value;
       this.selectedOffice = officeId ? this.offices.find(o => o.officeId === officeId) || null : null;
       
-      const reservationId = this.form.get('reservationId')?.value;
       this.syncSelectedReservationFromForm();
       
       this.updateAvailableReservations();
@@ -1635,7 +1634,7 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   setupReservationIdHandler(): void {
-    this.form.get('reservationId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(reservationId => {
+    this.form.get('reservationId')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.syncSelectedReservationFromForm();
       if (this.selectedReservation) {
         const selectedOfficeId = this.form.get('officeId')?.value;
@@ -1739,8 +1738,6 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
       this.updateLedgerLineField(index, 'transactionTypeId', undefined);
       this.updateLedgerLineField(index, 'transactionType', '');
     } else {
-      const line = this.ledgerLines[index];
-      
       this.updateLedgerLineField(index, 'costCodeId', normalizedCostCodeId);
       const matchingCostCode = this.officeCostCodes.find(c => c.costCodeId === normalizedCostCodeId)
         ?? this.allCostCodes.find(c =>

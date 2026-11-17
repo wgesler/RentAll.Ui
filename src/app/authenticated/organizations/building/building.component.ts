@@ -2,9 +2,9 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
@@ -34,7 +34,6 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   buildingService = inject(BuildingService);
   router = inject(Router);
   fb = inject(FormBuilder);
-  private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
@@ -114,7 +113,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
         this.buildForm();
         this.populateForm();
       },
-      error: (err: HttpErrorResponse) => {
+      error: () => {
         this.isServiceError = true;
         this.utilityService.removeLoadItemFromSet(this.itemsToLoad$, 'building');
       }
@@ -165,7 +164,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
 
     if (this.isAddMode) {
       this.buildingService.createBuilding(buildingRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: BuildingResponse) => {
+        next: () => {
           this.toastr.success('Building created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();
@@ -182,7 +181,7 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
       buildingRequest.buildingId = buildingIdNum;
       buildingRequest.organizationId = this.building?.organizationId || user?.organizationId || '';
       this.buildingService.updateBuilding(buildingRequest).pipe(take(1), finalize(() => this.isSubmitting = false)).subscribe({
-        next: (response: BuildingResponse) => {
+        next: () => {
           this.toastr.success('Building updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.savedEvent.emit();
           this.backEvent.emit();

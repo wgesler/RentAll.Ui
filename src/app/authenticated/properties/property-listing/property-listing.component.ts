@@ -17,8 +17,8 @@ import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { Clipboard } from '@angular/cdk/clipboard';
-import { BehaviorSubject, Observable, Subject, firstValueFrom } from 'rxjs';
-import { catchError, finalize, map, take, takeUntil } from 'rxjs/operators';
+import { BehaviorSubject, Subject, firstValueFrom } from 'rxjs';
+import { catchError, finalize, take, takeUntil } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
@@ -285,14 +285,6 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
     return this.listingContentSafeHtml;
   }
 
-  get listingDescriptionShort(): string {
-    const full = this.listingDescriptionText;
-    if (full.length <= 280) {
-      return full;
-    }
-    return `${full.slice(0, 280).trim()}...`;
-  }
-
   get shouldShowDescriptionToggle(): boolean {
     return this.descriptionHasOverflow;
   }
@@ -446,15 +438,15 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
 
   refreshListingDescriptionHtml(property: PropertyResponse = this.listingProperty!): void {
     this.listingDescriptionHtmlValue = property?.description?.trim() || '';
-    this.rebuildListingContentHtml(property);
+    this.rebuildListingContentHtml();
   }
 
   refreshListingAmenitiesHtml(property: PropertyResponse = this.listingProperty!): void {
     this.listingAmenitiesHtmlValue = property?.amenities?.trim() || '';
-    this.rebuildListingContentHtml(property);
+    this.rebuildListingContentHtml();
   }
 
-  rebuildListingContentHtml(property: PropertyResponse | null = this.listingProperty): void {
+  rebuildListingContentHtml(): void {
     const hasDescriptionHtml = /<[^>]+>/.test(this.listingDescriptionHtmlValue);
     const descriptionHtml = hasDescriptionHtml
       ? this.listingDescriptionHtmlValue

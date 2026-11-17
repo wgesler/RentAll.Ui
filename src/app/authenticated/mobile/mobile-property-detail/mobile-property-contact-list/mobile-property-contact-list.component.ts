@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { Subject, finalize, forkJoin, of, switchMap, take, takeUntil } from 'rxjs';
+import { Subject, finalize, forkJoin, of, switchMap, take } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';

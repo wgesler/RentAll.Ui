@@ -5,7 +5,7 @@ import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, filter, finalize, map, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
@@ -52,7 +52,6 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   costCodeId: number | null = null;
   costCode: CostCodesResponse;
   form: FormGroup;
-  fromAccountingTab: boolean = false; // Track if navigated from Accounting tab
   fromOffice: boolean = false; // Track if navigated from Office component (embedded)
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
@@ -173,7 +172,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         take(1), 
         finalize(() => this.isSubmitting = false)
       ).subscribe({
-        next: (response: CostCodesResponse | null) => {
+        next: () => {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Cost Code created successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           
@@ -193,7 +192,7 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
         take(1), 
         finalize(() => this.isSubmitting = false)
       ).subscribe({
-        next: (response: CostCodesResponse | null) => {
+        next: () => {
           // Handle successful response (even if body is empty/null)
           this.toastr.success('Cost Code updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
           this.costCodesService.refreshAllCostCodes().pipe(take(1)).subscribe();

@@ -18,10 +18,6 @@ export class OwnerDocuSignSignerService {
     return this.collapseCompanyTenantRoles(this.parseExplicitSignerRoles(String(html || '')));
   }
 
-  parseCorporateSignerRolesFromHtml(html: string): string[] {
-    return this.parseCorporateExplicitSignerRoles(String(html || ''));
-  }
-
   mergeSignerRoles(existing: string[], additional: string[]): string[] {
     const merged = [...(existing || [])];
     (additional || []).forEach(role => {
@@ -144,7 +140,7 @@ export class OwnerDocuSignSignerService {
         email: String(resolved?.email || '').trim(),
         name: String(resolved?.name || '').trim(),
         contactId,
-        isRemovable: this.isRemovableRole(role, normalizedRoles),
+        isRemovable: this.isRemovableRole(role),
         isTenant,
         isOwner2,
         isCompany,
@@ -210,10 +206,6 @@ export class OwnerDocuSignSignerService {
     }
   }
 
-  isTenantRole(role: string): boolean {
-    return this.getTenantRoleIndex(role) != null;
-  }
-
   isCompanyRole(role: string): boolean {
     return this.normalizeRole(role) === 'company';
   }
@@ -227,7 +219,7 @@ export class OwnerDocuSignSignerService {
     return ['owner2', 'additionalowner', 'landlord2'].includes(normalized);
   }
 
-  isRemovableRole(role: string, roles: string[] = []): boolean {
+  isRemovableRole(role: string): boolean {
     if (this.isOwner2Role(role)) {
       return true;
     }

@@ -1,5 +1,4 @@
 import { RecapReportResponse } from './journal-entry.model';
-import { EscrowReportResult } from './escrow-report.model';
 import { OwnerStatementActivityLinkSelection, OwnerStatementAmountDrillDownSelection, OwnerStatementDescriptionSegment, OwnerStatementDrillDownMetric, OwnerStatementJournalEntryLineResponse, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementJournalEntryLineSelection, OwnerStatementListViewState, OwnerStatementOfficeGroup, OwnerStatementPropertyActivityLineDisplay, OwnerStatementPropertyActivityLineResponse, OwnerStatementPropertyActivityLineSearchRequest, OwnerStatementPropertyRow, OwnerStatementReportKind, OwnerStatementResponse, OwnerStatementSearchRequest, OwnerStatementSearchResponse, OwnerStatementVisibleRow, OwnerInvoiceOutstandingResponse } from './owner-statement.model';
 
 export type OwnerReportSearchRequest = OwnerStatementSearchRequest;

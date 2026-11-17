@@ -20,10 +20,6 @@ export class ChartOfAccountsService {
     return this.http.get<ChartOfAccountResponse[]>(this.controller + 'office');
   }
 
-  getChartOfAccountsByOfficeId(officeId: number): Observable<ChartOfAccountResponse[]> {
-    return this.http.get<ChartOfAccountResponse[]>(this.controller + 'office/' + officeId);
-  }
-
   getChartOfAccountById(officeId: number, accountId: number): Observable<ChartOfAccountResponse> {
     return this.http.get<ChartOfAccountResponse>(this.controller + 'office/' + officeId + '/accountId/' + accountId);
   }
@@ -86,14 +82,6 @@ export class ChartOfAccountsService {
   }
 
   /** @deprecated Use notifyChartOfAccountsChanged() */
-  refreshAllChartOfAccounts(): void {
-    this.notifyChartOfAccountsChanged();
-  }
-
-  areChartOfAccountsLoaded(): Observable<boolean> {
-    return this.chartOfAccountsLoaded$.asObservable();
-  }
-
   clearChartOfAccounts(): void {
     this.chartOfAccountsLoad$ = null;
     this.allChartOfAccounts$.next([]);
@@ -102,10 +90,6 @@ export class ChartOfAccountsService {
 
   getAllChartOfAccounts(): Observable<ChartOfAccountResponse[]> {
     return this.allChartOfAccounts$.asObservable();
-  }
-
-  getAllChartOfAccountsValue(): ChartOfAccountResponse[] {
-    return this.allChartOfAccounts$.value;
   }
 
   getChartOfAccountsForOffice(officeId: number): ChartOfAccountResponse[] {

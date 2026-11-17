@@ -6,7 +6,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
-import { Subject, catchError, finalize, firstValueFrom, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
+import { Subject, catchError, finalize, forkJoin, map, of, switchMap, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -34,7 +34,6 @@ import { InspectionPhotoService } from '../services/inspection-photo.service';
 import { UtilityService } from '../../../services/utility.service';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { DialogMissingCountComponent } from './dialog-missing-count.component';
-import { DialogIssueItemComponent } from './dialog-issue-item.component';
 import { ChecklistIssueEntry, DialogChecklistIssuesComponent } from './dialog-checklist-issues.component';
 import { UserGroups } from '../../users/models/user-enums';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
@@ -309,7 +308,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       const title = savedSection.title || templateSection?.title || savedSection.key;
       const hint = templateSection?.hint;
       const baseItems = templateSection?.items || [];
-      const templateItemSet = new Set(baseItems.map(item => item.text));
 
       const sets = (savedSection.sets && savedSection.sets.length > 0)
         ? savedSection.sets
@@ -1429,7 +1427,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       : this.inspectionDraftDocumentPath();
 
     const inspectionDto = this.buildChecklistGenerateDto(
-      inspectionChecklistJson,
       organizationId,
       officeId,
       this.property.propertyId,
@@ -1873,7 +1870,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
   //#region Document Building
   buildChecklistGenerateDto(
-    checklistJson: string,
     organizationId: string,
     officeId: number,
     propertyId: string,
@@ -1885,7 +1881,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       return null;
     }
 
-    const htmlContent = this.buildChecklistPdfHtml(checklistJson, checklistTitle);
+    const htmlContent = this.buildChecklistPdfHtml(checklistTitle);
     if (!htmlContent) {
       return null;
     }
@@ -1903,7 +1899,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     };
   }
 
-  buildChecklistPdfHtml(checklistJson: string, checklistTitle: string): string | null {
+  buildChecklistPdfHtml(checklistTitle: string): string | null {
     try {
       if (!this.sections.length) {
         return null;
@@ -2541,13 +2537,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     });
   }
 
-  openIssueItemDialog() {
-    return this.dialog.open(DialogIssueItemComponent, {
-      width: '40rem',
-      maxWidth: '95vw'
-    });
-  }
-
   emailInspection(): void {
     if (!this.property || !this.validateReservationForMoveInspection()) {
       return;
@@ -2564,7 +2553,7 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
       this.toastr.warning('Organization or Office not available', CommonMessage.Error);
       return;
     }
-    const html = this.buildChecklistPdfHtml('', 'Inspection Checklist');
+    const html = this.buildChecklistPdfHtml('Inspection Checklist');
     if (!html) {
       this.toastr.error('Unable to prepare this inspection for email.', CommonMessage.Error);
       return;
@@ -2684,26 +2673,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   //#endregion
 
   //#region Photo controls
-  async uploadIssuePhoto(sectionKey: string, repeatIndex: number, item: ChecklistItem, file: File): Promise<void> {
-    const optimizedImage = await this.optimizePhotoForUpload(file, sectionKey, repeatIndex, item.id);
-    const photoRequest: PhotoRequest = {
-      organizationId: this.property?.organizationId || this.user?.organizationId || '',
-      officeId: this.property?.officeId || 0,
-      maintenanceId: this.maintenanceRecord?.maintenanceId || null,
-      fileDetails: {
-        fileName: optimizedImage.fileName,
-        contentType: optimizedImage.contentType,
-        file: optimizedImage.base64,
-        dataUrl: optimizedImage.dataUrl
-      }
-    };
-
-    const photoResponse = await firstValueFrom(this.inspectionPhotoService.uploadPhoto(photoRequest).pipe(take(1)));
-    item.photoPath = photoResponse.photoPath || null;
-    item.documentId = photoResponse.photoId || null;
-    item.displayDataUrl = optimizedImage.previewDataUrl;
-  }
-
   toggleRequiresPhoto(item: ChecklistItem, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
@@ -3240,10 +3209,6 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
 
   get isTemplateMode(): boolean {
     return this.activeMode === 'template';
-  }
-
-  get isAnswerMode(): boolean {
-    return this.activeMode === 'answer';
   }
 
   get isReadonlyMode(): boolean {

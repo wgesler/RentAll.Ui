@@ -110,38 +110,38 @@
                     <td class="escrow-report-col-property">{{ row.propertyCode }}</td>
                     <td class="escrow-report-col-owner">{{ row.ownerName }}</td>
                     <td class="financial-report-col-amount">
-                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('arBalance', row.arBalance)" [disabled]="!canDrillDownAmount('arBalance', row.arBalance)" (click)="onAmountCellClick('arBalance', row.arBalance, row.propertyId)">{{ formatAmount(row.arBalance) }}</button>
+                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(row.arBalance)" [disabled]="!canDrillDownAmount(row.arBalance)" (click)="onAmountCellClick('arBalance', row.arBalance, row.propertyId)">{{ formatAmount(row.arBalance) }}</button>
                     </td>
                     <td class="financial-report-col-amount">
-                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('prepaids', row.prepaids)" [disabled]="!canDrillDownAmount('prepaids', row.prepaids)" (click)="onAmountCellClick('prepaids', row.prepaids, row.propertyId)">{{ formatAmount(row.prepaids) }}</button>
+                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(row.prepaids)" [disabled]="!canDrillDownAmount(row.prepaids)" (click)="onAmountCellClick('prepaids', row.prepaids, row.propertyId)">{{ formatAmount(row.prepaids) }}</button>
                     </td>
                     <td class="financial-report-col-amount">
-                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('notCollected', row.notCollected)" [disabled]="!canDrillDownAmount('notCollected', row.notCollected)" (click)="onAmountCellClick('notCollected', row.notCollected, row.propertyId)">{{ formatAmount(row.notCollected) }}</button>
+                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(row.notCollected)" [disabled]="!canDrillDownAmount(row.notCollected)" (click)="onAmountCellClick('notCollected', row.notCollected, row.propertyId)">{{ formatAmount(row.notCollected) }}</button>
                     </td>
                     <td class="financial-report-col-amount">
-                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('total', row.total)" [disabled]="!canDrillDownAmount('total', row.total)" (click)="onAmountCellClick('total', row.total, row.propertyId)">{{ formatAmount(row.total) }}</button>
+                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(row.total)" [disabled]="!canDrillDownAmount(row.total)" (click)="onAmountCellClick('total', row.total, row.propertyId)">{{ formatAmount(row.total) }}</button>
                     </td>
                     <td class="financial-report-col-amount">
-                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('e2', row.e2)" [disabled]="!canDrillDownAmount('e2', row.e2)" (click)="onAmountCellClick('e2', row.e2, row.propertyId)">{{ formatAmount(row.e2) }}</button>
+                      <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(row.e2)" [disabled]="!canDrillDownAmount(row.e2)" (click)="onAmountCellClick('e2', row.e2, row.propertyId)">{{ formatAmount(row.e2) }}</button>
                     </td>
                   </tr>
                 }
                 <tr class="financial-report-row-total">
                   <td colspan="2" class="escrow-report-total-label">Totals</td>
                   <td class="financial-report-col-amount">
-                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('arBalance', reportResult.totals.arBalance)" [disabled]="!canDrillDownAmount('arBalance', reportResult.totals.arBalance)" (click)="onAmountCellClick('arBalance', reportResult.totals.arBalance)">{{ formatAmount(reportResult.totals.arBalance) }}</button>
+                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(reportResult.totals.arBalance)" [disabled]="!canDrillDownAmount(reportResult.totals.arBalance)" (click)="onAmountCellClick('arBalance', reportResult.totals.arBalance)">{{ formatAmount(reportResult.totals.arBalance) }}</button>
                   </td>
                   <td class="financial-report-col-amount">
-                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('prepaids', reportResult.totals.prepaids)" [disabled]="!canDrillDownAmount('prepaids', reportResult.totals.prepaids)" (click)="onAmountCellClick('prepaids', reportResult.totals.prepaids)">{{ formatAmount(reportResult.totals.prepaids) }}</button>
+                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(reportResult.totals.prepaids)" [disabled]="!canDrillDownAmount(reportResult.totals.prepaids)" (click)="onAmountCellClick('prepaids', reportResult.totals.prepaids)">{{ formatAmount(reportResult.totals.prepaids) }}</button>
                   </td>
                   <td class="financial-report-col-amount">
-                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('notCollected', reportResult.totals.notCollected)" [disabled]="!canDrillDownAmount('notCollected', reportResult.totals.notCollected)" (click)="onAmountCellClick('notCollected', reportResult.totals.notCollected)">{{ formatAmount(reportResult.totals.notCollected) }}</button>
+                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(reportResult.totals.notCollected)" [disabled]="!canDrillDownAmount(reportResult.totals.notCollected)" (click)="onAmountCellClick('notCollected', reportResult.totals.notCollected)">{{ formatAmount(reportResult.totals.notCollected) }}</button>
                   </td>
                   <td class="financial-report-col-amount">
-                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('total', reportResult.totals.total)" [disabled]="!canDrillDownAmount('total', reportResult.totals.total)" (click)="onAmountCellClick('total', reportResult.totals.total)">{{ formatAmount(reportResult.totals.total) }}</button>
+                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(reportResult.totals.total)" [disabled]="!canDrillDownAmount(reportResult.totals.total)" (click)="onAmountCellClick('total', reportResult.totals.total)">{{ formatAmount(reportResult.totals.total) }}</button>
                   </td>
                   <td class="financial-report-col-amount">
-                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('e2', reportResult.totals.e2)" [disabled]="!canDrillDownAmount('e2', reportResult.totals.e2)" (click)="onAmountCellClick('e2', reportResult.totals.e2)">{{ formatAmount(reportResult.totals.e2) }}</button>
+                    <button type="button" class="escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(reportResult.totals.e2)" [disabled]="!canDrillDownAmount(reportResult.totals.e2)" (click)="onAmountCellClick('e2', reportResult.totals.e2)">{{ formatAmount(reportResult.totals.e2) }}</button>
                   </td>
                 </tr>
               </tbody>
@@ -164,7 +164,7 @@
             <div class="escrow-report-summary-row">
               <span class="escrow-report-summary-label">{{ reportResult.escrowBankAccountLabel }}</span>
               <span class="escrow-report-summary-instructions"></span>
-              <button type="button" class="escrow-report-summary-value escrow-report-summary-value--bank escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('escrowBankBalance', reportResult.escrowBankBalance)" [disabled]="!canDrillDownAmount('escrowBankBalance', reportResult.escrowBankBalance)" (click)="onAmountCellClick('escrowBankBalance', reportResult.escrowBankBalance)">
+              <button type="button" class="escrow-report-summary-value escrow-report-summary-value--bank escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(reportResult.escrowBankBalance)" [disabled]="!canDrillDownAmount(reportResult.escrowBankBalance)" (click)="onAmountCellClick('escrowBankBalance', reportResult.escrowBankBalance)">
                 {{ formatAmount(reportResult.escrowBankBalance) }}
               </button>
             </div>
@@ -174,7 +174,7 @@
                 <span class="escrow-report-summary-hint-line">neg number = transfer OUT</span>
                 <span class="escrow-report-summary-hint-line">*pos number = transfer IN</span>
               </span>
-              <button type="button" class="escrow-report-summary-value escrow-report-summary-value--transfer escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount('transfer', reportResult.transfer)" [disabled]="!canDrillDownAmount('transfer', reportResult.transfer)" (click)="onAmountCellClick('transfer', reportResult.transfer)">
+              <button type="button" class="escrow-report-summary-value escrow-report-summary-value--transfer escrow-report-amount-link" [class.escrow-report-amount-link--active]="canDrillDownAmount(reportResult.transfer)" [disabled]="!canDrillDownAmount(reportResult.transfer)" (click)="onAmountCellClick('transfer', reportResult.transfer)">
                 {{ formatAmount(reportResult.transfer) }}
               </button>
             </div>

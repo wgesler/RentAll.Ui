@@ -47,18 +47,6 @@ export class MobileNavAttentionService {
     this.leadsService.leadStateChanged$.subscribe(() => this.refresh());
   }
 
-  getState(): MobileNavAttentionState {
-    return this.stateSubject.value;
-  }
-
-  hasLeadTabAttention(tabPath: string): boolean {
-    return !!this.stateSubject.value.leadTabAttention[tabPath];
-  }
-
-  hasTicketTabAttention(tabPath: string): boolean {
-    return !!this.stateSubject.value.ticketTabAttention[tabPath];
-  }
-
   scheduleRefreshAfterLogin(): void {
     this.refresh({ delayMs: 1500 });
   }

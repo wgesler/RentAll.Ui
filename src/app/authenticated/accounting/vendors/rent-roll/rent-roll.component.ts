@@ -202,10 +202,6 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     this.rentRollTotalAmount = this.mappingService.sumRentRollTotal(this.rentRollRows);
   }
 
-  get hasRentRollRows(): boolean {
-    return this.getVisibleRentRollRows().length > 0;
-  }
-
   get rentRollTotalsRow(): { [columnName: string]: string } | undefined {
     const visibleRows = this.getVisibleRentRollDisplayRows();
     if (visibleRows.length === 0) {

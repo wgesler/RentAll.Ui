@@ -42,10 +42,6 @@ export class DocumentExportService {
     setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 
-  downloadExcelTable(fileName: string, headers: string[], rows: string[][]): void {
-    this.exportExcelTable(fileName, headers, rows);
-  }
-
   exportExcelTable(fileName: string, headers: string[], rows: string[][]): void {
     const blob = this.buildExcelBlob(headers, rows);
     const resolvedFileName = this.resolveExcelFileName(fileName);

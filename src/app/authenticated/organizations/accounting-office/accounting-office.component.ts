@@ -366,9 +366,6 @@ parseOfficeId(id: string | number | null): number | null {
 
     let officeRequest: AccountingOfficeRequest | null = null;
     if (this.isAddMode) {
-      const phoneDigits = this.formatterService.stripPhoneFormatting(formValue.phone);
-      const faxDigits = formValue.fax ? this.formatterService.stripPhoneFormatting(formValue.fax) : '';
-      const bankPhoneDigits = formValue.bankPhone ? this.formatterService.stripPhoneFormatting(formValue.bankPhone) : '';
       const officeIdNum = formValue.officeId ? Number(formValue.officeId) : undefined;
 
       if (!officeIdNum || officeIdNum === 0) {
@@ -1207,56 +1204,6 @@ readSelectedFilePreviewDataUrl(file: File): Promise<string | null> {
       || this.utilityService.getContentTypeFromDataUrl(this.checkStockPreviewDataUrl)
       || '').toLowerCase();
     return contentType.includes('pdf');
-  }
-
-  saveCheckPrinting(): void {
-    if (this.isAddMode) {
-      this.toastr.warning('Save the accounting office first, then save check printing.');
-      return;
-    }
-
-    const officeId = this.parseOfficeId(this.id);
-    if (officeId == null) {
-      this.toastr.warning('Please select an office first');
-      return;
-    }
-
-    const checkNumberControl = this.form.get('currentCheckNumber');
-    if (checkNumberControl?.invalid) {
-      checkNumberControl.markAsTouched();
-      this.toastr.warning('Enter a valid current check number.');
-      return;
-    }
-
-    const currentCheckNumber = Number(checkNumberControl?.value) || 1;
-    this.isSavingCheckPrinting = true;
-    this.cdr.detectChanges();
-
-    this.accountingOfficeService.updateAccountingOfficeCheckNumber(officeId, currentCheckNumber).pipe(
-      switchMap(() => {
-        if (this.accountingOffice) {
-          this.accountingOffice.currentCheckNumber = currentCheckNumber;
-        }
-        return this.persistAccountingOfficeCheckStockIfNeeded(officeId);
-      }),
-      take(1),
-      finalize(() => {
-        this.isSavingCheckPrinting = false;
-        this.cdr.detectChanges();
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: () => {
-        this.hasNewCheckStockUpload = false;
-        this.checkStockRemoved = false;
-        this.accountingOfficeService.notifyAccountingOfficesChanged();
-        this.toastr.success('Check printing saved.', CommonMessage.Success);
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.toastr.error('Unable to save check printing.', CommonMessage.Error);
-      }
-    });
   }
 
   copyPrimaryBankFields(bank: BankAccountResponse): void {
@@ -2564,7 +2511,6 @@ clearCheckStockLocal(): void {
     const hardClosedYear = Number(formValue['hardClosedYear']);
     const softClosedChanged = this.isClosedPeriodChanged(this.accountingOffice.softClosedMonth, this.accountingOffice.softClosedYear, softClosedMonth, softClosedYear);
     const hardClosedChanged = this.isClosedPeriodChanged(this.accountingOffice.hardClosedMonth, this.accountingOffice.hardClosedYear, hardClosedMonth, hardClosedYear);
-    const softClosedDecreased = this.isClosedPeriodDecreased(this.accountingOffice.softClosedMonth, this.accountingOffice.softClosedYear, softClosedMonth, softClosedYear);
     const hardClosedDecreased = this.isClosedPeriodDecreased(this.accountingOffice.hardClosedMonth, this.accountingOffice.hardClosedYear, hardClosedMonth, hardClosedYear);
 
     if (!softClosedChanged && !hardClosedChanged) {

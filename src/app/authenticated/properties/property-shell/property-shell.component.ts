@@ -336,9 +336,6 @@ syncLetterTabToTitleBarReservation(
     }
   }
 
-  onChildTabOfficeChange(officeId: number | null): void {
-    this.propertySection?.applyTitleBarPropertyOfficeSelection(officeId);
-  }
   //#endregion
 
   //#region Reservation Loading Methods

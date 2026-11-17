@@ -442,7 +442,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.journalEntryService.confirmDeleteIfAllowed(invoice.postingStatusId, 'Invoice').pipe(
+    this.journalEntryService.confirmDeleteIfAllowed(invoice.postingStatusId).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {
@@ -885,7 +885,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.invoicesDisplay = filtered.map(invoice => {
       const rawLedgerLines = invoice.ledgerLines ?? [];
       const costCodesForInvoice = this.allCostCodes.filter(costCode => costCode.officeId === invoice.officeId);
-      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, costCodesForInvoice, this.transactionTypes);
+      const mappedLedgerLines = this.mappingService.mapLedgerLines(rawLedgerLines, costCodesForInvoice);
       const totalAmount = invoice.totalAmount || 0;
       const paidAmount = this.resolveInvoicePaidAmount(invoice);
       
@@ -1591,12 +1591,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     this.applyFilters();
   }
 
-  compareReservationById(a: ReservationListResponse | null, b: ReservationListResponse | null): boolean {
-    if (a == null && b == null) return true;
-    if (a == null || b == null) return false;
-    return a.reservationId === b.reservationId;
-  }
-
   onReservationChange(): void {
     // Emit reservation change to parent
     this.reservationIdChange.emit(this.selectedReservation?.reservationId || null);
@@ -1660,10 +1654,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.invoicesDisplayedColumns = columns;
-  }
-
-  get dueInvoicesCount(): number {
-    return this.invoicesDisplay.filter(invoice => (invoice?.dueAmountValue || 0) > 0).length;
   }
 
   get isPaymentFormValid(): boolean {
@@ -1734,7 +1724,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds, 'Invoice').pipe(
+    this.journalEntryService.confirmPaymentIfAllowed(postingStatusIds).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {
@@ -1905,10 +1895,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
 
   getApplyAmountInputId(invoiceId: string): string {
     return `apply-amount-invoice-list-${invoiceId}`;
-  }
-
-  isInvoiceFullyPaid(invoice: InvoiceResponse): boolean {
-    return this.getInvoiceBalanceDue(invoice) <= 0.005;
   }
 
   contactHasOfficeAccess(contact: ContactResponse, officeId: number | null): boolean {
@@ -2342,7 +2328,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     input.select();
   }
 
-  onApplyAmountEnter(invoice: InvoiceListDisplayRow, event: Event): void {
+  onApplyAmountEnter(_invoice: InvoiceListDisplayRow, event: Event): void {
     const input = event.target as HTMLInputElement;
     input.blur();
   }
@@ -2415,12 +2401,6 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       this.syncSelectedReservationFromInput(this.reservationId);
     }
     this.loadInvoicesForCurrentSearchCriteria();
-  }
-
-  captureTopbarSelectionsForPayment(): void {
-    this.originalPaymentOfficeId = this.selectedOffice?.officeId ?? this.officeId ?? null;
-    this.originalPaymentReservationId = this.selectedReservation?.reservationId ?? this.reservationId ?? null;
-    this.originalPaymentCompanyId = this.selectedCompanyContact?.contactId ?? this.companyId ?? null;
   }
 
   restoreTopbarSelectionsAfterPayment(): void {

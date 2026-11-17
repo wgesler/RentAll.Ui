@@ -37,7 +37,4 @@ export class InspectionService {
     return this.http.put<InspectionResponse>(this.controller, request);
   }
 
-  deleteInspection(inspectionId: number): Observable<void> {
-    return this.http.delete<void>(this.controller + inspectionId);
-  }
 }

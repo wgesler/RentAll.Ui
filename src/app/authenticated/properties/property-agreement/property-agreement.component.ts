@@ -3,7 +3,7 @@ import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChang
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Observable, Subject, catchError, filter, finalize, map, of, take, takeUntil } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, catchError, finalize, map, of, take, takeUntil } from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';

@@ -141,7 +141,6 @@ applyOwnerTokens(
     const propertyAddressSingleLineValue =
       [propertyAddressLine1, propertyAddressLine2].filter(part => part.length > 0).join(', ')
       || String(data.leadOwner?.locationOfProperty || '').trim();
-    const propertyAddress = propertyAddressSingleLineValue;
     const propertyAddress1 = propertyAddressLine1;
     const propertyCity = String(data.property?.city || '').trim();
     const propertyState = this.lookupStateName(data.property?.state);

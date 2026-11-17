@@ -159,10 +159,6 @@ normalizeAccountCode(value: string | null | undefined): string {
   }
 
   // Get all cost codes value synchronously (returns current value)
-  getAllCostCodesValue(): CostCodesResponse[] {
-    return this.allCostCodes$.value;
-  }
-
   // Get cost codes for a specific office
   getCostCodesForOffice(officeId: number): CostCodesResponse[] {
     return this.allCostCodes$.value.filter(c => c.officeId === officeId);

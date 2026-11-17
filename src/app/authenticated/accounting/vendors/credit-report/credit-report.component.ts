@@ -498,7 +498,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     if (receiptId) {
-      this.journalEntryService.confirmDeleteIfAllowed(null, 'Receipt').pipe(take(1), switchMap(canProceed => canProceed ? this.receiptService.deleteReceipt(receiptId).pipe(take(1)) : EMPTY)).subscribe({
+      this.journalEntryService.confirmDeleteIfAllowed(null).pipe(take(1), switchMap(canProceed => canProceed ? this.receiptService.deleteReceipt(receiptId).pipe(take(1)) : EMPTY)).subscribe({
         next: () => {
           this.removeLineFromReport(line);
           this.toastr.success('Receipt deleted.', CommonMessage.Success);

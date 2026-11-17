@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, finalize, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
@@ -67,7 +67,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   private reservationService = inject(ReservationService);
   private utilityService = inject(UtilityService);
   private authService = inject(AuthService);
-  private route = inject(ActivatedRoute);
   private propertyService = inject(PropertyService);
   private contactService = inject(ContactService);
   private emailCreateDraftService = inject(EmailCreateDraftService);

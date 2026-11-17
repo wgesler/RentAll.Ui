@@ -1,6 +1,5 @@
 import { RouterToken } from '../../app.routes.tokens';
 import { AuthService } from '../../services/auth.service';
-import { UserGroups } from '../users/models/user-enums';
 import {
   canPartnerAccessUrl,
   canUserAccessUrl,

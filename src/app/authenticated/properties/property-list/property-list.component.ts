@@ -7,7 +7,7 @@ import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import {BehaviorSubject, Subject, filter, finalize, map, skip, take, takeUntil} from 'rxjs';
+import {BehaviorSubject, Subject, filter, finalize, skip, take, takeUntil} from 'rxjs';
 import { RouterUrl } from '../../../app.routes';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';

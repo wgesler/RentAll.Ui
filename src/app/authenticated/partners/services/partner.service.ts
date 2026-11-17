@@ -7,7 +7,7 @@ import { PropertyListingShareResponse } from '../../properties/models/property-l
 import { PropertyPhotoResponse } from '../../properties/models/property-photo.model';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
-import { PartnerCityStateResponse, PartnerContactResponse } from '../models/partner.model';
+import { PartnerContactResponse } from '../models/partner.model';
 
 @Injectable({
   providedIn: 'root'
@@ -19,13 +19,6 @@ export class PartnerService {
 
   private readonly controller = this.configService.config().apiUrl + 'partner/';
 
-  getAllProperties(): Observable<PropertyListResponse[]> {
-    return this.http.get<PropertyListResponse[]>(this.controller + 'properties').pipe(
-      map(properties => (properties || []).map(item => this.mappingService.mapPropertyListResponse(item as unknown as Record<string, unknown>))),
-      catchError(() => of([]))
-    );
-  }
-
   getReservationListByUser(userId: string): Observable<ReservationListResponse[]> {
     return this.http.get<ReservationListResponse[]>(this.controller + 'reservations/user/' + userId).pipe(
       catchError(() => of([]))
@@ -35,13 +28,6 @@ export class PartnerService {
   getActivePropertiesBySelectionCriteria(userId: string): Observable<PropertyListResponse[]> {
     return this.http.get<PropertyListResponse[]>(this.controller + 'properties/user/' + userId + '/active').pipe(
       map(properties => (properties || []).map(item => this.mappingService.mapPropertyListResponse(item as unknown as Record<string, unknown>))),
-      catchError(() => of([]))
-    );
-  }
-
-  getListOfCities(): Observable<PartnerCityStateResponse[]> {
-    return this.http.get<PartnerCityStateResponse[]>(this.controller + 'cities').pipe(
-      map(cities => cities || []),
       catchError(() => of([]))
     );
   }

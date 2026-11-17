@@ -411,10 +411,6 @@ export class DocumentHtmlService {
   }
 
   /** Post-pass after paste into contenteditable: groups any leftover bullet paragraphs into lists. */
-  finalizeEditorLists(html: string): string {
-    return this.sanitizeEditorListHtml(html);
-  }
-
   /** One list pass: flatten Word/browser lists, strip marker glyphs, rebuild single ul per run. */
   sanitizeEditorListHtml(html: string): string {
     if (!html || typeof DOMParser === 'undefined') {
@@ -1086,20 +1082,6 @@ export class DocumentHtmlService {
     });
   }
 
-  private extractPlainTextFromHtmlFragment(html: string): string {
-    return html
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&#39;/gi, "'")
-      .replace(/&quot;/gi, '"')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
   private escapeHtmlText(value: string): string {
     return value
       .replace(/&/g, '&amp;')
@@ -1152,19 +1134,6 @@ export class DocumentHtmlService {
    * Used when form HTML is injected via innerHTML (e.g. dynamic form editor); otherwise
    * those selectors apply to the Angular app shell and break layout.
    */
-  scopeEmbeddedDocumentStyles(css: string, scopeSelector: string): string {
-    if (!String(css || '').trim() || !String(scopeSelector || '').trim()) {
-      return css || '';
-    }
-
-    let scoped = css;
-    scoped = scoped.replace(/:root\b/g, scopeSelector);
-    scoped = scoped.replace(/(^|[,{]\s*)html\b/g, `$1${scopeSelector}`);
-    scoped = scoped.replace(/(^|[,{]\s*)body\b/g, `$1${scopeSelector}`);
-    scoped = scoped.replace(/(^|[,{]\s*)\*(?=\s*(?:,|::|{))/gm, `$1${scopeSelector} *`);
-    return scoped;
-  }
-
   /**
    * Processes HTML by extracting styles, removing style tags, and optionally fixing logo images
    * Returns processed HTML and extracted styles
@@ -1195,7 +1164,7 @@ export class DocumentHtmlService {
     if (fixLogo) {
       processedHtml = processedHtml.replace(
         /<img([^>]*class=["'][^"']*logo[^"']*["'][^>]*)>/gi,
-        (match, attributes) => {
+        (_match, attributes) => {
           // Remove existing width and height attributes if they exist
           const newAttributes = attributes.replace(/\s+(width|height)=["'][^"']*["']/gi, '');
           // Add width="180" and height="auto"

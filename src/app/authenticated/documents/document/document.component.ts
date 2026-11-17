@@ -160,7 +160,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
       take(1),
       finalize(() => { this.isSubmitting = false })
     ).subscribe({
-      next: (response) => {
+      next: () => {
         this.toastr.success(
           `Document ${this.isAddMode ? 'created' : 'updated'} successfully`,
           CommonMessage.Success

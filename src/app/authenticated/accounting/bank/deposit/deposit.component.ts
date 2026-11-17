@@ -933,10 +933,6 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     this.clearInvalidSplitReservationSelection(splitGroup);
   }
 
-  applyAllSplitContextVisibilityRules(): void {
-    this.splitsFormArray.controls.forEach(control => this.applySplitContextVisibilityRules(control as FormGroup));
-  }
-
   clearInvalidSplitReservationSelection(splitGroup: FormGroup): void {
     const reservationId = (splitGroup.get('reservationId')?.value || '').toString().trim();
     if (!reservationId) {

@@ -71,7 +71,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
   @Output() createJournalEntryEvent = new EventEmitter<JournalEntryResponse | null>();
   @Output() journalEntryCreatedEvent = new EventEmitter<JournalEntryResponse | undefined>();
-  @Output() officeValidationRequiredEvent = new EventEmitter<void>();
+  @Output() officeValidationRequiredEvent = new EventEmitter<void>();  
+  @ViewChild('checkPreviewIframe') checkPreviewIframe?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('journalEntryLinesTemplate') journalEntryLinesTemplate?: TemplateRef<unknown>;
+
   generalLedgerService = inject(GeneralLedgerService);
   mappingService = inject(MappingService);
   formatter = inject(FormatterService);
@@ -109,7 +112,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   checkPreviewTitle = 'Check Preview';
   safeCheckPreviewHtml: SafeHtml | null = null;
   checkPreviewIframeKey = 0;
-  @ViewChild('checkPreviewIframe') checkPreviewIframe?: ElementRef<HTMLIFrameElement>;
   isSubmittingDeposit = false;
   depositOfficeId: number | null = null;
   depositBankChartOfAccounts: { value: number; label: string }[] = [];
@@ -143,7 +145,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   includeAll = false;
   noActivityMessage = 'No general ledger activity for the selected office and date range.';
 
-  @ViewChild('journalEntryLinesTemplate') journalEntryLinesTemplate?: TemplateRef<unknown>;
 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: true, alignment: 'center', headerAlignment: 'center' },
@@ -467,7 +468,7 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
         }
 
         if (this.securityDepositStepsOnly) {
-          this.loadSecurityDepositStepLines(lines || [], filteredAccountIds, usesFixedAccountFilter, loadId, loadUntil);
+          this.loadSecurityDepositStepLines(lines || [], loadId, loadUntil);
           return;
         }
 
@@ -874,7 +875,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       return;
     }
 
-    this.journalEntryService.confirmDeleteIfAllowed(row.postingStatusId, 'Journal Entry').pipe(
+    this.journalEntryService.confirmDeleteIfAllowed(row.postingStatusId).pipe(
       take(1),
       switchMap(canProceed => {
         if (!canProceed) {
@@ -934,42 +935,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     };
   }
 
-  createRetainedEarningsJournalEntryFor2024(): void {
-    if (!this.officeId) {
-      this.officeValidationRequiredEvent.emit();
-      return;
-    }
-
-    if (this.isCreatingRetainedEarningsJournalEntry) {
-      return;
-    }
-
-    this.isCreatingRetainedEarningsJournalEntry = true;
-    this.generalLedgerService.previewRetainedEarningsJournalEntry(this.officeId, 2024).pipe(
-      take(1),
-      finalize(() => {
-        this.isCreatingRetainedEarningsJournalEntry = false;
-        this.markViewForCheck();
-      })
-    ).subscribe({
-      next: journalEntry => {
-        const preview = {
-          ...journalEntry,
-          officeId: Number(journalEntry?.officeId || this.officeId || 0),
-          journalEntryId: '',
-          journalEntryCode: ''
-        };
-        this.createJournalEntryEvent.emit(preview);
-      },
-      error: (error: HttpErrorResponse) => {
-        const message = typeof error?.error === 'string'
-          ? error.error
-          : error?.error?.message || 'Unable to preview retained earnings journal entry.';
-        this.toastr.error(message, 'Retained Earnings');
-      }
-    });
-  }
-
   usesUntransferredOpenLinesFilter(): boolean {
     return this.untransferredFundsOnly || this.transferReportOnly;
   }
@@ -1006,8 +971,6 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
 
   loadSecurityDepositStepLines(
     lines: JournalEntryLineSearchResponse[],
-    filteredAccountIds: number[],
-    usesFixedAccountFilter: boolean,
     loadId: number,
     loadUntil: import('rxjs').Observable<unknown>
   ): void {
@@ -1019,22 +982,20 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
           return;
         }
         this.securityDepositTransferIds = this.findSecurityDepositTransferIds(transfers || [], reservationId, reservationCode);
-        this.finishSecurityDepositStepLines(lines, filteredAccountIds, usesFixedAccountFilter, loadId, loadUntil);
+        this.finishSecurityDepositStepLines(lines, loadId, loadUntil);
       },
       error: () => {
         if (this.journalEntryLinesLoadId !== loadId) {
           return;
         }
         this.securityDepositTransferIds = new Set<string>();
-        this.finishSecurityDepositStepLines(lines, filteredAccountIds, usesFixedAccountFilter, loadId, loadUntil);
+        this.finishSecurityDepositStepLines(lines, loadId, loadUntil);
       }
     });
   }
 
   finishSecurityDepositStepLines(
     lines: JournalEntryLineSearchResponse[],
-    filteredAccountIds: number[],
-    usesFixedAccountFilter: boolean,
     loadId: number,
     loadUntil: import('rxjs').Observable<unknown>
   ): void {
@@ -3893,10 +3854,6 @@ triggerCheckPrint(): void {
   }
 
   get showGeneralLedgerAddButton(): boolean {
-    return this.showGeneralLedgerRowActions;
-  }
-
-  get showGeneralLedgerRetainedEarningsButton(): boolean {
     return this.showGeneralLedgerRowActions;
   }
 

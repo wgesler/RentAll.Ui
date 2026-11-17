@@ -55,7 +55,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
   layoutDebugEnabled$: Observable<boolean> = this.debugLayoutBandsService.enabled$;
   showLayoutDebugToggle = !environment.production;
   isHandset$: Observable<boolean> = this.breakpointObserver.observe(Breakpoints.XSmall).pipe( map(result => result.matches), shareReplay() );
-  isMobile: boolean = false;
   isSidebarExpanded = true;
   offices: OfficeResponse[] = [];
   selectedGlobalOfficeId: number | null = null;
