@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { appTestProviders } from '../../../../testing/test-providers';
 import { GenericModalComponent } from './generic-modal.component';
 
 describe('GenericModalComponent', () => {
@@ -7,7 +9,12 @@ describe('GenericModalComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ GenericModalComponent ]
+      imports: [GenericModalComponent],
+      providers: [
+        ...appTestProviders,
+        { provide: MatDialogRef, useValue: { close: () => {} } },
+        { provide: MAT_DIALOG_DATA, useValue: {} }
+      ]
     })
     .compileComponents();
 
