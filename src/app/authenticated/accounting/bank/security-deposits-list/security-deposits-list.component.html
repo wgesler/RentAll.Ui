@@ -9,6 +9,7 @@
   </div>
 } @else if (rowsDisplay.length === 0 && !showPaymentForm) {
   <div class="financial-report-empty-state">
+    <ng-container *ngTemplateOutlet="showCompletedToggle"></ng-container>
     <p>{{ noDataMessage }}</p>
   </div>
   @if (hasSummaryFooter) {
@@ -49,6 +50,7 @@
         (undoEvent)="onUndo($event)">
         <div dataTableFilterActions>
           <div class="table-filter-actions-group form-titlebar-actions-wrap uniform-gap payment-actions-anchor">
+            <ng-container *ngTemplateOutlet="showCompletedToggle"></ng-container>
             <app-security-deposit-return-payment-dialog
               [visible]="showPaymentForm"
               [dialogMode]="paymentDialogMode"
@@ -71,6 +73,12 @@
     </div>
   </div>
 }
+
+<ng-template #showCompletedToggle>
+  <mat-slide-toggle id="toggle-security-deposits-show-completed" [checked]="showCompleted" color="primary" (change)="onShowCompletedToggleChange($event.checked)" class="whitespace-nowrap">
+    Show Completed
+  </mat-slide-toggle>
+</ng-template>
 
 <ng-template #securityDepositsSummary>
   <div #summaryFooter class="security-deposits-summary" [class.security-deposits-summary--aligned]="hasSummaryColumnAlignment">

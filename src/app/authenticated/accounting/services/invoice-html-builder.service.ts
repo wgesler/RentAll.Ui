@@ -390,7 +390,7 @@ export class InvoiceHtmlBuilderService {
       return '';
     }
 
-    return contacts.map(contact => {
+    const blocks = contacts.map(contact => {
       const pContact = ctx.contacts.find(c => c.contactId === ctx.reservation.companyId) ?? contact;
       const responsibleParty = this.escapeHtml(this.utilityService.getResponsibleParty(ctx.reservation, pContact));
       const responsiblePartyAddress1Raw = this.utilityService.getResponsiblePartyAddress1(ctx.reservation, pContact);
@@ -412,7 +412,8 @@ export class InvoiceHtmlBuilderService {
         ...(responsiblePartyRefNo ? [`<span style="font-weight: bold">Ref No:</span> ${responsiblePartyRefNo}`] : [])
       ];
       return lines.join('<br>');
-    }).join('<br>');
+    });
+    return Array.from(new Set(blocks)).join('<br>');
   }
 
   getPropertySideBlock(ctx: InvoicePrintContext, includeBillingType = true): string {

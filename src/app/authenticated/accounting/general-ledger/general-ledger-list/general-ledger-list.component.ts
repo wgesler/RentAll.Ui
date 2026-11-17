@@ -998,7 +998,7 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
     if (value.includes('security deposit transfer') || value.includes('security deposit allocation')) {
       return '#BDD7EE';
     }
-    if (value.includes('security deposit re-payment') || Number(line.paymentTypeId) === PaymentType.SecurityDeposit || value.includes('security deposit payment') || /: payment:\s+\S+:\s+security deposit\b/.test(value)) {
+    if (value.includes('security deposit credit') || value.includes('security deposit re-payment') || Number(line.paymentTypeId) === PaymentType.SecurityDeposit || value.includes('security deposit payment') || /: payment:\s+\S+:\s+security deposit\b/.test(value)) {
       return '#C6EFCE';
     }
     return null;
@@ -3005,8 +3005,10 @@ emitJournalEntryLineSelection(journalEntryId: string | null | undefined, journal
       });
     }
 
+    // The transfer bank line already debits the deposit's bank for the refund; a split on that same bank would cancel the escrow credit and zero the transfer.
     const refundBankAccountId = Number(allocation.refundBankAccountId || 0);
-    if (refundAmount !== 0 && refundBankAccountId > 0) {
+    const transferBankAccountId = Number(contextLine.chartOfAccountId || 0);
+    if (refundAmount !== 0 && refundBankAccountId > 0 && refundBankAccountId !== transferBankAccountId) {
       splits.push({
         amount: refundAmount,
         description: refundDescription,

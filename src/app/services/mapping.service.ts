@@ -6546,11 +6546,16 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
     const ownerEscrowValue = amounts.ownerEscrow;
     const secDepValue = amounts.secDep;
     const sdwValue = amounts.sdw;
-    const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
     const sourceAmount = group
       .map(split => Number(split.sourceJournalEntryLineAmount))
       .find(value => Number.isFinite(value) && Math.abs(value) > 0.005);
-    const escrowDepositValue = this.resolveTransferFlatReportEscrowDepositValue(sourceAmount, rowTotalValue);
+    const signed = this.alignTransferReportDestinationsToMainSign(sourceAmount, businessValue, ownerEscrowValue, secDepValue, sdwValue);
+    const businessValueSigned = signed.business;
+    const ownerEscrowValueSigned = signed.ownerEscrow;
+    const secDepValueSigned = signed.secDep;
+    const sdwValueSigned = signed.sdw;
+    const rowTotalValue = signed.rowTotal;
+    const escrowDepositValue = signed.main;
     const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
     const reservationCode = (context?.reservationCode || '').trim() || (transfer.transferCode || '').trim();
     const propertyCode = (context?.propertyCode || '').trim();
@@ -6567,14 +6572,14 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       dateRange: description || dateRange,
       escrowDeposit: this.formatFlatReportAmount(escrowDepositValue),
       escrowDepositValue,
-      business: this.formatFlatReportAmount(businessValue),
-      businessValue,
-      ownerEscrow: this.formatFlatReportAmount(ownerEscrowValue),
-      ownerEscrowValue,
-      secDep: this.formatFlatReportAmount(secDepValue),
-      secDepValue,
-      sdw: this.formatFlatReportAmount(sdwValue),
-      sdwValue,
+      business: this.formatFlatReportAmount(businessValueSigned),
+      businessValue: businessValueSigned,
+      ownerEscrow: this.formatFlatReportAmount(ownerEscrowValueSigned),
+      ownerEscrowValue: ownerEscrowValueSigned,
+      secDep: this.formatFlatReportAmount(secDepValueSigned),
+      secDepValue: secDepValueSigned,
+      sdw: this.formatFlatReportAmount(sdwValueSigned),
+      sdwValue: sdwValueSigned,
       location,
       contactName,
       rowTotal: this.formatFlatReportAmount(rowTotalValue),
@@ -6691,11 +6696,16 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
         const ownerEscrowValue = this.roundCurrency(Number(allocation.ownerEscrow) || 0);
         const secDepValue = this.roundCurrency(Number(allocation.secDep) || 0);
         const sdwValue = this.roundCurrency(Number(allocation.sdw) || 0);
-        const rowTotalValue = this.roundCurrency(businessValue + ownerEscrowValue + secDepValue + sdwValue);
         const rawEscrowAmount = Number(allocation.escrowAmount);
-        const escrowDepositValue = Number.isFinite(rawEscrowAmount) && Math.abs(rawEscrowAmount) > 0.005
-          ? this.resolveTransferFlatReportEscrowDepositValue(rawEscrowAmount, rowTotalValue)
-          : rowTotalValue;
+        const signed = this.alignTransferReportDestinationsToMainSign(
+          Number.isFinite(rawEscrowAmount) ? rawEscrowAmount : undefined,
+          businessValue,
+          ownerEscrowValue,
+          secDepValue,
+          sdwValue
+        );
+        const rowTotalValue = signed.rowTotal;
+        const escrowDepositValue = signed.main;
         const outOfBalanceValue = this.roundCurrency(escrowDepositValue - rowTotalValue);
         const reservationCode = (context?.reservationCode || '').trim()
           || (transfer.transferCode || '').trim();
@@ -6713,14 +6723,14 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
           dateRange: description || dateRange,
           escrowDeposit: this.formatFlatReportAmount(escrowDepositValue),
           escrowDepositValue,
-          business: this.formatFlatReportAmount(businessValue),
-          businessValue,
-          ownerEscrow: this.formatFlatReportAmount(ownerEscrowValue),
-          ownerEscrowValue,
-          secDep: this.formatFlatReportAmount(secDepValue),
-          secDepValue,
-          sdw: this.formatFlatReportAmount(sdwValue),
-          sdwValue,
+          business: this.formatFlatReportAmount(signed.business),
+          businessValue: signed.business,
+          ownerEscrow: this.formatFlatReportAmount(signed.ownerEscrow),
+          ownerEscrowValue: signed.ownerEscrow,
+          secDep: this.formatFlatReportAmount(signed.secDep),
+          secDepValue: signed.secDep,
+          sdw: this.formatFlatReportAmount(signed.sdw),
+          sdwValue: signed.sdw,
           location,
           contactName,
           rowTotal: this.formatFlatReportAmount(rowTotalValue),
@@ -6731,29 +6741,32 @@ buildTransferContactNamesDisplay(splits: TransferSplit[]): string {
       });
   }
 
-  /**
-   * Escrow source JE net is often negative (credit on 1002) while destination splits are positive.
-   * Show |source| for that normal outflow; keep signed source for credits/reversals (e.g. both sides negative).
-   */
-  resolveTransferFlatReportEscrowDepositValue(
+  alignTransferReportDestinationsToMainSign(
     sourceAmount: number | undefined,
-    rowTotalValue: number
-  ): number {
-    const total = this.roundCurrency(rowTotalValue);
-    if (sourceAmount === undefined || !Number.isFinite(sourceAmount)) {
-      return total;
-    }
-
-    const source = this.roundCurrency(sourceAmount);
-    if (Math.abs(source) <= 0.005) {
-      return total;
-    }
-
-    if (source < 0 && total > 0.005) {
-      return this.roundCurrency(Math.abs(source));
-    }
-
-    return source;
+    business: number,
+    ownerEscrow: number,
+    secDep: number,
+    sdw: number
+  ): { main: number; business: number; ownerEscrow: number; secDep: number; sdw: number; rowTotal: number } {
+    const destination = this.roundCurrency(business + ownerEscrow + secDep + sdw);
+    const hasSource = sourceAmount !== undefined && Number.isFinite(sourceAmount) && Math.abs(sourceAmount) > 0.005;
+    const main = hasSource ? this.roundCurrency(sourceAmount as number) : destination;
+    const flip = hasSource
+      && Math.abs(destination) > 0.005
+      && Math.sign(main) !== Math.sign(destination);
+    const sign = flip ? -1 : 1;
+    const signedBusiness = this.roundCurrency(business * sign);
+    const signedOwner = this.roundCurrency(ownerEscrow * sign);
+    const signedSecDep = this.roundCurrency(secDep * sign);
+    const signedSdw = this.roundCurrency(sdw * sign);
+    return {
+      main,
+      business: signedBusiness,
+      ownerEscrow: signedOwner,
+      secDep: signedSecDep,
+      sdw: signedSdw,
+      rowTotal: this.roundCurrency(signedBusiness + signedOwner + signedSecDep + signedSdw)
+    };
   }
 
   formatFlatReportAmount(value: number): string {

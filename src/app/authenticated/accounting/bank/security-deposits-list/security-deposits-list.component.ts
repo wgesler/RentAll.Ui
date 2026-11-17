@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Subject, finalize, take, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -22,6 +23,9 @@ import { SecurityDepositReturnPaymentSubmit } from './security-deposit-return-pa
 import { FormatterService } from '../../../../services/formatter-service';
 import { InvoiceSelection } from '../../models/invoice.model';
 import { SecurityDepositReportSelection } from '../../models/security-deposit-report.model';
+import { SecurityDepositUndoDocument, SecurityDepositUndoPreviewResponse } from '../../models/security-deposit-undo.model';
+import { GenericModalComponent } from '../../../shared/modals/generic/generic-modal.component';
+import { GenericModalData } from '../../../shared/modals/generic/models/generic-modal-data';
 
 export interface SecurityDepositJournalSelection {
   reservationId: string;
@@ -55,6 +59,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   readonly formatter = inject(FormatterService);
   private router = inject(Router);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
 
   readonly displayedColumns: ColumnSet = {
@@ -81,6 +86,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   escrowAccountLabel = '';
   isPageReady = false;
   isServiceError = false;
+  showCompleted = false;
   noDataMessage = 'No security deposits for the selected office access.';
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['securityDeposits']));
   destroy$ = new Subject<void>();
@@ -136,7 +142,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     this.isServiceError = false;
     this.utilityService.addLoadItem(this.itemsToLoad$, 'securityDeposits');
 
-    this.securityDepositService.getUnreturnedSecurityDeposits(this.officeId).pipe(
+    this.securityDepositService.getUnreturnedSecurityDeposits(this.officeId, this.showCompleted).pipe(
       take(1),
       finalize(() => {
         // Only clear the gate for the latest in-flight load (avoids empty flash on overlapping refreshes).
@@ -183,6 +189,14 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     });
   }
 
+  onShowCompletedToggleChange(checked: boolean): void {
+    this.showCompleted = checked;
+    this.loadRows();
+  }
+
+  isCompletedRow(row: UnreturnedSecurityDepositDisplay): boolean {
+    return !!row.depositReturned && !!row.paymentProcessed;
+  }
   //#endregion
 
   //#region Summary Methods
@@ -336,6 +350,84 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     }
 
     this.isUndoing = true;
+    this.securityDepositService.getSecurityDepositUndoPreview(reservationId).pipe(take(1), takeUntil(this.destroy$)).subscribe({
+      next: preview => this.confirmUndo(reservationId, String(row.reservationCode || '').trim(), preview),
+      error: (error: HttpErrorResponse) => {
+        this.isUndoing = false;
+        const apiMessage = typeof error.error === 'string' ? error.error : error.error?.title || error.error?.message || error.message;
+        this.toastr.error(apiMessage || 'Unable to load what Undo will delete.', CommonMessage.Error);
+        this.markViewForCheck();
+      }
+    });
+  }
+
+  confirmUndo(reservationId: string, reservationCode: string, preview: SecurityDepositUndoPreviewResponse): void {
+    const dialogData: GenericModalData = {
+      title: 'Undo Security Deposit',
+      message: this.buildUndoPreviewMessage(reservationCode || preview?.reservationCode || '', preview),
+      icon: 'warning',
+      iconColor: 'warn',
+      no: 'Cancel',
+      yes: 'Continue',
+      callback: (dialogRef, result) => dialogRef.close(result),
+      useHTML: true,
+      hideClose: true
+    };
+
+    this.dialog.open(GenericModalComponent, { data: dialogData, width: '35rem' }).afterClosed().pipe(take(1), takeUntil(this.destroy$)).subscribe(result => {
+      if (result !== true) {
+        this.isUndoing = false;
+        this.markViewForCheck();
+        return;
+      }
+      this.executeUndo(reservationId);
+    });
+  }
+
+  buildUndoPreviewMessage(reservationCode: string, preview: SecurityDepositUndoPreviewResponse): string {
+    const sections: Array<{ label: string; items: SecurityDepositUndoDocument[] }> = [
+      { label: 'Transfers', items: preview?.transfers || [] },
+      { label: 'Deposits', items: preview?.deposits || [] },
+      { label: 'Payments', items: preview?.payments || [] },
+      { label: 'Invoices', items: preview?.invoices || [] }
+    ];
+    const listed = sections.filter(section => section.items.length > 0);
+    const hasShared = listed.some(section => section.items.some(item => item.includesOtherReservations));
+
+    let html = `<div>Undo will delete the following for <b>${this.escapeHtml(reservationCode)}</b>, along with each one's journal entry:</div>`;
+    if (listed.length === 0) {
+      html += '<div style="margin-top:0.5rem">No transfers, deposits, or refund payments were found. Only the returned flag and security deposit journal entries will be cleared.</div>';
+    }
+    for (const section of listed) {
+      html += `<div style="margin-top:0.75rem"><b>${section.label}</b></div><ul style="margin:0.25rem 0 0 1.25rem;list-style:disc">`;
+      for (const item of section.items) {
+        const parts = [
+          this.escapeHtml(item.code || ''),
+          this.escapeHtml(this.formatter.formatDateString(item.date || '') || ''),
+          this.escapeHtml(this.formatter.currencyUsd(Number(item.amount) || 0))
+        ].filter(part => part.length > 0);
+        const warning = item.includesOtherReservations
+          ? ' <span style="color:#c62828">(includes other reservations)</span>'
+          : '';
+        html += `<li>${parts.join(' · ')}${warning}</li>`;
+      }
+      html += '</ul>';
+    }
+    if (hasShared) {
+      html += '<div style="margin-top:0.75rem;color:#c62828">Items marked "includes other reservations" will be deleted in full. That money goes back to Undeposited Funds or Untransferred Funds and must be deposited or transferred again.</div>';
+    }
+    return html;
+  }
+
+  escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  executeUndo(reservationId: string): void {
     this.securityDepositService.undoSecurityDeposit(reservationId).pipe(take(1), finalize(() => { this.isUndoing = false; this.markViewForCheck(); }), takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.toastr.success('Security deposit actions undone.', CommonMessage.Success);
@@ -535,8 +627,13 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     return Math.round(amount * 100) / 100;
   }
 
+  /** Completed deposits have left escrow, so they stay out of the escrow comparison. */
   get totalCollected(): number {
-    return this.sumSecurityDepositColumn('collectedAmount');
+    return this.roundCurrencyValue(
+      this.rowsDisplay
+        .filter(row => !this.isCompletedRow(row))
+        .reduce((sum, row) => sum + Number(row.collectedAmount ?? 0), 0)
+    );
   }
 
   /** Escrow SD account balance shown as an absolute (liability) amount. */

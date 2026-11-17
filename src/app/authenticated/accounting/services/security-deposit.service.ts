@@ -6,6 +6,7 @@ import { ConfigService } from '../../../services/config.service';
 import { UtilityService } from '../../../services/utility.service';
 import { ReservationDepartureResponse, ReservationResponse, SecurityDepositReturnRequest, UnreturnedSecurityDepositsResponse} from '../../reservations/models/reservation-model';
 import { ReservationType } from '../../reservations/models/reservation-enum';
+import { SecurityDepositUndoPreviewResponse } from '../models/security-deposit-undo.model';
 
 export interface SecurityDepositsOutstandingRefreshOptions {
   /** Wait before calling the API (used after login to avoid startup connection storms). */
@@ -27,10 +28,13 @@ export class SecurityDepositService {
   private securityDepositsOutstandingLoadId = 0;
   private scheduledRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-  getUnreturnedSecurityDeposits(officeId?: number | null): Observable<UnreturnedSecurityDepositsResponse> {
-    const params: Record<string, string | number> = {};
+  getUnreturnedSecurityDeposits(officeId?: number | null, includeCompleted = false): Observable<UnreturnedSecurityDepositsResponse> {
+    const params: Record<string, string | number | boolean> = {};
     if (officeId != null && officeId > 0) {
       params['officeId'] = officeId;
+    }
+    if (includeCompleted) {
+      params['includeCompleted'] = true;
     }
 
     return this.http.get<UnreturnedSecurityDepositsResponse>(this.controller + 'unreturned', { params });
@@ -111,6 +115,10 @@ export class SecurityDepositService {
 
   applySecurityDepositTransfer(request: SecurityDepositReturnRequest): Observable<ReservationResponse> {
     return this.http.put<ReservationResponse>(this.controller + 'transfer', request);
+  }
+
+  getSecurityDepositUndoPreview(reservationId: string): Observable<SecurityDepositUndoPreviewResponse> {
+    return this.http.get<SecurityDepositUndoPreviewResponse>(this.controller + reservationId + '/undo-preview');
   }
 
   undoSecurityDeposit(reservationId: string): Observable<ReservationResponse> {
