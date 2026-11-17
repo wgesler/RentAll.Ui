@@ -13,6 +13,7 @@ import { AccountingLogResponse } from '../models/log.model';
 export class AccountingLogComponent implements OnInit, OnDestroy {
   @Input() row: AccountingLogResponse | null = null;
   @Output() closed = new EventEmitter<void>();
+
   constructor() {}
 
   //#region Accounting-Log

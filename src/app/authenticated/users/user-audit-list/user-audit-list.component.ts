@@ -23,8 +23,6 @@ export class UserAuditListComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private dialogRef = inject<MatDialogRef<UserAuditListComponent>>(MatDialogRef);
 
-  isServiceError = false;
-  isPageReady = false;
   userActivity: UserActivityResponse[] = [];
   userActivityDisplay: UserAuditListDisplay[] = [];
 
@@ -38,6 +36,8 @@ export class UserAuditListComponent implements OnInit, OnDestroy {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['userActivity']));
   destroy$ = new Subject<void>();
 

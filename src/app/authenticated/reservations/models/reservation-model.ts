@@ -526,3 +526,15 @@ export interface ReservationActiveStateResponse {
   invoiceIds: string[];
 }
 
+export interface ValidationProblemDetails {
+  title?: string;
+  message?: string;
+  Message?: string;
+  errors?: Record<string, string[]>;
+}
+
+export interface ReservationNotificationFormValue {
+  arrivalDate?: string | Date | null;
+  departureDate?: string | Date | null;
+}
+

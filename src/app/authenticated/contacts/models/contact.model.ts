@@ -188,3 +188,13 @@ export interface W9ExtractResponse {
   warnings?: string[] | null;
 }
 
+export interface PropertyContactEditRow {
+  rowId: number;
+  contactId?: string;
+  contactCode: string;
+  companyName: string;
+  contactName: string;
+  phone: string;
+  email: string;
+}
+

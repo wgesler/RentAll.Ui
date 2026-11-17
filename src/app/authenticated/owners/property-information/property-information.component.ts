@@ -13,7 +13,8 @@ import { UtilityService } from '../../../services/utility.service';
 import { FormatterService } from '../../../services/formatter-service';
 import { AuthService } from '../../../services/auth.service';
 import { OwnersService } from '../services/owners.service';
-import { OwnerAuthorization, isOwnerUnauthorized } from '../models/owner-authorization.model';
+import { isOwnerUnauthorized } from '../models/owner-authorization.model';
+import { OwnerAuthorization } from '../models/owner-enums';
 
 export function buildPropertyInformationPatchFromResponse(response: PublicOwnerFormResponse): Partial<PublicOwnerFormSubmitRequest> {
   return {
@@ -67,8 +68,6 @@ export function buildPropertyInformationPatchFromPropertyInfo(response: Property
   styleUrl: '../owner-shell/owner-shell.component.scss'
 })
 export class PropertyInformationComponent implements OnChanges, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() token = '';
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerLeadId: number | null = null;
@@ -83,6 +82,8 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   @Input() shellPropertyZip: string | null = null;
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
   @Output() propertyContextChanged = new EventEmitter<void>();
+
+  private cdr = inject(ChangeDetectorRef);
   private fb = inject(FormBuilder);
   private ownersService = inject(OwnersService);
   private toastr = inject(ToastrService);
@@ -90,15 +91,16 @@ export class PropertyInformationComponent implements OnChanges, OnDestroy {
   private formatterService = inject(FormatterService);
   private authService = inject(AuthService);
 
-  readonly OwnerAuthorization = OwnerAuthorization;
-  readonly isOwnerUnauthorized = isOwnerUnauthorized;
+  OwnerAuthorization = OwnerAuthorization;
+  isOwnerUnauthorized = isOwnerUnauthorized;
 
   ownerForm: FormGroup = this.buildForm();
-  isPageReady = false;
   isSaving = false;
   publicOwnerFormSnapshot: PublicOwnerFormResponse | null = null;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property-information']));
   hasLoadStateSubscription = false;
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property-information']));
   destroy$ = new Subject<void>();
 
   //#region Property-Information

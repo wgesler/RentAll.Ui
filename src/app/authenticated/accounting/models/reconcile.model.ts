@@ -144,3 +144,16 @@ export const RECONCILE_TABLE_COLUMN_ORDER: ReconcileColumnKey[] = ['date', 'type
 export const RECONCILE_DIALOG_COLUMN_ORDER: ReconcileColumnKey[] = ['checkRef', 'date', 'payee', 'memo', 'type'];
 
 export const DEFAULT_RECONCILE_VISIBLE_COLUMNS: ReconcileColumnKey[] = [...RECONCILE_CONFIGURABLE_COLUMN_ORDER];
+
+export interface ReconcileStickyFilterState {
+  enabled: boolean;
+  tableName: string;
+  filterText: string;
+}
+
+export type ReconcileSortDirection = 'asc' | 'desc';
+
+export interface ReconcileSortState {
+  column: ReconcileColumnKey | null;
+  direction: ReconcileSortDirection;
+}

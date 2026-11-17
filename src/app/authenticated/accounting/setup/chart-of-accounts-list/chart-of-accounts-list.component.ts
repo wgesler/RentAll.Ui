@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, finalize, skip, switchMap, take, takeUntil } from 'rxjs';
 import { CommonMessage } from '../../../../enums/common-message.enum';
@@ -34,18 +33,16 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   @Input() officeId: number | null = null;
   @Input() embeddedInSettings = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
-  chartOfAccountsService = inject(ChartOfAccountsService);
-  toastr = inject(ToastrService);
-  router = inject(Router);
-  route = inject(ActivatedRoute);
-  mappingService = inject(MappingService);
+
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
   private utilityService = inject(UtilityService);
   private authService = inject(AuthService);
   private globalSelectionService = inject(GlobalSelectionService);
   private cdr = inject(ChangeDetectorRef);
 
-  isServiceError = false;
   cachedChartOfAccounts: ChartOfAccountResponse[] = [];
   allChartOfAccounts: ChartOfAccountResponse[] = [];
   chartOfAccountsDisplay: ChartOfAccountListDisplay[] = [];
@@ -59,7 +56,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
   chartOfAccountId: string | number | null = null;
   chartOfAccountOfficeId: number | null = null;
   isAdmin = false;
-  readonly noParentLabel = 'None';
+  noParentLabel = 'None';
 
   accountTypes = AccountTypeLabels.map(({ value, label }) => ({ value, label }));
 
@@ -75,6 +72,7 @@ export class ChartOfAccountsListComponent implements OnInit, OnDestroy, OnChange
     parentAccountDropdown: { displayAs: 'Parent Account', maxWidth: '30ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter accounts...' }
    };
 
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();

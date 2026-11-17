@@ -30,13 +30,13 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
 
   @Input() selectedOfficeId: number | null = null; // kept for backwards compatibility
   @Input() offices: OfficeResponse[] = [];
-  trackerService = inject(TrackerService);
-  toastr = inject(ToastrService);
-  mappingService = inject(MappingService);
+
+  private trackerService = inject(TrackerService);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
-  isServiceError: boolean = false;
   allTrackers: TrackerDefinitionListDisplay[] = [];
   officeSections: TrackerOfficeSection[] = [];
   expandedOfficeIds = new Set<number>();
@@ -47,9 +47,10 @@ export class TrackerListComponent implements OnInit, OnDestroy, OnChanges {
   editingSuggestedSortOrder: number | null = null;
   processingOfficeIds = new Set<number>();
 
+  isServiceError: boolean = false;
   isPageReady = false;
-  destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['trackers']));
+  destroy$ = new Subject<void>();
 
   //#region Tracker-List
   ngOnInit(): void {

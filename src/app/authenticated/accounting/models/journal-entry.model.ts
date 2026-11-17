@@ -519,3 +519,21 @@ export interface CloseAccountingPeriodResult {
   closedDateId?: number | null;
   errors: string[];
 }
+
+export type JournalEntryLineContextMode = 'default' | 'accountsPayable' | 'accountsReceivable' | 'ownerPayable';
+
+export interface EditableJournalEntryLine {
+  lineKey: string;
+  journalEntryLineId?: string;
+  chartOfAccountId: number | null;
+  debit: number;
+  credit: number;
+  debitInput: string;
+  creditInput: string;
+  memo: string;
+  perspectiveId: number;
+  costCodeId?: number | null;
+  propertyId?: string | null;
+  reservationId?: string | null;
+  contactId?: string | null;
+}

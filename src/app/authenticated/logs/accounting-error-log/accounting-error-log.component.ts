@@ -20,6 +20,7 @@ export class AccountingErrorLogComponent implements OnInit, OnDestroy {
 
   @Input() row: AccountingErrorLogResponse | null = null;
   @Output() closed = new EventEmitter<void>();
+
   private router = inject(Router);
   private formatter = inject(FormatterService);
   private toastr = inject(ToastrService);

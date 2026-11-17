@@ -107,3 +107,5 @@ export interface DepositSelection {
   propertyId: string | null;
   deposit?: DepositResponse | null;
 }
+
+export type DepositSplitContextMode = 'default' | 'accountsPayable' | 'accountsReceivable' | 'ownerPayable' | 'undepositedFunds';

@@ -35,7 +35,8 @@ import { PropertyHtmlResponse } from '../../properties/models/property-html.mode
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyHtmlService } from '../../properties/services/property-html.service';
 import { PropertyService } from '../../properties/services/property.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { LeaseInformationResponse } from '../models/lease-information.model';
 import { BillingType, DepositType, ReservationNotice, ReservationType } from '../models/reservation-enum';
 import { ReservationListResponse, ReservationResponse } from '../models/reservation-model';
@@ -55,7 +56,6 @@ import { OwnerDocuSignSignersDialogService } from '../../owners/services/owner-d
     styleUrl: './lease.component.scss'
 })
 export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
   @Input() reservationId: string = '';
   @Input() propertyId: string = '';
   @Input() officeId: number | null = null;
@@ -64,6 +64,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   @Input() openInViewOnTabSelect: boolean = false;
   @Input() hideEditButtonInViewMode: boolean = false;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
+
+  private cdr = inject(ChangeDetectorRef);
   private reservationService = inject(ReservationService);
   private propertyHtmlService = inject(PropertyHtmlService);
   private propertyService = inject(PropertyService);
@@ -85,12 +89,10 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   private terminologyService = inject(TerminologyService);
   private http = inject(HttpClient);
   private dynamicFormDraftService = inject(DynamicFormDraftService);
-  ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
-  ownerDocuSignSignersDialogService = inject(OwnerDocuSignSignersDialogService);
-  override toastr: ToastrService;
+  private ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
+  private ownerDocuSignSignersDialogService = inject(OwnerDocuSignSignersDialogService);
 
-  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
-  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
+  override toastr: ToastrService;
   
   isSubmitting: boolean = false;
   form: FormGroup;
@@ -137,7 +139,6 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
   includeRentalCreditApplication: boolean = false;
   isCompanyRental: boolean = true;
   debuggingHtml: boolean = environment.local || environment.dev;
-  isPageReady: boolean = false;
   cachedPropertyHtmlFiles: {
     lease: string;
     letterOfResponsibility: string;
@@ -146,10 +147,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     creditApplication: string;
     rentalCreditApplication: string;
   } | null = null;
+  logoSourcesLoaded = { offices: false, organization: false };
 
+  isPageReady: boolean = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'property', 'leaseInformation', 'reservation', 'reservations', 'emailHtml', 'buildings', 'logo'])); 
   destroy$ = new Subject<void>();
-  logoSourcesLoaded = { offices: false, organization: false };
 
   constructor() {
     super();

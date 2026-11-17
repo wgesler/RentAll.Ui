@@ -21,7 +21,9 @@ export class MobileListTableComponent implements OnChanges {
   @Input() rowNumberLabel = '#';
   @Input() showAttentionColumn = false;
   @Output() rowClick = new EventEmitter<MobileListRow>();
+
   private cdr = inject(ChangeDetectorRef);
+
   filterText = '';
 
   ngOnChanges(changes: SimpleChanges): void {

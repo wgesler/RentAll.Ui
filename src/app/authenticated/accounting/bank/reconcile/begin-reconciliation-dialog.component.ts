@@ -25,7 +25,7 @@ import { ReconcileService } from '../../services/reconcile.service';
   styleUrl: './begin-reconciliation-dialog.component.scss'
 })
 export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
-  data = inject<BeginReconciliationDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<BeginReconciliationDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<BeginReconciliationDialogComponent, BeginReconciliationDialogResult | undefined>>(MatDialogRef);
   private fb = inject(FormBuilder);
   private mappingService = inject(MappingService);
@@ -42,10 +42,9 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
   lastReconciledDate: string | null = null;
   isSaving = false;
   isUndoing = false;
-  private isApplyingDraft = false;
-  destroy$ = new Subject<void>();
+  isApplyingDraft = false;
 
-  readonly form = this.fb.group({
+  form = this.fb.group({
     chartOfAccountId: [this.data.defaultChartOfAccountId as number | null, Validators.required],
     statementDate: [this.data.defaultStatementDate ?? new Date(), Validators.required],
     endingBalance: ['', Validators.required],
@@ -56,6 +55,8 @@ export class BeginReconciliationDialogComponent implements OnInit, OnDestroy {
     interestEarnedDate: [this.data.defaultStatementDate ?? new Date()],
     interestEarnedAccountId: [null as number | null]
   });
+
+  destroy$ = new Subject<void>();
 
   //#region Begin Reconciliation Dialog
   ngOnInit(): void {

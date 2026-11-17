@@ -30,13 +30,15 @@ export class MobileDocumentsPageComponent implements OnInit, OnDestroy {
   private utilityService = inject(UtilityService);
   private globalSelectionService = inject(GlobalSelectionService);
   private cdr = inject(ChangeDetectorRef);
+
   rows: MobileListRow[] = [];
   columns: ColumnSet = {
     property: { displayAs: 'Property', maxWidth: '12ch', wrap: false },
     fileName: { displayAs: 'File Name', maxWidth: '40ch', wrap: false }
   };
-  isPageReady = false;
   selectedOfficeId: number | null = null;
+
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['documents']));
   destroy$ = new Subject<void>();
 

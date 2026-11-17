@@ -12,7 +12,8 @@ import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig } from '../../../shared/models/base-document.model';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
@@ -54,7 +55,9 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   @Input() refreshTrigger = 0;
   @Output() drillDownActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
-  formatter = inject(FormatterService);
+  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
+
+  private formatter = inject(FormatterService);
   private invoiceService = inject(InvoiceService);
   private receiptService = inject(ReceiptService);
   private workOrderService = inject(WorkOrderService);
@@ -72,11 +75,10 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
   private reportHtmlBuilder = inject(ReportHtmlBuilderService);
   private documentReloadService = inject(DocumentReloadService);
   private cdr = inject(ChangeDetectorRef);
-  override toastr: ToastrService;
-  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
 
-  isServiceError = false;
+  override toastr: ToastrService;
   noDataMessage = 'No open receivables for the selected filters and as-of date.';
+  reportDataLoadKey = 'reportData';
   reportResult: ArAgingReportResult | null = null;
   visibleRows: ArAgingVisibleRow[] = [];
   previewIframeHtml = '';
@@ -118,10 +120,10 @@ export class ArAgingReportComponent extends BaseDocumentComponent implements OnI
     openBalance: { displayAs: 'Balance Owned', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reportData']));
   destroy$ = new Subject<void>();
-  private readonly reportDataLoadKey = 'reportData';
 
   //#region AR-Aging-Report
   ngOnInit(): void {

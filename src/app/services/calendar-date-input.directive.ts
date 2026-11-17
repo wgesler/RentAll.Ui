@@ -10,6 +10,7 @@ export class CalendarDateInputDirective implements AfterViewInit, OnDestroy {
   private formatter = inject(FormatterService);
   private injector = inject(Injector);
   private input = inject(ElementRef<HTMLInputElement>);
+
   private onBlur = (event: FocusEvent) => {
     this.formatter.onCalendarDateBlur(event, this.control);
   };

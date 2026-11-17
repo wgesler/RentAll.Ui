@@ -1,3 +1,7 @@
+import { ReceiptResponse } from '../../maintenance/models/receipt.model';
+import { WorkOrderResponse } from '../../maintenance/models/work-order.model';
+import { PropertyResponse } from '../../properties/models/property.model';
+
 export interface TicketRequest {
   ticketId?: string | null;
   organizationId: string;
@@ -114,3 +118,31 @@ export type TicketReservationFilterOption = {
   reservationId: string;
   reservationCode: string;
 };
+
+export interface TicketWorkOrderDialogData {
+  property: PropertyResponse;
+  maintenanceId: string | null;
+  workOrderId?: string | null;
+  initialTitle?: string | null;
+  initialDescription?: string | null;
+  initialReservationId?: string | null;
+  onCreated?: (workOrder: WorkOrderResponse) => void;
+}
+
+export interface TicketWorkOrderDialogResult {
+  saved: boolean;
+  workOrder?: WorkOrderResponse;
+}
+
+export interface TicketReceiptDialogData {
+  property: PropertyResponse | null;
+  ticketId: string | null;
+  receiptId?: string | null;
+  organizationId?: string | null;
+  onCreated?: (receipt: ReceiptResponse) => void;
+}
+
+export interface TicketReceiptDialogResult {
+  saved: boolean;
+  receipt?: ReceiptResponse;
+}

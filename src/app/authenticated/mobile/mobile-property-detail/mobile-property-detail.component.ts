@@ -34,6 +34,7 @@ export class MobilePropertyDetailComponent implements OnInit, OnChanges, OnDestr
   @ViewChild('descriptionTextarea') descriptionTextarea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('notesTextarea') notesTextarea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild(MobilePropertyAgreementComponent) propertyAgreementSection?: MobilePropertyAgreementComponent;
+
   private propertyService = inject(PropertyService);
   private mixedMappingService = inject(MixedMappingService);
   private mappingService = inject(MappingService);
@@ -42,6 +43,7 @@ export class MobilePropertyDetailComponent implements OnInit, OnChanges, OnDestr
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+
   isPartnerAdmin = false;
   isPartnerOrganization = false;
   property: PropertyResponse | null = null;
@@ -49,12 +51,10 @@ export class MobilePropertyDetailComponent implements OnInit, OnChanges, OnDestr
   states: string[] = [];
   ownerOptions: MobileListFieldOption[] = [];
   vendorOptions: MobileListFieldOption[] = [];
-  isPageReady = false;
   agreementPanelOpen = false;
   isSaving = false;
   isDirty = false;
-  destroy$ = new Subject<void>();
-  readonly basicPanelFieldKeys = [
+  basicPanelFieldKeys = [
     'propertyCode',
     'officeName',
     'propertyLeaseTypeId',
@@ -114,7 +114,7 @@ export class MobilePropertyDetailComponent implements OnInit, OnChanges, OnDestr
     'owner3Id',
     'vendorId'
   ] as const;
-  readonly featuresPanelFieldKeys = [
+  featuresPanelFieldKeys = [
     'unfurnished',
     'heating',
     'ac',
@@ -156,6 +156,9 @@ export class MobilePropertyDetailComponent implements OnInit, OnChanges, OnDestr
     'dvd',
     'bldgTenantCode'
   ] as const;
+
+  isPageReady = false;
+  destroy$ = new Subject<void>();
 
   //#region Mobile-Property-Detail
   get isPartnerLimitedPropertyForm(): boolean {

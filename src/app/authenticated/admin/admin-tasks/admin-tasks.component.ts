@@ -5,14 +5,7 @@ import { finalize } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AdminTaskService, StorageRepairEvent } from '../services/admin-task.service';
-
-interface AdminTask {
-  key: string;
-  label: string;
-  detail: string;
-  running: boolean;
-  result: string;
-}
+import { AdminTask } from '../models/admin-task.model';
 
 @Component({
   standalone: true,
@@ -22,12 +15,12 @@ interface AdminTask {
   imports: [CommonModule, MaterialModule]
 })
 export class AdminTasksComponent {
+  @ViewChild('progressLog') progressLog?: ElementRef<HTMLElement>;
+
   private adminTaskService = inject(AdminTaskService);
   private toastr = inject(ToastrService);
   private zone = inject(NgZone);
   private cdr = inject(ChangeDetectorRef);
-
-  @ViewChild('progressLog') progressLog?: ElementRef<HTMLElement>;
 
   progressLines: string[] = [];
   tasks: AdminTask[] = [

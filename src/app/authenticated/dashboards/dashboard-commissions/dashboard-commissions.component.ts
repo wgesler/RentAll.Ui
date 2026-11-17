@@ -23,10 +23,11 @@ export class DashboardCommissionsComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   commissionRows: MonthlyCommissionDisplay[] = [];
+
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Commissions
   ngOnInit(): void {

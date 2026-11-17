@@ -22,6 +22,7 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
   @Input() reloadToken = 0;
   @Output() openApplicationLog = new EventEmitter<ApplicationLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);

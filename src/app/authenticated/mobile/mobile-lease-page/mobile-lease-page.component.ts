@@ -24,6 +24,9 @@ import { MobileListRow } from '../mobile-list-table/mobile-list.model';
 })
 export class MobileLeasePageComponent implements OnInit, OnChanges, OnDestroy {
   @Input() reservationId = '';
+  @ViewChild('leaseHost') leaseHost?: ElementRef<HTMLElement>;
+  @ViewChild(LeaseComponent) lease?: LeaseComponent;
+
   private router = inject(Router);
   private authService = inject(AuthService);
   private reservationService = inject(ReservationService);
@@ -31,6 +34,7 @@ export class MobileLeasePageComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private globalSelectionService = inject(GlobalSelectionService);
   private cdr = inject(ChangeDetectorRef);
+
   rows: MobileListRow[] = [];
   columns: ColumnSet = {
     property: { displayAs: 'Property', maxWidth: '12ch', wrap: false },
@@ -38,15 +42,14 @@ export class MobileLeasePageComponent implements OnInit, OnChanges, OnDestroy {
     arrival: { displayAs: 'Arrival', maxWidth: '14ch', wrap: false }
   };
   reservation: ReservationResponse | null = null;
-  isPageReady = false;
   loadFailed = false;
   isSendingDocuSign = false;
   selectedOfficeId: number | null = null;
+  leaseFitTimer: ReturnType<typeof setInterval> | null = null;
+
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['lease']));
   destroy$ = new Subject<void>();
-  @ViewChild('leaseHost') leaseHost?: ElementRef<HTMLElement>;
-  @ViewChild(LeaseComponent) lease?: LeaseComponent;
-  private leaseFitTimer: ReturnType<typeof setInterval> | null = null;
 
   //#region Mobile-Lease-Page
   ngOnInit(): void {

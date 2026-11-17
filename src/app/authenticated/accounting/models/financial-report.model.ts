@@ -90,3 +90,16 @@ export interface FinancialReportBuildRequest {
   /** Accounting office year-end day. Used for Balance Sheet Net Income YTD. */
   yearEndDay?: number | null;
 }
+
+export interface FinancialReportVisibleRow {
+  nodeId: string;
+  label: string;
+  columnAmountDisplays: Record<string, string>;
+  depth: number;
+  rowKind: FinancialReportTreeNode['rowKind'];
+  displayKind: 'node' | 'supportingLine';
+  expandable: boolean;
+  expanded: boolean;
+  showDoubleUnderlineBeforeTotal: boolean;
+  supportingLine?: JournalEntryLineListDisplay;
+}

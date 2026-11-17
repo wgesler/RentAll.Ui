@@ -10,7 +10,8 @@ import { UtilityService } from '../../../../services/utility.service';
 import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig } from '../../../shared/models/base-document.model';
 import { EscrowReportResult, EscrowReportAmountDrillDownSelection, EscrowReportDrillDownMetric } from '../../models/escrow-report.model';
 import { ReportHtmlBuilderService } from '../../services/report-html-builder.service';
 import { EscrowReportCacheService } from '../../services/owner-reports-cache.service';
@@ -40,9 +41,9 @@ export class EscrowReportComponent extends BaseDocumentComponent implements OnIn
   private reportHtmlBuilder = inject(ReportHtmlBuilderService);
   private documentReloadService = inject(DocumentReloadService);
   private cdr = inject(ChangeDetectorRef);
+
   override toastr: ToastrService;
 
-  isPageReady = false;
   reportResult: EscrowReportResult | null = null;
   cushionInput = 0;
   noDataMessage = 'Press Go to run the report.';
@@ -51,8 +52,9 @@ export class EscrowReportComponent extends BaseDocumentComponent implements OnIn
   isDownloading = false;
   isSubmitting = false;
   organizationId = '';
-  private readonly emptyResultMessage = 'No escrow activity for the selected office, property, and as-of date.';
+  emptyResultMessage = 'No escrow activity for the selected office, property, and as-of date.';
 
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 

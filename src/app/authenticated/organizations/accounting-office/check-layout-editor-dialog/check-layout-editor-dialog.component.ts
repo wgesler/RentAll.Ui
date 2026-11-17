@@ -8,30 +8,8 @@ import { CommonMessage } from '../../../../enums/common-message.enum';
 import { MaterialModule } from '../../../../material.module';
 import { PdfThumbnailService } from '../../../../services/pdf-thumbnail.service';
 import { CheckHtmlService } from '../../../accounting/services/check-html.service';
-import { BankAccountResponse } from '../../models/bank.model';
+import { CheckLayoutEditorDialogData, LayoutField } from '../../models/accounting-office.model';
 import { FileDetails } from '../../../../shared/models/fileDetails';
-
-export interface CheckLayoutEditorDialogData {
-  officeId: number;
-  bank: BankAccountResponse;
-  /** Already-loaded stock from Accounting Office (same PDF shown in the Check Printing thumbnail). */
-  checkStockFileDetails?: FileDetails | null;
-  checkStockPreviewDataUrl?: string | null;
-  checkStockPdfThumbnailUrl?: string | null;
-}
-
-interface LayoutField {
-  className: string;
-  label: string;
-  sampleText: string;
-  topIn: number;
-  leftIn: number;
-  widthIn: number;
-  fontSizePx: number;
-  textAlign: string;
-  fontWeight: string;
-  editable: boolean;
-}
 
 @Component({
   standalone: true,
@@ -42,18 +20,17 @@ interface LayoutField {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
-  data = inject<CheckLayoutEditorDialogData>(MAT_DIALOG_DATA);
+  private data = inject<CheckLayoutEditorDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<CheckLayoutEditorDialogComponent, string | false>>(MatDialogRef);
   private checkHtmlService = inject(CheckHtmlService);
   private pdfThumbnailService = inject(PdfThumbnailService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  private destroy$ = new Subject<void>();
-  private readonly pxPerIn = 96;
-  private readonly editableClassNames = ['field-date', 'field-payee', 'field-amount', 'field-words', 'field-memo'];
+  pxPerIn = 96;
+  editableClassNames = ['field-date', 'field-payee', 'field-amount', 'field-words', 'field-memo'];
 
-  readonly sampleByClass: Record<string, string> = {
+  sampleByClass: Record<string, string> = {
     'field-date': '07/15/2026',
     'field-payee': "Brian's Construction",
     'field-amount': '$100.00',
@@ -71,6 +48,8 @@ export class CheckLayoutEditorDialogComponent implements OnInit, OnDestroy {
   displayScale = 0.72;
   fields: LayoutField[] = [];
   templateHtml = '';
+
+  destroy$ = new Subject<void>();
 
   get pageWidthPx(): number {
     return 8.5 * this.pxPerIn * this.displayScale;

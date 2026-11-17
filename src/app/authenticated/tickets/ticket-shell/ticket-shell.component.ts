@@ -19,14 +19,15 @@ import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogComponent } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogData } from '../../shared/models/dialog.model';
 import { UserService } from '../../users/services/user.service';
 import { TicketStateType } from '../models/ticket-enum';
 import { TicketResponse } from '../models/ticket-models';
 import { TicketService } from '../services/ticket.service';
 import { TicketComponent } from '../ticket/ticket.component';
 import { TicketListComponent } from '../ticket-list/ticket-list.component';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
 @Component({
@@ -37,21 +38,6 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
   styleUrl: './ticket-shell.component.scss'
 })
 export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private dialog = inject(MatDialog);
-  private authService = inject(AuthService);
-  private officeService = inject(OfficeService);
-  private propertyService = inject(PropertyService);
-  private reservationService = inject(ReservationService);
-  private contactService = inject(ContactService);
-  private globalSelectionService = inject(GlobalSelectionService);
-  private userService = inject(UserService);
-  private ticketService = inject(TicketService);
-  private organizationFeatureService = inject(OrganizationFeatureService);
-  private utilityService = inject(UtilityService);
-  private cdr = inject(ChangeDetectorRef);
-
   @ViewChild('myTicketListSection') set myTicketListSection(value: TicketListComponent | undefined) {
     this.myTicketListSectionRef = value;
     if (value) {
@@ -89,6 +75,22 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
     }
   }
   @ViewChild('ticketSection') ticketSection?: TicketComponent;
+
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private dialog = inject(MatDialog);
+  private authService = inject(AuthService);
+  private officeService = inject(OfficeService);
+  private propertyService = inject(PropertyService);
+  private reservationService = inject(ReservationService);
+  private contactService = inject(ContactService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private userService = inject(UserService);
+  private ticketService = inject(TicketService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
+  private utilityService = inject(UtilityService);
+  private cdr = inject(ChangeDetectorRef);
+
   myTicketListSectionRef?: TicketListComponent;
   otherTicketListSectionRef?: TicketListComponent;
   closedTicketListSectionRef?: TicketListComponent;
@@ -115,18 +117,19 @@ export class TicketShellComponent implements OnInit, OnDestroy, CanComponentDeac
   organizationId = '';
   offices: OfficeResponse[] = [];
   /** Page-level office filter: seeded from global; does not write global. */
-  private initialOfficeScopeApplied = false;
+  initialOfficeScopeApplied = false;
   properties: PropertyCodeResponse[] = [];
   reservations: ReservationCodeResponse[] = [];
-  private allProperties: PropertyCodeResponse[] = [];
-  private allReservations: ReservationCodeResponse[] = [];
+  allProperties: PropertyCodeResponse[] = [];
+  allReservations: ReservationCodeResponse[] = [];
   contacts: ContactResponse[] = [];
 
   isApplyingTicketSelectionContext = false;
   hasMyTicketsAttention = false;
   hasRentAllTicketsAttention = false;
   hasReviewTicketsAttention = false;
-  private myTicketsBadgeLoadId = 0;
+  myTicketsBadgeLoadId = 0;
+
   destroy$ = new Subject<void>();
 
   //#region Ticket-Shell

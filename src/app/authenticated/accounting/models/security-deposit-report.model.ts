@@ -39,3 +39,9 @@ export interface SecurityDepositReportSelection {
   officeId?: number | null;
   securityDepositReturnDate?: string | null;
 }
+
+export interface SecurityDepositJournalSelection {
+  reservationId: string;
+  reservationCode: string;
+  officeId: number;
+}

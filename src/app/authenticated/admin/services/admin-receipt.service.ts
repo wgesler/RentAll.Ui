@@ -33,6 +33,7 @@ export interface UnmatchedReceipts {
 export class AdminReceiptService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
+
   private readonly controller = this.configService.config().apiUrl + 'admin/receipts/';
 
   getFiles(organizationId: string, officeId: number | null): Observable<UnassignedReceiptImage[]> {

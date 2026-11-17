@@ -21,3 +21,16 @@ export interface ApplianceResponse {
   decalPath?: string | null;
   decalFileDetails?: FileDetails;
 }
+
+export interface ApplianceEditRow {
+  rowId: number;
+  applianceId?: number;
+  applianceName: string;
+  manufacturer: string;
+  modelNo: string;
+  serialNo: string;
+  decalPath: string | null;
+  decalPreviewDataUrl: string | null;
+  fileDetails?: FileDetails | null;
+  hasNewFileUpload: boolean;
+}

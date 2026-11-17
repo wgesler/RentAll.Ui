@@ -24,14 +24,14 @@ import { UserListComponent } from '../user-list/user-list.component';
   imports: [CommonModule, MaterialModule, FormsModule, TitleBarSelectComponent, UserListComponent, UserComponent]
 })
 export class UsersShellComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChildren(UserListComponent) userSections?: QueryList<UserListComponent>;
+
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
   private organizationService = inject(OrganizationService);
   private globalSelectionService = inject(GlobalSelectionService);
-
-  @ViewChildren(UserListComponent) userSections?: QueryList<UserListComponent>;
 
   selectedTabIndex = 0;
   showUserForm = false;

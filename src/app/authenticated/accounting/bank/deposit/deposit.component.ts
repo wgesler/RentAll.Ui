@@ -18,16 +18,15 @@ import { ReservationService } from '../../../reservations/services/reservation.s
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../../shared/models/searchable-select.model';
 import { AccountType } from '../../models/accounting-enum';
-import { DepositRequest, DepositResponse, DepositSplit } from '../../models/deposit.model';
+import { DepositRequest, DepositResponse, DepositSplit, DepositSplitContextMode } from '../../models/deposit.model';
 import { DepositService } from '../../services/deposit.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
-
-type DepositSplitContextMode = 'default' | 'accountsPayable' | 'accountsReceivable' | 'ownerPayable' | 'undepositedFunds';
 
 @Component({
   standalone: true,
@@ -47,6 +46,8 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<DepositResponse>();
+  @ViewChild('overallAmountInput') overallAmountInput?: ElementRef<HTMLInputElement>;
+
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private depositService = inject(DepositService);
@@ -58,20 +59,18 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private accountingOfficeService = inject(AccountingOfficeService);
   private utilityService = inject(UtilityService);
-  formatter = inject(FormatterService);
+  protected formatter = inject(FormatterService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
-  @ViewChild('overallAmountInput') overallAmountInput?: ElementRef<HTMLInputElement>;
 
   form: FormGroup;
   isAddMode = false;
   isSubmitting = false;
-  isPageReady = false;
   isDepositContentReady = false;
   organizationId = '';
-  private splitContactsLoadStarted = false;
-  private splitReservationsLoadStarted = false;
-  private depositLoadSeq = 0;
+  splitContactsLoadStarted = false;
+  splitReservationsLoadStarted = false;
+  depositLoadSeq = 0;
   deposit: DepositResponse | null = null;
   chartOfAccounts: ChartOfAccountResponse[] = [];
   propertyOptions: PropertyCodeResponse[] = [];
@@ -93,10 +92,7 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
   saveValidationHighlightActive = false;
   isSyncingInitialSplit = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
-  destroy$ = new Subject<void>();
-
-  readonly requirePositiveAmount = (control: AbstractControl): ValidationErrors | null => {
+  requirePositiveAmount = (control: AbstractControl): ValidationErrors | null => {
     const raw = this.sanitizeSignedDecimalInput(control.value?.toString() ?? '').trim();
     const amount = parseFloat(raw);
     if (!raw || !Number.isFinite(amount) || Math.abs(amount) < 0.000001) {
@@ -105,10 +101,14 @@ export class DepositComponent implements OnInit, OnChanges, OnDestroy, AfterView
     return null;
   };
 
-  readonly requireAccountId = (control: AbstractControl): ValidationErrors | null => {
+  requireAccountId = (control: AbstractControl): ValidationErrors | null => {
     const accountId = Number(control.value ?? 0);
     return Number.isFinite(accountId) && accountId > 0 ? null : { required: true };
   };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  destroy$ = new Subject<void>();
 
   constructor() {
     this.form = this.fb.group({});

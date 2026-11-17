@@ -30,7 +30,8 @@ import { PropertyResponse } from '../../../properties/models/property.model';
 import { PropertyHtmlResponse } from '../../../properties/models/property-html.model';
 import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyHtmlService } from '../../../properties/services/property-html.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/models/base-document.model';
 import { OwnerStatementPrintContext } from '../../models/owner-statement-print-context.model';
 import { OwnerStatementMonthLineListDisplay, OwnerInvoiceOutstandingResponse, OwnerStatementPropertyActivityLineResponse } from '../../models/owner-statement.model';
 import { OwnerStatementHtmlBuilderService } from '../../services/owner-statement-html-builder.service';
@@ -50,6 +51,8 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   @Input() line: OwnerStatementMonthLineListDisplay | null = null;
   @Input() shellMode = true;
   @Output() backEvent = new EventEmitter<void>();
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
   private utilityService = inject(UtilityService);
@@ -68,9 +71,8 @@ export class OwnerStatementCreateComponent extends BaseDocumentComponent impleme
   private emailCreateDraftService = inject(EmailCreateDraftService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
-  override toastr: ToastrService;
-  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
+  override toastr: ToastrService;
   form: FormGroup;
   organizationId = '';
   organization: OrganizationResponse | null = null;

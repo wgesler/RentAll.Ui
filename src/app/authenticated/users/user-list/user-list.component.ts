@@ -36,16 +36,17 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null;
   @Input() selectedOrganizationId: string | null = null;
   @Output() openUser = new EventEmitter<{ userId: string; tabIndex?: number }>();
-  userService = inject(UserService);
+
+  private userService = inject(UserService);
   private organizationService = inject(OrganizationService);
   private officeService = inject(OfficeService);
   private authService = inject(AuthService);
-  toastr = inject(ToastrService);
+  private toastr = inject(ToastrService);
   private formatterService = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private terminologyService = inject(TerminologyService);
   private cdr = inject(ChangeDetectorRef);
-  isServiceError: boolean = false;
+
   showInactive: boolean = false;
   selectedTabIndex: number = 0;
   user: any;
@@ -62,6 +63,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
   users: UserResponse[] = [];
   officeScopeResolved: boolean = false;
   organizationId = '';
+
   usersDisplayedColumns: ColumnSet = {
     'organizationName': { displayAs: 'Organization', maxWidth: '20ch' },
     'fullName': { displayAs: 'Full Name', maxWidth: '25ch' },
@@ -75,6 +77,7 @@ export class UserListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['users', 'organizations', 'officeScope']));
   destroy$ = new Subject<void>();

@@ -17,24 +17,12 @@ import { Router } from '@angular/router';
 import { RouterUrl } from '../../../app.routes';
 import { Subject, finalize, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
-import { ChecklistIssuesDialogData } from '../../maintenance/inspection/dialog-checklist-issues.component';
+import { ChecklistIssuesDialogData, MobileAnswerSnapshotRow } from '../../maintenance/models/inspection.model';
 import { InspectionComponent } from '../../maintenance/inspection/inspection.component';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { MobileInspectionIssuesDraftService } from '../mobile-inspection-issues-draft.service';
-
-type MobileAnswerSnapshotRow = {
-  sectionKey: string;
-  repeatIndex: number;
-  itemIndex: number;
-  checked: boolean;
-  photoPath: string | null;
-  documentId: string | null;
-  count: number | null;
-  issue: string | null;
-  hasIssue: boolean;
-};
 
 @Component({
   standalone: true,
@@ -48,14 +36,18 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
   @Input() propertyId = '';
   @Output() propertyCodeChange = new EventEmitter<string>();
   @Output() dirtyChange = new EventEmitter<boolean>();
+
   private propertyService = inject(PropertyService);
   private reservationService = inject(ReservationService);
   private mobileInspectionIssuesDraftService = inject(MobileInspectionIssuesDraftService);
   private mobileRouter = inject(Router);
   private mobileCdr = inject(ChangeDetectorRef);
-  private mobileDestroy$ = new Subject<void>();
+
   isMobilePageReady = false;
   mobilePropertyReservations: ReservationListResponse[] = [];
+  mobileInspectionPhotoTarget: { sectionKey: string; repeatIndex: number; itemId: string } | null = null;
+
+  mobileDestroy$ = new Subject<void>();
 
   //#region Mobile-Inspection-Detail
   override ngOnInit(): void {
@@ -115,8 +107,6 @@ export class MobileInspectionDetailComponent extends InspectionComponent impleme
     this.emitShellStateOutputs();
     this.mobileCdr.markForCheck();
   }
-
-  mobileInspectionPhotoTarget: { sectionKey: string; repeatIndex: number; itemId: string } | null = null;
 
   openMobileInspectionCamera(sectionKey: string, repeatIndex: number, itemId: string, fileInput: HTMLInputElement, event: Event): void {
     event.stopPropagation();

@@ -37,6 +37,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() discardRequestToken = 0;
   @Output() unsavedChangesChange = new EventEmitter<boolean>();
   @Output() saveRequestCompleted = new EventEmitter<{ token: number; success: boolean }>();
+
   private fb = inject(FormBuilder);
   private utilityService = inject(UtilityService);
   private maintenanceService = inject(MaintenanceService);
@@ -47,6 +48,7 @@ export class MaintenanceComponent implements OnInit, OnDestroy, OnChanges {
   private toastr = inject(ToastrService);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
   private cdr = inject(ChangeDetectorRef);
+
   form: FormGroup;
   isSaving = false;
   isSavingAppliances = false;

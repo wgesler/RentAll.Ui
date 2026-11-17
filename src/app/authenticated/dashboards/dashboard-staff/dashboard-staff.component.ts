@@ -43,7 +43,7 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
   scheduledCarpetCleaningsDisplay: ReservationPropertyMaintenance[] = [];
   scheduledInspectionsDisplay: ReservationPropertyMaintenance[] = [];
 
-  readonly scheduleCalendarWeekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+  scheduleCalendarWeekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
   scheduleCalendarCurrentTitle = '';
   scheduleCalendarNextTitle = '';
   scheduleCalendarCurrentCells: { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean; }[] = [];
@@ -52,10 +52,7 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
   scheduleDotTypeByDayKey = new Map<string, Set<'blue' | 'purple' | 'green' | 'pink'>>();
   selectedScheduleCalendarDayKey: string | null = null;
 
-  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'activeReservations', 'propertyMaintenanceList']));
-  isPageReady = false;
-
-  readonly scheduledCleaningColumns: ColumnSet = {
+  scheduledCleaningColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
     'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
@@ -72,7 +69,7 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
     'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
 
-  readonly scheduledCarpetCleaningColumns: ColumnSet = {
+  scheduledCarpetCleaningColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
     'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
@@ -89,7 +86,7 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
     'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
 
-  readonly scheduledInspectionColumns: ColumnSet = {
+  scheduledInspectionColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     'shortAddress': { displayAs: 'Address', maxWidth: '25ch', wrap: false },
     'eventTypeDisplay': { displayAs: 'Event Type', maxWidth: '15ch', wrap: false, alignment: 'center' },
@@ -105,6 +102,9 @@ export class DashboardStaffComponent extends PropertyMaintenanceBase implements 
     'bed4Text': { displayAs: 'Bed4', maxWidth: '10ch', alignment: 'center' },
     'maintenanceNotes': { displayAs: 'Notes', maxWidth: '24ch', wrap: false }
   };
+
+  isPageReady = false;
+  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'activeReservations', 'propertyMaintenanceList']));
 
 //#region Dashboard-Staff
   override ngOnInit(): void {

@@ -11,10 +11,11 @@ import { WorkOrderRequest, WorkOrderResponse } from '../models/work-order.model'
   providedIn: 'root'
 })
 export class WorkOrderService {
-  readonly controller: string;
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
   private mappingService = inject(MappingService);
+
+  readonly controller: string;
 
   constructor() {
     this.controller = this.configService.config().apiUrl + 'maintenance/work-order/';

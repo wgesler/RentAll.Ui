@@ -25,6 +25,7 @@ export class InvoiceService {
   private toastr = inject(ToastrService);
   private dialog = inject(MatDialog);
   private injector = inject(Injector);
+
   private selectedCreateInProgress = false;
 
   private readonly controller = this.configService.config().apiUrl + 'accounting/';

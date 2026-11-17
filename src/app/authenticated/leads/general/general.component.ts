@@ -10,11 +10,9 @@ import { UtilityService } from '../../../services/utility.service';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { LeadGeneralRequest, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../models/lead-general.model';
+import { GeneralLeadFormClosed, LeadGeneralRequest, LeadGeneralResponse, LeadGeneralUpdateRequest } from '../models/lead-general.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
-
-export type GeneralLeadFormClosed = { saved: boolean; generalId?: number };
 
 @Component({
   standalone: true,
@@ -29,6 +27,7 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Output() closed = new EventEmitter<GeneralLeadFormClosed>();
   @Output() officeSelectionRequired = new EventEmitter<void>();
+
   private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
@@ -39,8 +38,6 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   form: FormGroup;
-  isServiceError = false;
-  isPageReady = false;
   isAddMode = false;
   isSavingGeneralLead = false;
   lead: LeadGeneralResponse | null = null;
@@ -51,6 +48,8 @@ export class GeneralComponent implements OnInit, OnChanges, OnDestroy {
   officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['general-lead']));
   destroy$ = new Subject<void>();
 

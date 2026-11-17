@@ -30,6 +30,8 @@ export interface LeaseInformationRequest {
   miscellaneous?: string | null;
 }
 
+export type LeaseInfoScopeOption = 'organization' | 'office' | 'property';
+
 export interface LeaseInformationResponse {
   leaseInformationId: string;
   officeId?: number | null;

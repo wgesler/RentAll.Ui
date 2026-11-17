@@ -34,18 +34,19 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
   /** When true (default), filter by the header office selector. Settings embed sets this false and passes officeId. */
   @Input() useGlobalOfficeSelection = true;
   @Output() agentSelected = new EventEmitter<string | number | null>();
-  agentService = inject(AgentService);
-  toastr = inject(ToastrService);
-  mappingService = inject(MappingService);
+
+  private agentService = inject(AgentService);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private terminologyService = inject(TerminologyService);
-  deleteAgentTitle = 'Delete Agent';
-  deleteAgentMessage = 'Are you sure you want to delete this agent?';
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
-  isServiceError: boolean = false;
+
+  deleteAgentTitle = 'Delete Agent';
+  deleteAgentMessage = 'Are you sure you want to delete this agent?';
   showInactive: boolean = false;
   allAgents: AgentListDisplay[] = [];
   agentsDisplay: AgentListDisplay[] = [];
@@ -62,9 +63,10 @@ export class AgentListComponent implements OnInit, OnChanges, OnDestroy {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
-  destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agents', 'officeScope']));
+  destroy$ = new Subject<void>();
 
   //#region Agent-List
   ngOnInit(): void {

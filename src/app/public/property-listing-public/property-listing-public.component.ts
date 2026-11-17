@@ -25,9 +25,9 @@ export class PropertyListingPublicComponent implements OnInit {
   property: PropertyResponse | null = null;
   photos: PropertyPhotoResponse[] = [];
   errorMessage = '';
-  private loadingWatchdog?: ReturnType<typeof setTimeout>;
+  loadingWatchdog?: ReturnType<typeof setTimeout>;
 
-markViewForCheck(): void {
+  markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 

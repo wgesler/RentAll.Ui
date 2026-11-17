@@ -14,20 +14,7 @@ import {
 } from '../../shared/models/mixed-models';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 import { DashboardNavigationService } from '../services/dashboard-navigation.service';
-
-type OfflineTabRow = PropertyInProcessDisplay & {
-  availableUntilDisplay: string;
-  expand: string;
-  expanded: boolean;
-  maintenanceRows: MaintenanceListDisplay[];
-  expandClick: (event: Event, item: OfflineTabRow) => void;
-};
-
-type OfflineLeaseTypeSection = {
-  leaseTypeId: PropertyLeaseType;
-  title: string;
-  rows: OfflineTabRow[];
-};
+import { OfflineLeaseTypeSection, OfflineTabRow } from '../models/dashboard-model';
 
 const OFFLINE_LEASE_TYPE_SECTIONS: ReadonlyArray<{ leaseTypeId: PropertyLeaseType; title: string }> = [
   { leaseTypeId: PropertyLeaseType.PropertyManagement, title: 'Property Management' },
@@ -48,12 +35,13 @@ export class DashboardOfflineComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   leaseTypeSections: OfflineLeaseTypeSection[] = [];
   orphanMaintenanceRows: MaintenanceListDisplay[] = [];
   expandedPropertyKeys = new Set<string>();
+
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Offline
   ngOnInit(): void {

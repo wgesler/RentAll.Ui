@@ -95,3 +95,9 @@ export interface UserAuditListDisplay {
   lastLogoutOnDisplay: string;
 }
 
+export interface UserDialogData {
+  userId: string;
+  isDialog?: boolean;
+  selfEdit?: boolean;
+}
+

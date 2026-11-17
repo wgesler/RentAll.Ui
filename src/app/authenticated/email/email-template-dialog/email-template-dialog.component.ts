@@ -3,18 +3,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
-
-export interface EmailTemplateDialogData {
-  name: string;
-  subject: string;
-  body: string;
-  hasSubject: boolean;
-}
-
-export interface EmailTemplateDialogResult {
-  subject: string;
-  body: string;
-}
+import { EmailTemplateDialogData, EmailTemplateDialogResult } from '../models/email-html.model';
 
 @Component({
   standalone: true,
@@ -24,7 +13,7 @@ export interface EmailTemplateDialogResult {
   styleUrl: './email-template-dialog.component.scss'
 })
 export class EmailTemplateDialogComponent {
-  data = inject<EmailTemplateDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<EmailTemplateDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<EmailTemplateDialogComponent, EmailTemplateDialogResult | undefined>>(MatDialogRef);
 
   subject = this.data.subject || '';

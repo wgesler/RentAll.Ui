@@ -13,7 +13,7 @@ import { InspectionReadonlyDialogData } from './inspection-readonly-dialog-data'
   styleUrl: './inspection-readonly-dialog.component.scss'
 })
 export class InspectionReadonlyDialogComponent {
-  data = inject<InspectionReadonlyDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<InspectionReadonlyDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject(MatDialogRef<InspectionReadonlyDialogComponent>);
 
   close(): void {

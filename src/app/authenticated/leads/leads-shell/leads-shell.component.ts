@@ -12,18 +12,19 @@ import { GlobalSelectionService } from '../../organizations/services/global-sele
 import { OfficeService } from '../../organizations/services/office.service';
 import { getNumberQueryParam, getStringQueryParam } from '../../shared/query-param.utils';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { GeneralComponent, GeneralLeadFormClosed } from '../general/general.component';
+import { GeneralComponent } from '../general/general.component';
+import { GeneralLeadFormClosed } from '../models/lead-general.model';
 import { GeneralListComponent } from '../general-list/general-list.component';
 import { LeadStateType } from '../models/lead-enums';
 import { OwnerComponent } from '../owner/owner.component';
 import { OwnerEditSelection } from '../models/lead-owner.model';
 import { OwnerListComponent } from '../owner-list/owner-list.component';
-import { PartnerComponent, PartnerLeadFormClosed } from '../partner/partner.component';
-import { PartnerEditSelection } from '../models/lead-partner.model';
+import { PartnerComponent } from '../partner/partner.component';
+import { PartnerEditSelection, PartnerLeadFormClosed } from '../models/lead-partner.model';
 import { PartnerListComponent } from '../partner-list/partner-list.component';
 import { LeadsReportsComponent } from '../reports/leads-reports.component';
-import { RentalComponent, RentalLeadFormClosed } from '../rental/rental.component';
-import { RentalEditSelection } from '../models/lead-rental.model';
+import { RentalComponent } from '../rental/rental.component';
+import { RentalEditSelection, RentalLeadFormClosed } from '../models/lead-rental.model';
 import { RentalListComponent } from '../rental-list/rental-list.component';
 import { LeadsService } from '../services/leads.service';
 
@@ -76,7 +77,7 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   hasNewOwnerLeads = false;
   hasNewGeneralLeads = false;
   hasNewPartnerLeads = false;
-  private leadBadgeLoadId = 0;
+  leadBadgeLoadId = 0;
 
   showRentalLeadForm = false;
   showOwnerLeadForm = false;
@@ -91,10 +92,11 @@ export class LeadsShellComponent implements OnInit, OnDestroy {
   /** Tab index to restore when leaving embedded add via title bar Back (0 rental, 1 owner, 2 general). */
   embeddedLeadFormReturnTabIndex = 0;
 
-  private destroy$ = new Subject<void>();
-  private isApplyingQueryParamState = false;
-  private lastKnownQueryStateKey: string | null = null;
-  private initialOfficeScopeApplied = false;
+  isApplyingQueryParamState = false;
+  lastKnownQueryStateKey: string | null = null;
+  initialOfficeScopeApplied = false;
+
+  destroy$ = new Subject<void>();
 
   //#region Leads-Shell
   ngOnInit(): void {

@@ -55,21 +55,9 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly invoiceReportDisplayedColumns: ColumnSet = invoicePreviewListBaseColumns;
-
-  readonly ledgerLinesDisplayedColumns: ColumnSet = {
-    lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
-    ledgerLineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    costCode: { displayAs: 'Cost Code', maxWidth: '25ch', wrap: false },
-    transactionType: { displayAs: 'Type', maxWidth: '15ch', wrap: false },
-    description: { displayAs: 'Description', maxWidth: '15ch', wrap: true },
-    amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right' }
-  };
-
   allCostCodes: CostCodesResponse[] = [];
   transactionTypes: { value: number; label: string }[] = TransactionTypeLabels;
 
-  isServiceError = false;
   invoices: InvoiceResponse[] = [];
   invoicesDisplay: ReservationInvoicePreviewDisplay[] = [];
   expandedRowKeys = new Set<string>();
@@ -78,11 +66,23 @@ export class ReservationInvoicePreviewComponent implements OnInit, OnChanges, On
   isCreatingInvoices = false;
   noDataMessage = 'No unbilled invoice previews were found for this reservation through end of stay. Confirm billing rate and stay dates on the reservation.';
   loadedCompanyName = '';
+  destroyed = false;
 
+  invoiceReportDisplayedColumns: ColumnSet = invoicePreviewListBaseColumns;
+
+  ledgerLinesDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
+    ledgerLineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    costCode: { displayAs: 'Cost Code', maxWidth: '25ch', wrap: false },
+    transactionType: { displayAs: 'Type', maxWidth: '15ch', wrap: false },
+    description: { displayAs: 'Description', maxWidth: '15ch', wrap: true },
+    amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right' }
+  };
+
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservationInvoicePreview']));
   destroy$ = new Subject<void>();
-  private destroyed = false;
 
   //#region Reservation Invoice Preview
   ngOnInit(): void {

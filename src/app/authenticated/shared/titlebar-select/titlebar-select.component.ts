@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { SearchableSelectComponent, SearchableSelectOption } from '../searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../models/searchable-select.model';
 
 @Component({
   standalone: true,
@@ -51,6 +52,7 @@ export class TitleBarSelectComponent {
   @Input() hideSearchHint = false;
   @Input() hideSearchText = false;
   @Input() searchPlaceholder = 'Type to filter...';
+  @Output() valueChange = new EventEmitter<string | number | null>();
 
   get effectiveShowSearchInput(): boolean {
     if (this.isTitleBarOfficeSelect) {
@@ -62,6 +64,4 @@ export class TitleBarSelectComponent {
   get isTitleBarOfficeSelect(): boolean {
     return this.formFieldClass.includes('titlebar-field-office') || this.label === 'Office';
   }
-
-  @Output() valueChange = new EventEmitter<string | number | null>();
 }

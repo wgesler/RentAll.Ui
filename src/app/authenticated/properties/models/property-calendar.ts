@@ -12,3 +12,9 @@ export interface CalendarUrlResponse {
   propertyId?: string;
   organizationId?: string;
 }
+
+export interface PropertyCalendarUrlDialogData {
+  propertyCode: string;
+  subscriptionUrl: string | { subscriptionUrl?: string } | null | undefined;
+  calendarLinkResponse?: Record<string, unknown> | null;
+}

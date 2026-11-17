@@ -17,9 +17,10 @@ import { resolveMobileBoardReturnUrl } from '../mobile-nav';
 export class MobileBoardPageComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   boardReturnUrl: string | null = null;
+
+  destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.syncFromUrl();

@@ -11,23 +11,10 @@ import { AuthService } from '../../../../services/auth.service';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
-import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_CONFIGURABLE_COLUMN_ORDER, RECONCILE_FIXED_COLUMN_KEYS, RECONCILE_TABLE_COLUMN_ORDER, ReconcileColumnKey, ReconcileColumnPreferencesState, ReconcileColumnsDialogResult, ReconcileJournalEntryLineMark, ReconcileLineDisplay, ReconcileSide, BeginReconciliationDialogResult } from '../../models/reconcile.model';
+import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_CONFIGURABLE_COLUMN_ORDER, RECONCILE_FIXED_COLUMN_KEYS, RECONCILE_TABLE_COLUMN_ORDER, ReconcileColumnKey, ReconcileColumnPreferencesState, ReconcileColumnsDialogResult, ReconcileJournalEntryLineMark, ReconcileLineDisplay, ReconcileSide, BeginReconciliationDialogResult, ReconcileSortDirection, ReconcileSortState, ReconcileStickyFilterState } from '../../models/reconcile.model';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
 import { ReconcileDraftService } from '../../services/reconcile-draft.service';
 import { ReconcileColumnsDialogComponent } from './reconcile-columns-dialog.component';
-
-interface ReconcileStickyFilterState {
-  enabled: boolean;
-  tableName: string;
-  filterText: string;
-}
-
-type ReconcileSortDirection = 'asc' | 'desc';
-
-interface ReconcileSortState {
-  column: ReconcileColumnKey | null;
-  direction: ReconcileSortDirection;
-}
 
 @Component({
   selector: 'app-reconcile',
@@ -48,6 +35,7 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   @Output() leaveEvent = new EventEmitter<void>();
   @Output() reconcileCompleteEvent = new EventEmitter<void>();
   @Output() modifyEvent = new EventEmitter<void>();
+
   private generalLedgerService = inject(GeneralLedgerService);
   private reconcileDraftService = inject(ReconcileDraftService);
   private authService = inject(AuthService);
@@ -58,8 +46,8 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly tableColumnOrder = RECONCILE_TABLE_COLUMN_ORDER;
-  readonly tableName = 'reconcile-list';
+  tableColumnOrder = RECONCILE_TABLE_COLUMN_ORDER;
+  tableName = 'reconcile-list';
   placeholderMessage = 'Select an Account to Reconcile.';
   filterVal = '';
   filterSticky = false;
@@ -74,12 +62,13 @@ export class ReconcileComponent implements OnInit, OnChanges, OnDestroy {
   serviceChargeInput = '';
   interestEarnedInput = '';
   isSavingReconcile = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
-  isPageReady = false;
-  destroy$ = new Subject<void>();
   reconcileLoadCancel$ = new Subject<void>();
-  private readonly stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
-  private readonly columnPreferencesStorageKeyPrefix = 'rentall-reconcile-columns';
+  stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
+  columnPreferencesStorageKeyPrefix = 'rentall-reconcile-columns';
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  destroy$ = new Subject<void>();
 
   //#region Reconcile
   ngOnInit(): void {

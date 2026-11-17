@@ -45,6 +45,7 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
   @Output() ticketCodeChange = new EventEmitter<string>();
   @ViewChild('descriptionTextarea') descriptionTextarea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('stepsToReproduceTextarea') stepsToReproduceTextarea?: ElementRef<HTMLTextAreaElement>;
+
   private ticketService = inject(TicketService);
   private mappingService = inject(MappingService);
   private userService = inject(UserService);
@@ -60,6 +61,7 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
   private router = inject(Router);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+
   ticket: TicketResponse | null = null;
   fields: MobileListField[] = [];
   notes: MobileTicketNoteDisplay[] = [];
@@ -74,12 +76,10 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
   agentOptions: MobileListFieldOption[] = [];
   stepsToReproduce = '';
   newNote = '';
-  isPageReady = false;
   isSaving = false;
   isDirty = false;
   isAdmin = false;
-  destroy$ = new Subject<void>();
-  readonly communicationFieldKeys = [
+  communicationFieldKeys = [
     'needPermissionToEnter',
     'permissionGranted',
     'ownerContacted',
@@ -87,7 +87,10 @@ export class MobileTicketDetailComponent implements OnInit, OnChanges, OnDestroy
     'followedUpWithOwner',
     'workOrderCompleted'
   ] as const;
-  readonly statusFieldKeys = ['ticketCode', 'officeId', 'propertyId', 'reservationId', 'modifiedOn', 'ticketStateTypeId', 'assigneeId', 'agentId'] as const;
+  statusFieldKeys = ['ticketCode', 'officeId', 'propertyId', 'reservationId', 'modifiedOn', 'ticketStateTypeId', 'assigneeId', 'agentId'] as const;
+
+  isPageReady = false;
+  destroy$ = new Subject<void>();
 
   //#region Mobile-Ticket-Detail
   get isAddMode(): boolean {

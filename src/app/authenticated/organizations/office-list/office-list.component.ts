@@ -11,13 +11,8 @@ import { MappingService } from '../../../services/mapping.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { OfficeListDisplay, OfficeResponse } from '../models/office.model';
+import { OfficeCopyPayload, OfficeListDisplay, OfficeResponse } from '../models/office.model';
 import { OfficeService } from '../services/office.service';
-
-export interface OfficeCopyPayload {
-  office: OfficeResponse;
-  organizationId: string | null;
-}
 
 @Component({
     standalone: true,
@@ -33,12 +28,13 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() organizationId: string | null = null;
   @Output() officeSelected = new EventEmitter<string | number | null>();
   @Output() copyOfficeEvent = new EventEmitter<OfficeCopyPayload>();
-  officeService = inject(OfficeService);
-  toastr = inject(ToastrService);
-  mappingService = inject(MappingService);
+
+  private officeService = inject(OfficeService);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
-  isServiceError: boolean = false;
+
   showInactive: boolean = false;
   allOffices: OfficeListDisplay[] = [];
   officesDisplay: OfficeListDisplay[] = [];
@@ -53,9 +49,10 @@ export class OfficeListComponent implements OnInit, OnChanges, OnDestroy {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
-  destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  destroy$ = new Subject<void>();
 
   //#region Office-List
   ngOnInit(): void {

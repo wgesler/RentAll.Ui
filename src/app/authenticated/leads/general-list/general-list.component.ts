@@ -26,10 +26,10 @@ import { LeadsService } from '../services/leads.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
-
   officeId = input<number | null>(null);
   requestNewGeneral = output<void>();
   requestEditGeneral = output<number>();
+
   private toastr = inject(ToastrService);
   private mappingService = inject(MappingService);
   private formatterService = inject(FormatterService);
@@ -39,8 +39,6 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
 
-  isServiceError = false;
-  isPageReady = false;
   showInactive = false;
   allGenerals: LeadGeneralListDisplay[] = [];
   generalsDisplay: LeadGeneralListDisplay[] = [];
@@ -60,10 +58,10 @@ export class GeneralListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['general-leads']));
   destroy$ = new Subject<void>();
-
-
 
   //#region General-List
   ngOnInit(): void {

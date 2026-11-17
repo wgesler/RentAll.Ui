@@ -38,7 +38,7 @@ import { MaterialModule } from '../../../material.module';
   `
 })
 export class DialogMissingCountComponent {
-  dialogRef = inject<MatDialogRef<DialogMissingCountComponent>>(MatDialogRef);
+  protected dialogRef = inject<MatDialogRef<DialogMissingCountComponent>>(MatDialogRef);
 
   countControl = new FormControl<number | null>(null, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]);
 

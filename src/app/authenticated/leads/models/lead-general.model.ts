@@ -41,3 +41,5 @@ export interface LeadGeneralListDisplay extends LeadGeneralResponse {
   messagePreview: string;
   leadStateDropdown: LeadStateDropdownCell;
 }
+
+export type GeneralLeadFormClosed = { saved: boolean; generalId?: number };

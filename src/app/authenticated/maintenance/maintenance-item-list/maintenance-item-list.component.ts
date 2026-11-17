@@ -4,16 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { UtilityService } from '../../../services/utility.service';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { MaintenanceItemRequest, MaintenanceItemResponse } from '../models/maintenance-item.model';
-
-interface MaintenanceItemEditRow {
-  rowId: number;
-  maintenanceItemId?: number;
-  name: string;
-  notes: string;
-  monthsBetweenService: number | null;
-  lastServicedOn: Date | null;
-}
+import { MaintenanceItemEditRow, MaintenanceItemRequest, MaintenanceItemResponse } from '../models/maintenance-item.model';
 
 @Component({
   standalone: true,
@@ -32,6 +23,7 @@ export class MaintenanceItemListComponent implements OnChanges {
   @Input() property: PropertyResponse | null = null;
   @Output() saveChanges = new EventEmitter<{ upserts: MaintenanceItemRequest[]; deleteIds: number[] }>();
   @Output() deleteExisting = new EventEmitter<number>();
+
   private utilityService = inject(UtilityService);
 
   rows: MaintenanceItemEditRow[] = [];

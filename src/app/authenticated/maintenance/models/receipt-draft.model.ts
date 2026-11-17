@@ -1,12 +1,7 @@
 import { FileDetails } from '../../documents/models/document.model';
 import type { CalendarDateString } from '../../../services/utility.service';
 import { Split } from './receipt.model';
-
-export enum ReceiptDraftSourceFlags {
-  None = 0,
-  Upload = 1,
-  StatementImport = 2
-}
+import { ReceiptDraftSourceFlags } from './maintenance-enums';
 
 export interface ReceiptDraftSearchRequest {
   officeIds: number[];

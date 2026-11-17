@@ -136,3 +136,16 @@ export interface WorkOrderPreviewSelection {
   propertyCode: string;
   returnToDetail?: boolean;
 }
+
+export interface WorkOrderSelection {
+  workOrderId: string | null;
+  propertyId: string | null;
+  officeId?: number | null;
+  workOrder?: WorkOrderResponse | null;
+  prefilledReceiptId?: string | null;
+  prefilledReceiptSplitKey?: string | null;
+  returnToReceiptList?: boolean;
+  returnReceiptListKind?: 'bills' | 'receipts';
+  returnToReceiptDetail?: boolean;
+  returnReceiptId?: string | null;
+}

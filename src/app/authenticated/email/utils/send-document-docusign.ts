@@ -1,5 +1,5 @@
 import { firstValueFrom } from 'rxjs';
-import { DocumentConfig, DocuSignConfig } from '../../shared/base-document.component';
+import { DocumentConfig, DocuSignConfig } from '../../shared/models/base-document.model';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { SendDocumentForSignatureRequest, SendDocumentForSignatureResponse } from '../models/docusign.model';
 import { DocuSignService } from '../services/docusign.service';

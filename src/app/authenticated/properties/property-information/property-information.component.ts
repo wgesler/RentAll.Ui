@@ -12,19 +12,11 @@ import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
-import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
+import { HtmlEditorControlName, HtmlEditorFormat, PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyResponse } from '../models/property.model';
 import { PropertyInformationService } from '../services/property-information.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
-
-type HtmlEditorControlName =
-  | 'departureInstructions'
-  | 'departureCleaning'
-  | 'departureMail'
-  | 'departureFees';
-
-type HtmlEditorFormat = 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList';
 
 @Component({
     standalone: true,
@@ -34,14 +26,26 @@ type HtmlEditorFormat = 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorder
     styleUrls: ['./property-information.component.scss']
 })
 export class PropertyInformationComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-  private host = inject(ElementRef<HTMLElement>);
-
   @Input() propertyId: string | null = null;
   @Input() copiedPropertyInformation: PropertyInformationResponse | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyCode: string | null = null;
   @Input() hideOfficeAndPropertyCode: boolean = false;
+  @ViewChild('departureInstructionsEditor') set departureInstructionsEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.registerHtmlEditor('departureInstructions', value);
+  }
+  @ViewChild('departureCleaningEditor') set departureCleaningEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.registerHtmlEditor('departureCleaning', value);
+  }
+  @ViewChild('departureMailEditor') set departureMailEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.registerHtmlEditor('departureMail', value);
+  }
+  @ViewChild('departureFeesEditor') set departureFeesEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.registerHtmlEditor('departureFees', value);
+  }
+
+  private cdr = inject(ChangeDetectorRef);
+  private host = inject(ElementRef<HTMLElement>);
   private propertyInformationService = inject(PropertyInformationService);
   private propertyService = inject(PropertyService);
   private authService = inject(AuthService);
@@ -62,30 +66,17 @@ export class PropertyInformationComponent implements OnInit, OnDestroy, OnChange
   showOfficeDropdown: boolean = false;
   organizationId = '';
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation']));
-  isPageReady = false;
-  destroy$ = new Subject<void>();
-
-  private readonly htmlEditorControlNames: HtmlEditorControlName[] = [
+  htmlEditorControlNames: HtmlEditorControlName[] = [
     'departureInstructions',
     'departureCleaning',
     'departureMail',
     'departureFees'
   ];
-  private htmlEditors = new Map<HtmlEditorControlName, HTMLDivElement>();
+  htmlEditors = new Map<HtmlEditorControlName, HTMLDivElement>();
 
-  @ViewChild('departureInstructionsEditor') set departureInstructionsEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.registerHtmlEditor('departureInstructions', value);
-  }
-  @ViewChild('departureCleaningEditor') set departureCleaningEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.registerHtmlEditor('departureCleaning', value);
-  }
-  @ViewChild('departureMailEditor') set departureMailEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.registerHtmlEditor('departureMail', value);
-  }
-  @ViewChild('departureFeesEditor') set departureFeesEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.registerHtmlEditor('departureFees', value);
-  }
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'propertyInformation']));
+  destroy$ = new Subject<void>();
 
   constructor() {
     this.form = this.buildForm();

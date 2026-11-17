@@ -1,7 +1,8 @@
 import { FileDetails } from '../../documents/models/document.model';
 import { UtilityService } from '../../../services/utility.service';
 import { ReceiptExtractResponse, Split } from '../models/receipt.model';
-import { ReceiptDraftRequest, ReceiptDraftSourceFlags } from '../models/receipt-draft.model';
+import { ReceiptDraftRequest } from '../models/receipt-draft.model';
+import { ReceiptDraftSourceFlags } from '../models/maintenance-enums';
 
 export function buildReceiptDraftRequestFromCapture(
   organizationId: string,

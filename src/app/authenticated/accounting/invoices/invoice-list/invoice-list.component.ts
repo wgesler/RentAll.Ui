@@ -29,7 +29,7 @@ import { UserGroups } from '../../../users/models/user-enums';
 import { PaymentType, TransactionType, TransactionTypeLabels } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
-import { InvoiceGetRequest, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection, LedgerLineListDisplay, LedgerLineResponse } from '../../models/invoice.model';
+import { InvoiceGetRequest, InvoiceLedgerLineLike, InvoiceListDisplayRow, InvoicePreviewSelection, InvoiceResponse, InvoiceSelection, LedgerLineDisplayRow } from '../../models/invoice.model';
 import { ApplyInvoicePaymentRequest } from '../../models/payment.model';
 import { InvoiceService } from '../../services/invoice.service';
 import { PaymentService } from '../../services/payment.service';
@@ -39,46 +39,6 @@ import { InvoiceDocumentService } from '../../services/invoice-document.service'
 import { InvoiceIifExportService } from '../../services/invoice-iif-export.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
 import { QbClassType, QbNameType } from '../../../organizations/models/qb-type-enum';
-
-type InvoiceLedgerLineLike = Pick<LedgerLineResponse, 'costCodeId' | 'amount'> & {
-  transactionTypeId?: number;
-  transactionType?: string;
-};
-
-type LedgerLineDisplayRow = LedgerLineListDisplay & {
-  reservationId?: string | null;
-  transactionTypeId?: number;
-};
-
-interface InvoiceListDisplayRow extends Omit<InvoiceResponse, 'totalAmount' | 'paidAmount' | 'invoiceDate' | 'dueDate' | 'ledgerLines'> {
-  selected?: boolean;
-  invoiceNumber: string;
-  reservationCode: string;
-  propertyCode: string;
-  responsibleParty: string;
-  totalAmount: string;
-  totalAmountValue: number;
-  paidAmount: string;
-  paidAmountValue: number;
-  paidAmountDisplay: string;
-  dueAmount: string;
-  dueAmountValue: number;
-  originalDueAmountValue?: number;
-  applyAmount: string;
-  applyAmountValue: number;
-  applyAmountDisplay: string;
-  applyAmountEditable: boolean;
-  startDate: string;
-  endDate: string;
-  period: string;
-  invoiceDate: string;
-  dueDate: string;
-  created: string;
-  expand: string;
-  expanded: boolean;
-  ledgerLines: LedgerLineListDisplay[];
-  expandClick: (event: Event, item: InvoiceListDisplayRow) => void;
-}
 
 @Component({
     selector: 'app-invoice-list',
@@ -110,11 +70,14 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() invoiceSelect = new EventEmitter<InvoiceSelection>();
   @Output() previewAllRequested = new EventEmitter<void>();
   @Output() reservationOpen = new EventEmitter<void>();
-  accountingService = inject(InvoiceService);
+  @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<unknown>;
+  @ViewChild(DataTableComponent) invoiceDataTable?: DataTableComponent;
+
+  private accountingService = inject(InvoiceService);
   private paymentService = inject(PaymentService);
-  toastr = inject(ToastrService);
-  router = inject(Router);
-  mappingService = inject(MappingService);
+  private toastr = inject(ToastrService);
+  private router = inject(Router);
+  private mappingService = inject(MappingService);
   private costCodesService = inject(CostCodesService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private officeService = inject(OfficeService);
@@ -130,12 +93,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   private journalEntryService = inject(JournalEntryService);
   private zone = inject(NgZone);
   private cdr = inject(ChangeDetectorRef);
-
-  @ViewChild('ledgerLinesTemplate') ledgerLinesTemplate: TemplateRef<unknown>;
-  @ViewChild(DataTableComponent) invoiceDataTable?: DataTableComponent;
   
   panelOpenState: boolean = true;
-  isServiceError: boolean = false;
   showInactive: boolean = false;
   showPaid: boolean = true;
   allInvoices: InvoiceResponse[] = [];
@@ -199,6 +158,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   creditCostCodes: { value: number, label: string }[] = [];
   lastInvoiceSearchKey: string | null = null;
   invoiceSearchInFlightKey: string | null = null;
+  activeReservationStatusId: number | null = null;
+  activeReservationTypeId: number | null = null;
+  ownerBlockedReservationMessage = 'Invoices do not apply to owner blocked reservations.';
 
   baseInvoicesDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
@@ -244,10 +206,8 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right'}
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
-  activeReservationStatusId: number | null = null;
-  activeReservationTypeId: number | null = null;
-  readonly ownerBlockedReservationMessage = 'Invoices do not apply to owner blocked reservations.';
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'invoices']));
   destroy$ = new Subject<void>();
 

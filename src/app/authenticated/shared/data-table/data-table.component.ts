@@ -19,21 +19,12 @@ import { GenericModalData } from '../modals/generic/models/generic-modal-data';
 import { PurposefulAny } from '../../../shared/models/amorphous';
 import { ButtonData } from './models/button-data';
 import { ColumnData, ColumnSet, defaultColumnData } from './models/column-data';
+import { DataTableStickySortDirection, DataTableStickyState } from './models/data-table-state';
 import { TableItem } from './models/table-item';
 import { DataTableFilterActionsDirective } from './data-table-filter-actions.directive';
 import { DataTableFooterDirective } from './data-table-footer.directive';
 
 /** Match list display dates (`MM/dd/yyyy`) used by FormatterService.formatDateString. */
-type DataTableStickySortDirection = 'asc' | 'desc' | '';
-
-interface DataTableStickyState {
-  enabled: boolean;
-  tableName: string;
-  filterText: string;
-  sortColumn: string;
-  sortDirection: DataTableStickySortDirection;
-}
-
 const DATA_TABLE_DATE_FORMATS: MatDateFormats = {
   parse: {
     dateInput: 'MM/dd/yyyy'
@@ -247,25 +238,24 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   @Output() topToggleButtonEvent = new EventEmitter<boolean>();
   @Output() topToggle2ButtonEvent = new EventEmitter<boolean>();
   @Output() filterValChangeEvent = new EventEmitter<string>();
-
   @Output() selectionSet = new EventEmitter<PurposefulAny>();
+  @ViewChild(MatPaginator) paginator: MatPaginator;
+  @ViewChild(MatSort) sort: MatSort;
+  @ViewChild('tableHScroll') tableHScroll?: ElementRef<HTMLDivElement>;
+  @ViewChild('viewportHScroll') viewportHScroll?: ElementRef<HTMLDivElement>;
+  filterActionsSlot = contentChild(DataTableFilterActionsDirective);
+  footerSlot = contentChild(DataTableFooterDirective);
+
   private zone = inject(NgZone);
   private formatter = inject(FormatterService);
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
   private authService = inject(AuthService);
 
-  private readonly clearPinsEventName = 'rentall-clear-pins';
+  clearPinsEventName = 'rentall-clear-pins';
   // Expose Math for use in template
   Math = Math;
 
-  readonly filterActionsSlot = contentChild(DataTableFilterActionsDirective);
-  readonly footerSlot = contentChild(DataTableFooterDirective);
-
-  @ViewChild(MatPaginator) paginator: MatPaginator;
-  @ViewChild(MatSort) sort: MatSort;
-  @ViewChild('tableHScroll') tableHScroll?: ElementRef<HTMLDivElement>;
-  @ViewChild('viewportHScroll') viewportHScroll?: ElementRef<HTMLDivElement>;
   subheaderSectionCollapsed = false;
   tableHScrollWidth = 0;
   showViewportHScroll = false;
@@ -281,17 +271,68 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   effectivePageSizeOptions: number[] = [10, 20, 50, 100];
 
   tableColumns: ColumnData[] = [];
-  private readonly stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
-  private readonly destroy$ = new Subject<void>();
-  private pendingStickySort: { sortColumn: string; sortDirection: DataTableStickySortDirection } | null = null;
-  private stickySortApplied = false;
-  private initialSortApplied = false;
-  private lastUserSort: { sortColumn: string; sortDirection: 'asc' | 'desc' } | null = null;
-  private tableHResizeObserver?: ResizeObserver;
-  private viewportHScrollParent: HTMLElement | Window | null = null;
-  private syncingTableHScroll = false;
-  private pendingTableHScrollFrame = 0;
-  
+  stickyFilterStorageKeyPrefix = 'rentall-datatable-sticky';
+  pendingStickySort: { sortColumn: string; sortDirection: DataTableStickySortDirection } | null = null;
+  stickySortApplied = false;
+  initialSortApplied = false;
+  lastUserSort: { sortColumn: string; sortDirection: 'asc' | 'desc' } | null = null;
+  tableHResizeObserver?: ResizeObserver;
+  viewportHScrollParent: HTMLElement | Window | null = null;
+  syncingTableHScroll = false;
+  pendingTableHScrollFrame = 0;
+
+  selection = new SelectionModel<string>(true, []);
+  isAllSelected: boolean = false;
+  isToggle: boolean = false;
+  selectAllToolTip: string = 'Select all visible checks';
+  pendingMultiSelectColumnsByRow = new WeakMap<PurposefulAny, Set<string>>();
+  dateCellModelsByRow = new WeakMap<PurposefulAny, Map<string, Date | null>>();
+  dropdownSearchTextByRow = new WeakMap<PurposefulAny, Map<string, string>>();
+
+  /** Shown left of the row-number column when `hasColumnIndex` is true. */
+  static leadingColumnsBeforeIndex = ['ticketAttentionDot', 'leadAttentionDot', 'securityDepositAttentionDot'];
+
+  onClearPins = (): void => {
+    if (!this.filterSticky) {
+      return;
+    }
+    this.filterSticky = false;
+    this.markViewForCheck();
+  };
+
+  /** MatTable multiTemplateDataRows passes (dataIndex, row); use row — index lookup breaks after sort. */
+  isRowExpanded = (_index: number, row: PurposefulAny): boolean => {
+    if (row != null && typeof row !== 'number') {
+      return row['expanded'] === true;
+    }
+
+    if (!this.dataSource?.data?.length) {
+      return false;
+    }
+
+    const dataArray = this.dataSource.filteredData?.length ? this.dataSource.filteredData : this.dataSource.data;
+    const index = typeof _index === 'number' ? _index : -1;
+    if (index < 0 || index >= dataArray.length) {
+      return false;
+    }
+
+    return dataArray[index]?.['expanded'] === true;
+  }
+
+  onViewportHScrollParentScroll = (): void => {
+    if (this.pendingTableHScrollFrame) {
+      return;
+    }
+    this.pendingTableHScrollFrame = requestAnimationFrame(() => {
+      this.pendingTableHScrollFrame = 0;
+      this.refreshViewportHScroll();
+    });
+  };
+
+  displayedColumns: string[] = [];
+
+  destroy$ = new Subject<void>();
+
   isDateColumn(column: ColumnData): boolean {
     const target = `${column?.name ?? ''} ${column?.displayAs ?? ''}`.toLowerCase();
     // Common date/time naming patterns used across list views.
@@ -394,18 +435,8 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   getActionsFooterPaddingLeft(): string {
     return this.getActionsColumnPaddingLeft() || '10px';
   }
-  
-  displayedColumns: string[] = [];
 
-  selection = new SelectionModel<string>(true, []);
-  isAllSelected: boolean = false;
-  isToggle: boolean = false;
-  selectAllToolTip: string = 'Select all visible checks';
-  private pendingMultiSelectColumnsByRow = new WeakMap<PurposefulAny, Set<string>>();
-  private dateCellModelsByRow = new WeakMap<PurposefulAny, Map<string, Date | null>>();
-  private dropdownSearchTextByRow = new WeakMap<PurposefulAny, Map<string, string>>();
-
-markViewForCheck(): void {
+  markViewForCheck(): void {
     this.cdr.markForCheck();
   }
 
@@ -522,14 +553,6 @@ markViewForCheck(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
-  onClearPins = (): void => {
-    if (!this.filterSticky) {
-      return;
-    }
-    this.filterSticky = false;
-    this.markViewForCheck();
-  };
 
   ngAfterViewInit(): void {
     this.sort?.sortChange.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -1491,9 +1514,6 @@ normalizeFilterValue(value: unknown): string {
       .toLocaleLowerCase();
   }
 
-  /** Shown left of the row-number column when `hasColumnIndex` is true. */
-  private static readonly leadingColumnsBeforeIndex = ['ticketAttentionDot', 'leadAttentionDot', 'securityDepositAttentionDot'];
-
   setTableColumns(): void {
     let columns = {} as ColumnSet;
     // order here is important
@@ -1925,26 +1945,6 @@ applyStickySortIfNeeded(): void {
     this.selectAllToolTip = this.isAllSelected ? 'Unselect all visible checks' : 'Select all visible checks';
   }
 
-
-  /** MatTable multiTemplateDataRows passes (dataIndex, row); use row — index lookup breaks after sort. */
-  isRowExpanded = (_index: number, row: PurposefulAny): boolean => {
-    if (row != null && typeof row !== 'number') {
-      return row['expanded'] === true;
-    }
-
-    if (!this.dataSource?.data?.length) {
-      return false;
-    }
-
-    const dataArray = this.dataSource.filteredData?.length ? this.dataSource.filteredData : this.dataSource.data;
-    const index = typeof _index === 'number' ? _index : -1;
-    if (index < 0 || index >= dataArray.length) {
-      return false;
-    }
-
-    return dataArray[index]?.['expanded'] === true;
-  }
-
   bindViewportHScroll(): void {
     this.unbindViewportHScroll();
     const tablePane = this.tableHScroll?.nativeElement;
@@ -1978,16 +1978,6 @@ applyStickySortIfNeeded(): void {
     window.removeEventListener('resize', this.onViewportHScrollParentScroll);
     this.viewportHScrollParent = null;
   }
-
-  onViewportHScrollParentScroll = (): void => {
-    if (this.pendingTableHScrollFrame) {
-      return;
-    }
-    this.pendingTableHScrollFrame = requestAnimationFrame(() => {
-      this.pendingTableHScrollFrame = 0;
-      this.refreshViewportHScroll();
-    });
-  };
 
   refreshViewportHScroll(): void {
     const tablePane = this.tableHScroll?.nativeElement;

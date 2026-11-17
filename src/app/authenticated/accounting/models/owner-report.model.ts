@@ -75,3 +75,12 @@ export interface OwnerReportsBundleResponse {
   recap: RecapReportResponse;
   outstandingInvoices: OwnerInvoiceOutstandingResponse[];
 }
+
+export interface OwnerReportKindCache {
+  ownerReports: OwnerReportResponse[];
+  propertyActivityLinesRaw: OwnerReportPropertyActivityLineResponse[];
+  expandedRowIds: string[];
+  officeReadyToCloseRowIds: string[];
+  isServiceError: boolean;
+  viewState: OwnerReportListViewState | null;
+}

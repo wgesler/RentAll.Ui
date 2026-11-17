@@ -17,3 +17,13 @@ export interface UtilityResponse {
   accountNumber?: string | null;
   notes?: string | null;
 }
+
+export interface UtilityEditRow {
+  rowId: number;
+  utilityId?: number;
+  utilityName: string;
+  phone: string;
+  accountName: string;
+  accountNumber: string;
+  notes: string;
+}

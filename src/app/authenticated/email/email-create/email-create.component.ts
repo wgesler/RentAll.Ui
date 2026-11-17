@@ -11,7 +11,7 @@ import { DocumentHtmlService } from '../../../services/document-html.service';
 import { ImageOptimizationFailedError, UtilityService } from '../../../services/utility.service';
 import { FileDetails } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
-import { EmailConfig } from '../../shared/base-document.component';
+import { EmailConfig } from '../../shared/models/base-document.model';
 import { EmailCreateDraft } from '../models/email-create.model';
 import { EmailService } from '../services/email.service';
 import { EmailCreateDraftService } from '../services/email-create-draft.service';
@@ -44,11 +44,11 @@ export class EmailCreateComponent implements OnInit, OnDestroy {
   isViewOnly = false;
   additionalAttachments: FileDetails[] = [];
   usesFixedSystemSender = false;
-  private readonly maxAdditionalAttachments = 5;
-  private readonly maxAdditionalAttachmentBytes = 10 * 1024 * 1024;
-  private initialPlainTextContent = '';
-  private handedOff = false;
-  private keepWait = false;
+  maxAdditionalAttachments = 5;
+  maxAdditionalAttachmentBytes = 10 * 1024 * 1024;
+  initialPlainTextContent = '';
+  handedOff = false;
+  keepWait = false;
 
   ngOnInit(): void {
     const draft = this.draftService.getDraft();

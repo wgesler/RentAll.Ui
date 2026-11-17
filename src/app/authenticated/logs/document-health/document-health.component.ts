@@ -25,6 +25,20 @@ import { DocumentExportService } from '../../../services/document-export.service
   imports: [CommonModule, MaterialModule, DataTableComponent]
 })
 export class DocumentHealthComponent implements OnInit, OnDestroy {
+  @Input() set officeId(value: number | null) {
+    const next = value ?? null;
+    if (this.selectedOfficeId === next) {
+      return;
+    }
+
+    if (!this.officeReady) {
+      this.selectedOfficeId = next;
+      return;
+    }
+
+    this.onOfficeSelectionChange(next);
+  }
+
   private healthService = inject(HealthService);
   private healthStateService = inject(DocumentHealthStateService);
   private documentExportService = inject(DocumentExportService);
@@ -33,10 +47,10 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   private toastr = inject(ToastrService);
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
-  private officeReady = false;
 
-  readonly fixAllOrder: HealthCheckKey[] = [
+  officeReady = false;
+
+  fixAllOrder: HealthCheckKey[] = [
     'receipt',
     'bill',
     'workOrder',
@@ -52,20 +66,6 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
   organizationId = '';
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
-
-  @Input() set officeId(value: number | null) {
-    const next = value ?? null;
-    if (this.selectedOfficeId === next) {
-      return;
-    }
-
-    if (!this.officeReady) {
-      this.selectedOfficeId = next;
-      return;
-    }
-
-    this.onOfficeSelectionChange(next);
-  }
 
   rows: HealthCheckRowState[] = [
     { key: 'receipt', label: 'Receipts', canFix: true, checking: false, fixing: false, fixProgress: null, summary: null, issues: [], errorMessage: null },
@@ -99,6 +99,8 @@ export class DocumentHealthComponent implements OnInit, OnDestroy {
     postedDisplay: { displayAs: 'Posted', alignment: 'center' },
     detailDisplay: { displayAs: 'Detail', wrap: true, maxWidth: 'auto' }
   };
+
+  destroy$ = new Subject<void>();
 
   //#region Document-Health
   ngOnInit(): void {

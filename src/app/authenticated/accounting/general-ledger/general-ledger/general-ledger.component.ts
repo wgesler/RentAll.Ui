@@ -11,7 +11,8 @@ import { MaterialModule } from '../../../../material.module';
 import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../../shared/models/searchable-select.model';
 import { EntityType } from '../../../contacts/models/contact-enum';
 import { ContactResponse } from '../../../contacts/models/contact.model';
 import { ContactService } from '../../../contacts/services/contact.service';
@@ -24,28 +25,10 @@ import { ReservationCodeResponse } from '../../../reservations/models/reservatio
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { JournalEntryKind, Perspective, PostingStatus, SourceType, SourceTypeLabels, getJournalEntryKindLabel, getPerspectives, getSourceTypeLabel, getPostingStatusLabel, getUserEditableJournalEntryKinds, isJournalEntryHardClosed, isJournalEntrySoftClosed, isUserEditableJournalEntry } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
-import { JournalEntryLineDetailDisplay, JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../../models/journal-entry.model';
+import { EditableJournalEntryLine, JournalEntryLineContextMode, JournalEntryLineDetailDisplay, JournalEntryLineRequest, JournalEntryRequest, JournalEntryResponse } from '../../models/journal-entry.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { GeneralLedgerService } from '../../services/general-ledger.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
-
-type JournalEntryLineContextMode = 'default' | 'accountsPayable' | 'accountsReceivable' | 'ownerPayable';
-
-interface EditableJournalEntryLine {
-  lineKey: string;
-  journalEntryLineId?: string;
-  chartOfAccountId: number | null;
-  debit: number;
-  credit: number;
-  debitInput: string;
-  creditInput: string;
-  memo: string;
-  perspectiveId: number;
-  costCodeId?: number | null;
-  propertyId?: string | null;
-  reservationId?: string | null;
-  contactId?: string | null;
-}
 
 @Component({
   selector: 'app-general-ledger',
@@ -68,9 +51,10 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<JournalEntryResponse | undefined>();
   @Output() officeValidationRequired = new EventEmitter<void>();
-  generalLedgerService = inject(GeneralLedgerService);
-  mappingService = inject(MappingService);
-  formatter = inject(FormatterService);
+
+  private generalLedgerService = inject(GeneralLedgerService);
+  private mappingService = inject(MappingService);
+  protected formatter = inject(FormatterService);
   private formBuilder = inject(FormBuilder);
   private authService = inject(AuthService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -84,13 +68,12 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
   private cdr = inject(ChangeDetectorRef);
   private terminologyService = inject(TerminologyService);
 
-  isServiceError = false;
   isSaving = false;
   journalEntry: JournalEntryResponse | null = null;
   lineRows: JournalEntryLineDetailDisplay[] = [];
   editableLines: EditableJournalEntryLine[] = [];
   skipAmountSelectAll = false;
-  private amountSelectTimer: ReturnType<typeof setTimeout> | null = null;
+  amountSelectTimer: ReturnType<typeof setTimeout> | null = null;
   saveValidationHighlightActive = false;
   linesBalanceValidationError = false;
   organizationId = '';
@@ -108,8 +91,8 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     isErrorState: (_control: FormControl | null, _form: FormGroupDirective | NgForm | null): boolean =>
       this.shouldShowHeaderMemoError()
   };
-  private editableLineKeyCounter = 0;
-  private formSubscriptionsInitialized = false;
+  editableLineKeyCounter = 0;
+  formSubscriptionsInitialized = false;
 
   form = this.formBuilder.group({
     transactionDate: this.formBuilder.control<Date | null>(null),
@@ -119,6 +102,7 @@ export class GeneralLedgerComponent implements OnInit, OnDestroy, OnChanges {
     isPosted: this.formBuilder.control<boolean>(false)
   });
 
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntry']));
   destroy$ = new Subject<void>();

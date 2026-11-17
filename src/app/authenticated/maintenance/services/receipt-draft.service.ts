@@ -9,9 +9,9 @@ import {
   PromoteReceiptDraftResponse,
   ReceiptDraftRequest,
   ReceiptDraftResponse,
-  ReceiptDraftSearchRequest,
-  ReceiptDraftSourceFlags
+  ReceiptDraftSearchRequest
 } from '../models/receipt-draft.model';
+import { ReceiptDraftSourceFlags } from '../models/maintenance-enums';
 
 @Injectable({
   providedIn: 'root'

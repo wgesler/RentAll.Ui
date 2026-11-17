@@ -15,7 +15,9 @@ import { runMobileLineListSave, prepareMobileLineListSaveValidation, shouldShowM
 })
 export class MobileMaintenanceUtilityListComponent extends MaintenanceUtilityListComponent implements OnChanges {
   @Output() saveRequested = new EventEmitter<void>();
+
   private mobileCdr = inject(ChangeDetectorRef);
+
   saveValidationAttempted = false;
 
   override ngOnChanges(changes: SimpleChanges): void {

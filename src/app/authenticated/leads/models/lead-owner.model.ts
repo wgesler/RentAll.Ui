@@ -118,3 +118,5 @@ export interface LeadOwnerListDisplay extends LeadOwnerResponse {
 }
 
 export type OwnerEditSelection = { ownerId: number; officeId: number | null };
+
+export type OwnerLeadFormClosed = { saved: boolean; ownerId?: number };

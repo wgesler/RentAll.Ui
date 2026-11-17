@@ -19,12 +19,13 @@ import { OwnersService } from '../services/owners.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnersListComponent {
-
   officeId = input<number | null>(null);
+
   private router = inject(Router);
   private ownersService = inject(OwnersService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+
   ownerEntityTypeId = EntityType.Owner;
   showInactiveOwnerContacts = false;
 

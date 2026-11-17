@@ -22,7 +22,8 @@ import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
-import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../../shared/models/base-document.model';
 
 @Component({
   selector: 'app-bill-report',
@@ -64,9 +65,10 @@ export class BillReportComponent extends BaseDocumentComponent implements OnChan
   isLoading = false;
   loadFailed = false;
   bills: ReceiptResponse[] = [];
-  private offices: AccountingOfficeResponse[] = [];
-  private contacts: ContactResponse[] = [];
-  private destroy$ = new Subject<void>();
+  offices: AccountingOfficeResponse[] = [];
+  contacts: ContactResponse[] = [];
+
+  destroy$ = new Subject<void>();
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['receiptIds']) {

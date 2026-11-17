@@ -15,7 +15,7 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { OWNER_INFORMATION_CURRENCY_CONTROL_NAMES } from '../models/owner-information.model';
 import { UtilityService } from '../../../services/utility.service';
 import { OwnersService } from '../services/owners.service';
-import { OwnerAuthorization } from '../models/owner-authorization.model';
+import { OwnerAuthorization } from '../models/owner-enums';
 
 @Component({
   standalone: true,
@@ -25,8 +25,6 @@ import { OwnerAuthorization } from '../models/owner-authorization.model';
   styleUrl: '../owner-shell/owner-shell.component.scss'
 })
 export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() token = '';
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerEntityTypeId!: number;
@@ -35,7 +33,8 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   @Input() selectedOfficeId: number | null = null;
   @Output() ownerContextChanged = new EventEmitter<void>();
   @Output() ownerLeadCreated = new EventEmitter<number>();
-  extraAccordionsTemplate: TemplateRef<unknown> | null = null;
+
+  private cdr = inject(ChangeDetectorRef);
   private fb = inject(FormBuilder);
   private formatterService = inject(FormatterService);
   private contactService = inject(ContactService);
@@ -43,6 +42,7 @@ export class OwnerInformationComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private utilityService = inject(UtilityService);
 
+  extraAccordionsTemplate: TemplateRef<unknown> | null = null;
   ownerForm: FormGroup = this.buildForm();
   isSaving = false;
   primaryOwnerContactId: string | null = null;

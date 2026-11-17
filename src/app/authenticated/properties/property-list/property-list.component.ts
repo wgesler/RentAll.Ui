@@ -22,13 +22,14 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogComponent } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogData } from '../../shared/models/dialog.model';
 import { PropertyCalendarTesterDialogComponent } from '../../shared/modals/property-calendar-tester-dialog/property-calendar-tester-dialog.component';
-import { CalendarUrlResponse } from '../models/property-calendar';
+import { CalendarUrlResponse, PropertyCalendarUrlDialogData } from '../models/property-calendar';
 import { PropertyLeaseType, getPropertyStatuses, getPropertyLeaseType } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
-import { PropertyListDisplay, PropertyListResponse } from '../models/property.model';
-import { PropertyCalendarUrlDialogComponent, PropertyCalendarUrlDialogData } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
+import { PropertyListDisplay, PropertyListDisplayRow, PropertyListResponse } from '../models/property.model';
+import { PropertyCalendarUrlDialogComponent } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
 import { PropertyService } from '../services/property.service';
@@ -41,15 +42,6 @@ import {
   isPropertyListAllFilterIndex,
   isPropertyListPartnersFilterIndex
 } from '../../reservations/models/property-filter-model';
-type PropertyListDisplayRow = PropertyListDisplay & {
-  propertyStatusText: string;
-  propertyLeaseType: string;
-  propertyStatusDropdown: {
-    value: string;
-    isOverridable: boolean;
-    toString: () => string;
-  };
-};
 
 @Component({
     standalone: true,
@@ -61,14 +53,15 @@ type PropertyListDisplayRow = PropertyListDisplay & {
 })
 
 export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
-
   @Input() officeId: number | null = null;
   @Output() officeIdChange = new EventEmitter<number | null>();
+  @ViewChild('propertyListContextMenuTrigger') propertyListContextMenuTrigger?: MatMenuTrigger;
+
   private clipboard = inject(Clipboard);
-  propertyService = inject(PropertyService);
-  toastr = inject(ToastrService);
-  router = inject(Router);
-  mappingService = inject(MappingService);
+  private propertyService = inject(PropertyService);
+  private toastr = inject(ToastrService);
+  private router = inject(Router);
+  private mappingService = inject(MappingService);
   private authService = inject(AuthService);
   private contactService = inject(ContactService);
   private officeService = inject(OfficeService);
@@ -81,10 +74,8 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   private propertyListingShareService = inject(PropertyListingShareService);
   private partnerService = inject(PartnerService);
   private cdr = inject(ChangeDetectorRef);
-  @ViewChild('propertyListContextMenuTrigger') propertyListContextMenuTrigger?: MatMenuTrigger;
   
   panelOpenState: boolean = true;
-  isServiceError: boolean = false;
   propertyListFilterIndex: PropertyListFilterToggleValue = PropertyListFilterIndex.Active;
   hasPartnerIntegration = false;
   allProperties: PropertyListDisplayRow[] = [];
@@ -94,12 +85,11 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
   lastNavigationUrl = '';
-  destroy$ = new Subject<void>();
   officeScopeResolved = false;
   selectedOffice: OfficeResponse | null = null;
   showOfficeDropdown: boolean = false;
-  private pageOfficeId: number | null = null;
-  private initialOfficeScopeApplied = false;
+  pageOfficeId: number | null = null;
+  initialOfficeScopeApplied = false;
   user: any;
   isAdmin = false;
   userId: string = '';
@@ -110,11 +100,12 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   selectedPropertyIds = new Set<string>();
   contextMenuPosition = { x: 0, y: 0 };
 
-  private readonly compactViewportWidth = 1024;
-  private readonly propertyStatuses = getPropertyStatuses();
-  private readonly propertyStatusLabels = this.propertyStatuses.map(status => status.label);
-  private readonly propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
-  private readonly fullPropertiesDisplayedColumns: ColumnSet = {
+  compactViewportWidth = 1024;
+  propertyStatuses = getPropertyStatuses();
+  propertyStatusLabels = this.propertyStatuses.map(status => status.label);
+  propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
+
+  fullPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: 'Code', maxWidth: '16ch', sortType: 'code', wrap: false },
     'contactName': { displayAs: 'Owner/Vendor', maxWidth: '25ch', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
@@ -128,13 +119,15 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'rateDisplay': { displayAs: 'Rate', wrap: false, maxWidth: '15ch', alignment: 'center'},
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
-  private readonly compactPropertiesDisplayedColumns: ColumnSet = {
+  compactPropertiesDisplayedColumns: ColumnSet = {
     'propertyCode': { displayAs: '', maxWidth: '16ch', sortType: 'code', wrap: false }
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
+  isServiceError: boolean = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['properties', 'officeScope']));
+  destroy$ = new Subject<void>();
 
   //#region Property-List
   ngOnInit(): void {

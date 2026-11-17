@@ -5,19 +5,7 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } 
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { finalize, take } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
-
-export interface PropertyCalendarTesterDialogData {
-  initialUrl?: string | null;
-}
-
-type ParsedCalendarEvent = {
-  uid: string;
-  summary: string;
-  dtstart: string;
-  dtend: string;
-  location: string;
-  description: string;
-};
+import { ParsedCalendarEvent, PropertyCalendarTesterDialogData } from '../../models/dialog.model';
 
 @Component({
   standalone: true,
@@ -30,7 +18,7 @@ export class PropertyCalendarTesterDialogComponent implements OnInit {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
   private dialogRef = inject<MatDialogRef<PropertyCalendarTesterDialogComponent>>(MatDialogRef);
-  data = inject<PropertyCalendarTesterDialogData>(MAT_DIALOG_DATA);
+  private data = inject<PropertyCalendarTesterDialogData>(MAT_DIALOG_DATA);
 
   form: FormGroup;
   isLoading = false;

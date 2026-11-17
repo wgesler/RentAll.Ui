@@ -12,7 +12,8 @@ import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig } from '../../../shared/models/base-document.model';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
@@ -63,7 +64,10 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   @Input() payableAccountMode: 'standard' | 'owner' = 'standard';
   @Output() drillDownActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
-  formatter = inject(FormatterService);
+  @ViewChild('drillDownReceiptEditor') drillDownReceiptEditor?: ReceiptComponent;
+  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
+
+  private formatter = inject(FormatterService);
   private receiptService = inject(ReceiptService);
   private invoiceService = inject(InvoiceService);
   private workOrderService = inject(WorkOrderService);
@@ -80,26 +84,11 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   private reportHtmlBuilder = inject(ReportHtmlBuilderService);
   private documentReloadService = inject(DocumentReloadService);
   private cdr = inject(ChangeDetectorRef);
+
   override toastr: ToastrService;
-  @ViewChild('drillDownReceiptEditor') drillDownReceiptEditor?: ReceiptComponent;
-  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
-
-  isServiceError = false;
   noDataMessage = 'No open payables for the selected filters and as-of date.';
+  reportDataLoadKey = 'reportData';
 
-  get isOwnerPayableMode(): boolean {
-    return this.payableAccountMode === 'owner';
-  }
-
-  get reportDisplayTitle(): string {
-    return this.isOwnerPayableMode ? 'Owner AP Aging Summary' : 'A/P Aging Summary';
-  }
-
-  get emptyPayablesMessage(): string {
-    return this.isOwnerPayableMode
-      ? 'No open owner AP balances for the selected filters and as-of date.'
-      : 'No open payables for the selected filters and as-of date.';
-  }
   reportResult: ApAgingReportResult | null = null;
   visibleRows: ApAgingVisibleRow[] = [];
   previewIframeHtml = '';
@@ -131,9 +120,9 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
   contactNameByContactId = new Map<string, string>();
   propertyCodeByPropertyId = new Map<string, string>();
   ownerIdByPropertyId = new Map<string, string>();
-  private ownerApLinesLoaded = false;
+  ownerApLinesLoaded = false;
 
-  readonly detailDisplayedColumns: ColumnSet = {
+  detailDisplayedColumns: ColumnSet = {
     name: { displayAs: 'Name', maxWidth: '24ch', sort: false },
     classLabel: { displayAs: 'Property', maxWidth: '12ch', sort: false },
     referenceNo: { displayAs: 'Ref No', maxWidth: '16ch', sort: false, sortType: 'natural' },
@@ -144,10 +133,24 @@ export class ApAgingReportComponent extends BaseDocumentComponent implements OnI
     openBalance: { displayAs: 'Balance Due', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reportData']));
   destroy$ = new Subject<void>();
-  private readonly reportDataLoadKey = 'reportData';
+
+  get isOwnerPayableMode(): boolean {
+    return this.payableAccountMode === 'owner';
+  }
+
+  get reportDisplayTitle(): string {
+    return this.isOwnerPayableMode ? 'Owner AP Aging Summary' : 'A/P Aging Summary';
+  }
+
+  get emptyPayablesMessage(): string {
+    return this.isOwnerPayableMode
+      ? 'No open owner AP balances for the selected filters and as-of date.'
+      : 'No open payables for the selected filters and as-of date.';
+  }
 
   //#region AP-Aging-Report
   ngOnInit(): void {

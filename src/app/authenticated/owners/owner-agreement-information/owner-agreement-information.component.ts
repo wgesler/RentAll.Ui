@@ -8,11 +8,9 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
-import { OwnerAgreementInformationRequest, OwnerAgreementInformationResponse } from '../models/owner-agreement-information.model';
+import { AgreementInfoScopeOption, OwnerAgreementInformationRequest, OwnerAgreementInformationResponse } from '../models/owner-agreement-information.model';
 import { TerminologyService } from '../../organizations/services/terminology.service';
 import { OwnersService } from '../services/owners.service';
-
-type AgreementInfoScopeOption = 'organization' | 'office' | 'property';
 
 @Component({
   standalone: true,
@@ -22,23 +20,24 @@ type AgreementInfoScopeOption = 'organization' | 'office' | 'property';
   styleUrl: './owner-agreement-information.component.scss'
 })
 export class OwnerAgreementInformationComponent implements OnInit, OnChanges, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
+
+  private cdr = inject(ChangeDetectorRef);
   private fb = inject(FormBuilder);
   private ownersService = inject(OwnersService);
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private utilityService = inject(UtilityService);
   private terminologyService = inject(TerminologyService);
+
   agentDutiesLabel = 'Section 2 - Agent Duties';
 
   form: FormGroup = this.buildForm();
   isSubmitting = false;
-  isPageReady = false;
   agreementInformation: OwnerAgreementInformationResponse | null = null;
 
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerAgreementInformation']));
   destroy$ = new Subject<void>();
 

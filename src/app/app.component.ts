@@ -70,14 +70,15 @@ export class AppComponent implements OnInit, OnDestroy {
   title = 'RentAll.Ui';
   organizationId: string = '';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding']));
-  isPageReady = false;
-  destroy$ = new Subject<void>();
-  private readonly propertySelectionDomains: Array<{ name: string; prefixes: string[] }> = [
+  propertySelectionDomains: Array<{ name: string; prefixes: string[] }> = [
     { name: 'reservation', prefixes: ['/auth/reservations'] },
     { name: 'board', prefixes: ['/auth/boards'] },
     { name: 'property', prefixes: ['/auth/properties'] }
   ];
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['states', 'dailyQuote', 'organizations', 'branding']));
+  destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {

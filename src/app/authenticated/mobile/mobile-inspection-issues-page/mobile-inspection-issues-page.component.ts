@@ -16,6 +16,7 @@ import { MobileInspectionIssuesDraftService } from '../mobile-inspection-issues-
 export class MobileInspectionIssuesPageComponent extends MobileChecklistIssuesBase implements OnInit {
   private draftService = inject(MobileInspectionIssuesDraftService);
   private pageRouter = inject(Router);
+
   isMissingDraft = false;
   returnUrl = '';
 

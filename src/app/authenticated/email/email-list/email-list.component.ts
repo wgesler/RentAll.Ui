@@ -54,6 +54,7 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
+
   private emailService = inject(EmailService);
   private emailCreateDraftService = inject(EmailCreateDraftService);
   private router = inject(Router);
@@ -69,9 +70,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
  
   emails: EmailListDisplay[] = [];
   allEmails: EmailListDisplay[] = [];
-  isPageReady = false;
-  isServiceError = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['emails', 'companies']));
 
   offices: OfficeResponse[] = [];
   selectedOfficeId: number | null = null;
@@ -85,7 +83,6 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
   emailTypes: { value: number, label: string }[] = [];
   
   showOfficeDropdown = false;
-  destroy$ = new Subject<void>();
 
   emailsDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
@@ -97,6 +94,11 @@ export class EmailListComponent implements OnInit, OnDestroy, OnChanges {
     fromEmail: { displayAs: 'From Email', maxWidth: '25ch' },
     createdOn: { displayAs: 'Sent', maxWidth: '35ch', alignment: 'center' }
   };
+
+  isServiceError = false;
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['emails', 'companies']));
+  destroy$ = new Subject<void>();
 
   //#region Email-List
   ngOnInit(): void {

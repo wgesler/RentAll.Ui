@@ -25,7 +25,7 @@ import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
 import { ChecklistItem, ChecklistSection, ChecklistTemplateItem, INSPECTION_SECTIONS, SavedChecklistSection } from '../models/checklist-sections';
 import { getInspectionType, getInspectionTypeFileSegment, getInspectionTypes, InspectionType } from '../models/maintenance-enums';
-import { InspectionRequest, InspectionResponse } from '../models/inspection.model';
+import { ChecklistIssueEntry, ChecklistMode, ChecklistType, InspectionRequest, InspectionResponse } from '../models/inspection.model';
 import { MaintenanceRequest, MaintenanceResponse } from '../models/maintenance.model';
 import { InspectionService } from '../services/inspection.service';
 import { MaintenanceService } from '../services/maintenance.service';
@@ -34,12 +34,9 @@ import { InspectionPhotoService } from '../services/inspection-photo.service';
 import { UtilityService } from '../../../services/utility.service';
 import { JwtUser } from '../../../public/login/models/jwt';
 import { DialogMissingCountComponent } from './dialog-missing-count.component';
-import { ChecklistIssueEntry, DialogChecklistIssuesComponent } from './dialog-checklist-issues.component';
+import { DialogChecklistIssuesComponent } from './dialog-checklist-issues.component';
 import { UserGroups } from '../../users/models/user-enums';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
-
-export type ChecklistMode = 'template' | 'answer' | 'readonly';
-export type ChecklistType = 'inspection';
 
 @Component({
   standalone: true,
@@ -70,36 +67,35 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
   @Output() titleBarReservationUiChange = new EventEmitter<{ required: boolean; showError: boolean }>();
   @Output() unsavedChangesChange = new EventEmitter<boolean>();
   @Output() saveRequestCompleted = new EventEmitter<{ token: number; success: boolean }>();
-  fb = inject(FormBuilder);
-  authService = inject(AuthService);
-  documentService = inject(DocumentService);
-  utilityService = inject(UtilityService);
-  inspectionPhotoService = inject(InspectionPhotoService);
-  toastr = inject(ToastrService);
-  dialog = inject(MatDialog);
-  maintenanceService = inject(MaintenanceService);
-  inspectionService = inject(InspectionService);
-  mappingService = inject(MappingService);
+
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private documentService = inject(DocumentService);
+  protected utilityService = inject(UtilityService);
+  private inspectionPhotoService = inject(InspectionPhotoService);
+  private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
+  protected maintenanceService = inject(MaintenanceService);
+  private inspectionService = inject(InspectionService);
+  private mappingService = inject(MappingService);
   private configService = inject(ConfigService);
   private cdr = inject(ChangeDetectorRef);
   private unsavedChangesDialogService = inject(UnsavedChangesDialogService);
   private emailCreateDraftService = inject(EmailCreateDraftService);
   private router = inject(Router);
 
-  readonly inspectionTypeOptions = getInspectionTypes();
+  inspectionTypeOptions = getInspectionTypes();
   inspectionTypeIdControl = new FormControl<number>(InspectionType.MoveOut, { nonNullable: true });
   shellReservationFieldTouched = false;
-  destroy$ = new Subject<void>();
-  private formOutputBindingVersion$ = new Subject<void>();
+  formOutputBindingVersion$ = new Subject<void>();
 
   /** Cache of documentId -> blob URL for photos loaded via download API (private blob storage). */
-  readonly maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
-  readonly maxUploadedImageBytes = 1.5 * 1024 * 1024; // 1.5 MB target
-  readonly maxImageDimension = 1920;
+  maxSourceImageBytes = 20 * 1024 * 1024; // 20 MB
+  maxUploadedImageBytes = 1.5 * 1024 * 1024; // 1.5 MB target
+  maxImageDimension = 1920;
   photoBlobUrlCache = new Map<string, string>();
 
   form: FormGroup;
-  isServiceError: boolean = false;
   hasInitialized = false;
   activeMode: ChecklistMode = 'template';
   /** Extra confirmation before entering Template mode; starts locked. */
@@ -127,6 +123,9 @@ export class InspectionComponent implements OnChanges, OnDestroy, OnInit {
     { value: 'exactlyOne', label: 'Exactly One' },
     { value: 'atLeastOne', label: 'At Least One' }
   ];
+
+  isServiceError: boolean = false;
+  destroy$ = new Subject<void>();
 
   //#region Checklist
   ngOnInit(): void {

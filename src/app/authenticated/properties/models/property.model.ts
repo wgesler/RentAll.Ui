@@ -488,3 +488,17 @@ export interface PropertyTrackerResponseOption {
   createdOn: string;
   createdBy: string;
 }
+
+export type PropertyListDisplayRow = PropertyListDisplay & {
+  propertyStatusText: string;
+  propertyLeaseType: string;
+  propertyStatusDropdown: {
+    value: string;
+    isOverridable: boolean;
+    toString: () => string;
+  };
+};
+
+export interface PropertyCodeDialogResult {
+  code: string;
+}

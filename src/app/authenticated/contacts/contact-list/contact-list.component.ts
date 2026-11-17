@@ -2,7 +2,6 @@ import { CommonModule } from "@angular/common";
 import { Clipboard } from "@angular/cdk/clipboard";
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import {BehaviorSubject, Subject, finalize, switchMap, take, takeUntil} from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
@@ -44,11 +43,11 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() showInactiveChange = new EventEmitter<boolean>();
   @Output() openContact = new EventEmitter<{ contactId: string; copyFrom?: string; entityTypeId?: number; tabIndex?: number; ownerLeadId?: number | null; officeId?: number | null }>();
+
   private clipboard = inject(Clipboard);
-  contactService = inject(ContactService);
-  toastr = inject(ToastrService);
-  router = inject(Router);
-  mappingService = inject(MappingService);
+  private contactService = inject(ContactService);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
   private leadsService = inject(LeadsService);
   private ownersService = inject(OwnersService);
   private authService = inject(AuthService);
@@ -57,7 +56,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   private officeService = inject(OfficeService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly EntityType = EntityType;
+  EntityType = EntityType;
 
   allContacts: ContactListDisplay[] = [];
   contactsDisplay: ContactListDisplay[] = [];
@@ -74,7 +73,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
   canEditIsActiveCheckbox = false;
   isInOwnerMode = false;
   isOwnerAdmin = false;
-  private readonly baseColumns: ColumnSet = {
+  baseColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '18ch', sortType: 'natural' },
     'companyName': { displayAs: 'Company', maxWidth: '35ch' },
     'fullName': { displayAs: 'Contact', maxWidth: '30ch' },
@@ -83,7 +82,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
-  private readonly tenantColumns: ColumnSet = {
+  tenantColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '18ch', sortType: 'natural' },
     'fullName': { displayAs: 'Contact', maxWidth: '30ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
@@ -91,7 +90,7 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
 
-  private readonly ownerColumns: ColumnSet = {
+  ownerColumns: ColumnSet = {
     'contactCode': { displayAs: 'Code', maxWidth: '18ch', sortType: 'natural' },
     'fullName': { displayAs: 'Contact', maxWidth: '30ch' },
     'phone': { displayAs: 'Phone', maxWidth: '25ch' },
@@ -100,7 +99,6 @@ export class ContactListComponent implements OnInit, OnDestroy, OnChanges {
     'companyName': { displayAs: 'Company', maxWidth: '30ch' },
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
-
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());

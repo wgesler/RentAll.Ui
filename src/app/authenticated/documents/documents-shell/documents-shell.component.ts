@@ -13,7 +13,7 @@ import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { DocumentType, getDocumentTypes } from '../models/document.enum';
 import { DocumentGetRequest } from '../models/document.model';
@@ -33,6 +33,8 @@ import { DocumentListComponent } from '../document-list/document-list.component'
   styleUrl: './documents-shell.component.scss'
 })
 export class DocumentsShellComponent implements OnInit, OnDestroy {
+  @ViewChild('documentsTabList') documentsTabList?: DocumentListComponent;
+
   private router = inject(Router);
   private authService = inject(AuthService);
   private utilityService = inject(UtilityService);
@@ -41,10 +43,8 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
   private propertyService = inject(PropertyService);
   private reservationService = inject(ReservationService);
 
-  private readonly clearPinsEventName = 'rentall-clear-pins';
-  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-documents-shell-pinned-dates';
-
-  @ViewChild('documentsTabList') documentsTabList?: DocumentListComponent;
+  clearPinsEventName = 'rentall-clear-pins';
+  pinnedDateRangeStorageKeyPrefix = 'rentall-documents-shell-pinned-dates';
 
   selectedOfficeId: number | null = null;
   selectedPropertyId: string | null = null;
@@ -64,7 +64,19 @@ export class DocumentsShellComponent implements OnInit, OnDestroy {
   endDate: Date | null = null;
   dateRangePinned = false;
   documentRequest: DocumentGetRequest = { officeIds: [] };
-  private initialOfficeScopeApplied = false;
+  initialOfficeScopeApplied = false;
+
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.clearPinnedDateRangeStorage();
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.selectedReservationId = null;
+    this.applyPageOfficeChangeEffects();
+  };
+
   destroy$ = new Subject<void>();
 
   constructor() {
@@ -494,17 +506,6 @@ resolveOfficeIdsForRequest(): number[] {
     const userKey = this.authService.getUser()?.userId?.trim() || 'anonymous';
     return `${this.pinnedDateRangeStorageKeyPrefix}-${userKey}`;
   }
-
-  onClearPins = (): void => {
-    if (!this.dateRangePinned) {
-      return;
-    }
-    this.dateRangePinned = false;
-    this.clearPinnedDateRangeStorage();
-    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
-    this.selectedReservationId = null;
-    this.applyPageOfficeChangeEffects();
-  };
   //#endregion
 
   ngOnDestroy(): void {

@@ -36,26 +36,25 @@ export class MobileWorkOrderDetailComponent extends WorkOrderComponent implement
   @Input() override workOrderId: string | null = null;
   @Output() workOrderTitleChange = new EventEmitter<string>();
 
-  readonly companyPropertyId = RECEIPT_COMPANY_PROPERTY_ID;
-  readonly compareMobileOfficeIds = (left: number | null, right: number | null): boolean =>
-    left == null ? right == null : Number(left) === Number(right);
-
   private mobileRouter = inject(Router);
   private mobileRoute = inject(ActivatedRoute);
-  private mobilePrefillPropertyId: string | null = null;
-  private mobileReturnReceiptId: string | null = null;
-  private mobileReturnTicketId: string | null = null;
-  private mobileReturnTicketTab: string | null = null;
   private readonly mobileOfficeService = inject(OfficeService);
   private readonly mobilePropertyService = inject(PropertyService);
   private readonly mobileGlobalSelectionService = inject(GlobalSelectionService);
 
+  companyPropertyId = RECEIPT_COMPANY_PROPERTY_ID;
+  compareMobileOfficeIds = (left: number | null, right: number | null): boolean =>
+    left == null ? right == null : Number(left) === Number(right);
+  mobilePrefillPropertyId: string | null = null;
+  mobileReturnReceiptId: string | null = null;
+  mobileReturnTicketId: string | null = null;
+  mobileReturnTicketTab: string | null = null;
   mobilePropertyOptions: PropertyCodeResponse[] = [];
   mobileAllPropertyOptions: PropertyCodeResponse[] = [];
   mobileSelectedOfficeId: number | null = null;
   mobileSaveValidationAttempted = false;
-  private mobileOfficeUserSelected = false;
-  private initialMobileOfficeScopeApplied = false;
+  mobileOfficeUserSelected = false;
+  initialMobileOfficeScopeApplied = false;
 
   //#region Mobile-Work-Order-Detail
   override ngOnInit(): void {

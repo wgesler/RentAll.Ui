@@ -40,8 +40,6 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   private toastr = inject(ToastrService);
   private companyDataService = inject(DashboardCompanyDataService);
 
-  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['activeReservations', 'propertyMaintenanceList', 'cleaners', 'carpetUsers', 'inspectors', 'trackerConfiguration']));
-
   housekeepingById = new Map<string, string>();
   carpetById = new Map<string, string>();
   inspectorById = new Map<string, string>();
@@ -86,7 +84,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
   offlineStatusPropertyColumns: ColumnSet = {};
   offlineStatusPropertyColumnsByLeaseType: Partial<Record<PropertyLeaseType, ColumnSet>> = {};
 
-  private readonly reservationTurnoverArrivalBaseColumns: ColumnSet = {
+  reservationTurnoverArrivalBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     externalRefNo: { displayAs: 'Ref No', maxWidth: '14ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
@@ -98,7 +96,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     reservationStatusDisplay: { displayAs: 'Status', maxWidth: '16ch', wrap: false }
   };
 
-  private readonly reservationTurnoverDepartureBaseColumns: ColumnSet = {
+  reservationTurnoverDepartureBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     externalRefNo: { displayAs: 'Ref No', maxWidth: '14ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
@@ -110,7 +108,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     reservationStatusDisplay: { displayAs: 'Status', maxWidth: '16ch', wrap: false }
   };
 
-  private readonly propertyOnlineBaseColumns: ColumnSet = {
+  propertyOnlineBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     ownerName: { displayAs: 'Owner/Vendor', maxWidth: '20ch', wrap: false },
@@ -120,7 +118,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     squareFeet: { displayAs: 'Sq Ft', wrap: false, maxWidth: '10ch', alignment: 'center' }
   };
 
-  private readonly propertyOfflineBaseColumns: ColumnSet = {
+  propertyOfflineBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     availableUntil: { displayAs: 'Offline', maxWidth: '15ch', alignment: 'center' },
@@ -129,7 +127,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     squareFeet: { displayAs: 'Sq Ft', wrap: false, maxWidth: '10ch', alignment: 'center' }
   };
 
-  private readonly vacantPropertyColumns: ColumnSet = {
+  vacantPropertyColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '20ch', wrap: false },
@@ -140,7 +138,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     lastDepartureDate: { displayAs: 'Last Departure', maxWidth: '25ch', alignment: 'center' }
   };
 
-  private readonly occupiedPropertyColumns: ColumnSet = {
+  occupiedPropertyColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     contactName: { displayAs: 'Contact', maxWidth: '20ch', wrap: false },
@@ -149,7 +147,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     bathrooms: { displayAs: 'Baths', maxWidth: '15ch', alignment: 'center' }
   };
 
-  private readonly offlineStatusPropertyBaseColumns: ColumnSet = {
+  offlineStatusPropertyBaseColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     shortAddress: { displayAs: 'Address', maxWidth: '30ch', wrap: false },
     ownerName: { displayAs: 'Owner/Vendor', maxWidth: '20ch', wrap: false },
@@ -160,7 +158,7 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     propertyStatusDisplay: { displayAs: 'Status', maxWidth: '16ch', wrap: false }
   };
 
-  private readonly monthlyCommissionColumns: ColumnSet = {
+  monthlyCommissionColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     agentCode: { displayAs: 'Agent', maxWidth: '15ch', alignment: 'center' },
@@ -169,6 +167,8 @@ export class DashboardCompanyDataComponent extends PropertyMaintenanceBase imple
     daysRented: { displayAs: 'Days Rented', maxWidth: '18ch', alignment: 'center' },
     commissionDisplay: { displayAs: 'Comm', maxWidth: '20ch', alignment: 'center' }
   };
+
+  override itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['activeReservations', 'propertyMaintenanceList', 'cleaners', 'carpetUsers', 'inspectors', 'trackerConfiguration']));
 
   //#region Dashboard-Company-Data
   override ngOnInit(): void {

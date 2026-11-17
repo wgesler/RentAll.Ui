@@ -5,14 +5,7 @@ import { MaterialModule } from '../../../../material.module';
 import { ContactResponse } from '../../../contacts/models/contact.model';
 import { DocuSignSignerConfig, DocuSignSignerSlot } from '../../../owners/models/owner-docusign.model';
 import { OwnerDocuSignSignerService } from '../../../owners/services/owner-docusign-signer.service';
-
-export interface DocuSignSignersDialogData {
-  formTitle: string;
-  slots: DocuSignSignerSlot[];
-  tenantContacts: ContactResponse[];
-  owner2Contacts: ContactResponse[];
-  noSignersConfigured?: boolean;
-}
+import { DocuSignSignersDialogData } from '../../models/dialog.model';
 
 @Component({
   standalone: true,
@@ -22,9 +15,9 @@ export interface DocuSignSignersDialogData {
   styleUrl: './docusign-signers-dialog.component.scss'
 })
 export class DocuSignSignersDialogComponent {
-  data = inject<DocuSignSignersDialogData>(MAT_DIALOG_DATA);
-  dialogRef = inject<MatDialogRef<DocuSignSignersDialogComponent, DocuSignSignerConfig[] | undefined>>(MatDialogRef);
-  ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
+  protected data = inject<DocuSignSignersDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject<MatDialogRef<DocuSignSignersDialogComponent, DocuSignSignerConfig[] | undefined>>(MatDialogRef);
+  private ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
 
   slots: DocuSignSignerSlot[];
 

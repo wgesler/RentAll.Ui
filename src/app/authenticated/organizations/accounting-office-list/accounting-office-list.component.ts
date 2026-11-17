@@ -7,7 +7,6 @@ import {BehaviorSubject, Subject, take, takeUntil} from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
-import { FormatterService } from '../../../services/formatter-service';
 import { MappingService } from '../../../services/mapping.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
@@ -31,14 +30,14 @@ export class AccountingOfficeListComponent implements OnInit, OnChanges, OnDestr
   @Input() organizationId: string | null = null;
   @Output() officeSelected = new EventEmitter<string | number | null>();
   @Output() copyAccountingOfficeEvent = new EventEmitter<AccountingOfficeResponse>();
-  accountingOfficeService = inject(AccountingOfficeService);
-  toastr = inject(ToastrService);
-  formatterService = inject(FormatterService);
+
+  private accountingOfficeService = inject(AccountingOfficeService);
+  private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private mappingService = inject(MappingService);
   private cdr = inject(ChangeDetectorRef);
-  isServiceError: boolean = false;
+
   showInactive: boolean = false;
   offices: OfficeResponse[] = [];
 
@@ -55,6 +54,7 @@ export class AccountingOfficeListComponent implements OnInit, OnChanges, OnDestr
     'isActive': { displayAs: 'IsActive', isCheckbox: true, sort: false, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();

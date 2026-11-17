@@ -21,6 +21,7 @@ import { withMobileEmailCreateRoute } from '../mobile-property-letter/mobile-pro
 })
 export class MobileInvoicePageComponent implements OnInit, OnChanges, OnDestroy {
   @Input() invoiceId = '';
+
   private invoiceService = inject(InvoiceService);
   private invoiceDocumentService = inject(InvoiceDocumentService);
   private router = inject(Router);
@@ -28,11 +29,13 @@ export class MobileInvoicePageComponent implements OnInit, OnChanges, OnDestroy 
   private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
+
   invoice: InvoiceResponse | null = null;
   lines: LedgerLineResponse[] = [];
-  isPageReady = false;
   loadFailed = false;
   isPreparingEmail = false;
+
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice']));
   destroy$ = new Subject<void>();
 

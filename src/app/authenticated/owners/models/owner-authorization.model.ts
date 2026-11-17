@@ -1,11 +1,6 @@
 import { AuthService } from '../../../services/auth.service';
 import { UserGroups } from '../../users/models/user-enums';
-
-export enum OwnerAuthorization {
-  UnauthorizedLead = 0,
-  UnauthorizedOwner = 1,
-  AuthorizedAdmin = 2
-}
+import { OwnerAuthorization } from './owner-enums';
 
 export interface OwnerRouteContext {
   token?: string | null;

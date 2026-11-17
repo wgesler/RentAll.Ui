@@ -15,7 +15,8 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { AgentService } from '../../organizations/services/agent.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { TerminologyService } from '../../organizations/services/terminology.service';
-import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogComponent } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogData } from '../../shared/models/dialog.model';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { PropertyListResponse, PropertyResponse } from '../../properties/models/property.model';
@@ -45,7 +46,6 @@ import { TicketWorkOrderDialogComponent } from './ticket-work-order-dialog.compo
   styleUrl: './ticket.component.scss'
 })
 export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
-
   @Input() id: string | number | null = null;
   @Input() embeddedInSettings: boolean = false;
   @Input() selectedPropertyIdFromShell: string | null = null;
@@ -56,6 +56,19 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   @Output() savedEvent = new EventEmitter<void>();
   @Output() propertySelectionChange = new EventEmitter<{ propertyId: string | null; officeId: number | null; reservationId: string | null }>();
   @Output() officeSelectionInvalidOnSave = new EventEmitter<void>();
+  @ViewChild('descriptionEditor') set descriptionEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.descriptionEditor = value;
+    this.syncDescriptionEditorFromForm();
+  }
+  @ViewChild('stepsToReproduceEditor') set stepsToReproduceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.stepsToReproduceEditor = value;
+    this.syncStepsToReproduceEditorFromForm();
+  }
+  @ViewChild('noteEditor') set noteEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.noteEditor = value;
+    this.syncNoteEditorFromForm();
+  }
+
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
@@ -77,29 +90,15 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   private host = inject(ElementRef<HTMLElement>);
   private sanitizer = inject(DomSanitizer);
 
-  isServiceError: boolean = false;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
-  isPageReady: boolean = false;
   isAdmin = false;
   form: FormGroup;
-  @ViewChild('descriptionEditor') set descriptionEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.descriptionEditor = value;
-    this.syncDescriptionEditorFromForm();
-  }
   descriptionEditor?: ElementRef<HTMLDivElement>;
-  @ViewChild('stepsToReproduceEditor') set stepsToReproduceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.stepsToReproduceEditor = value;
-    this.syncStepsToReproduceEditorFromForm();
-  }
   stepsToReproduceEditor?: ElementRef<HTMLDivElement>;
-  @ViewChild('noteEditor') set noteEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.noteEditor = value;
-    this.syncNoteEditorFromForm();
-  }
   noteEditor?: ElementRef<HTMLDivElement>;
   imageDragTarget: 'description' | 'steps' | 'note' | null = null;
-  private ticketImageObjectUrls = new Map<string, string>();
+  ticketImageObjectUrls = new Map<string, string>();
 
   organizationId = '';
   ticket: TicketResponse | null = null;
@@ -130,11 +129,13 @@ export class TicketComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   isApplyingShellPropertySelection = false;
   reservationAgentSyncKey: string | null = null;
   selectedReservationCodeForAudit: string | null = null;
-
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ticket']));
-  destroy$ = new Subject<void>();
   pendingTicketComments: { noteText: string; createdOn: string; author: string }[] = [];
   commentPersistQueue$ = new Subject<{ noteText: string; errorMessage: string }>();
+
+  isServiceError: boolean = false;
+  isPageReady: boolean = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ticket']));
+  destroy$ = new Subject<void>();
 
   //#region Ticket
   ngOnInit(): void {

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@
 import { ReactiveFormsModule } from '@angular/forms';
 import { Params, Router } from '@angular/router';
 import { MaterialModule } from '../../../material.module';
-import { EmailConfig } from '../../shared/base-document.component';
+import { EmailConfig } from '../../shared/models/base-document.model';
 import { QuoteCreateComponent } from '../../properties/quote-create/quote-create.component';
 import { QuoteComponent } from '../../properties/quote/quote.component';
 import { resolveMobileBoardReturnUrl } from '../mobile-nav';

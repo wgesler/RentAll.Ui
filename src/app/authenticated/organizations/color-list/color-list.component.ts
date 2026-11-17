@@ -25,12 +25,13 @@ import { ColorService } from '../services/color.service';
 export class ColorListComponent implements OnInit, OnDestroy {
 
   @Output() colorSelected = new EventEmitter<string | number | null>();
-  colorService = inject(ColorService);
-  toastr = inject(ToastrService);
-  mappingService = inject(MappingService);
+
+  private colorService = inject(ColorService);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
-  isServiceError: boolean = false;
+
   allColors: ColorListDisplay[] = [];
   colorsDisplay: ColorListDisplay[] = [];
 
@@ -40,9 +41,10 @@ export class ColorListComponent implements OnInit, OnDestroy {
     'statusEnabled': { displayAs: 'In Use', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
-  destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors']));
+  destroy$ = new Subject<void>();
 
   //#region Color-List
   ngOnInit(): void {

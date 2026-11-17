@@ -21,7 +21,8 @@ import { AccountingOfficeResponse } from '../../../organizations/models/accounti
 import { OrganizationResponse } from '../../../organizations/models/organization.model';
 import { AccountingOfficeService } from '../../../organizations/services/accounting-office.service';
 import { OrganizationListService } from '../../../organizations/services/organization-list.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/models/base-document.model';
 import { InvoiceResponse } from '../../models/invoice.model';
 import { InvoiceService } from '../../services/invoice.service';
 import { EmailHtmlResponse } from '../../../email/models/email-html.model';
@@ -37,12 +38,13 @@ import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titleba
     styleUrls: ['./billing-create.component.scss']
 })
 export class BillingCreateComponent extends BaseDocumentComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() organizationId: string | null = null; 
   @Input() invoiceId: string | null = null;
   @Input() shellMode = false;
   @Output() backEvent = new EventEmitter<void>();
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+
+  private cdr = inject(ChangeDetectorRef);
   private accountingService = inject(InvoiceService);
   private fb = inject(FormBuilder);
   private utilityService = inject(UtilityService);
@@ -54,12 +56,11 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   private emailHtmlService = inject(EmailHtmlService);
   private accountingOfficeService = inject(AccountingOfficeService);
   private organizationListService = inject(OrganizationListService);
-  private destroy$ = new Subject<void>();
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private emailCreateDraftService = inject(EmailCreateDraftService);
-  override toastr: ToastrService; 
 
+  override toastr: ToastrService; 
   form: FormGroup;
   organizations: OrganizationResponse[] = [];
   billingOrganization: OrganizationResponse | null = null;
@@ -82,15 +83,15 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
   previewIframeStyles: string = '';
   safePreviewIframeHtml: SafeHtml = '';
   iframeKey: number = 0;
-  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
   isDownloading: boolean = false;
   isSubmitting: boolean = false;
-  isPageReady: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice', 'logo', 'previewHtml']));
   logoSourcesLoaded = { organizations: false, accountingOffice: false };
   accountingOfficeWatchStarted = false;
   recipientInvoiceSearchKey: string | null = null;
 
+  isPageReady: boolean = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations', 'emailHtml', 'billingHtml', 'accountingOffice', 'logo', 'previewHtml']));
+  destroy$ = new Subject<void>();
 
   constructor() {
     super();

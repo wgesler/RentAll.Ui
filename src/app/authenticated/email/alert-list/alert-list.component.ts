@@ -46,6 +46,7 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   @Output() reservationIdChange = new EventEmitter<string | null>();
   @Output() alertEdit = new EventEmitter<string>();
   @Output() alertSelected = new EventEmitter<AlertResponse | null>();
+
   private alertService = inject(AlertService);
   private router = inject(Router);
   private mappingService = inject(MappingService);
@@ -61,9 +62,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   alerts: AlertListDisplay[] = [];
   allAlerts: AlertListDisplay[] = [];
   alertsById = new Map<string, AlertResponse>();
-  isPageReady = false;
-  isServiceError = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['alerts']));
   showInactive = false;
 
   offices: OfficeResponse[] = [];
@@ -71,7 +69,6 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
   availableReservations: { value: ReservationCodeResponse; label: string }[] = [];
   selectedReservationId: string | null = null;
   showOfficeDropdown = false;
-  destroy$ = new Subject<void>();
   contacts: ContactResponse[] = [];
 
   alertsDisplayedColumns: ColumnSet = {
@@ -87,6 +84,11 @@ export class AlertListComponent implements OnInit, OnChanges, OnDestroy {
     createdOn: { displayAs: 'Created', maxWidth: '15ch', alignment: 'center' },
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
+
+  isServiceError = false;
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['alerts']));
+  destroy$ = new Subject<void>();
 
   //#region Alert-List
   ngOnInit(): void {

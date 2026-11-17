@@ -2,16 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
-
-export interface RentalQuotePropertyOption {
-  propertyId: string;
-  propertyCode: string;
-}
-
-export interface RentalQuotePropertySelectDialogData {
-  options: RentalQuotePropertyOption[];
-  selectedPropertyIds: string[];
-}
+import { RentalQuotePropertySelectDialogData } from '../models/lead-rental.model';
 
 @Component({
   standalone: true,
@@ -62,7 +53,7 @@ export interface RentalQuotePropertySelectDialogData {
   `]
 })
 export class RentalQuotePropertySelectDialogComponent {
-  data = inject<RentalQuotePropertySelectDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<RentalQuotePropertySelectDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<RentalQuotePropertySelectDialogComponent, string[]>>(MatDialogRef);
 
   selectedPropertyIds = new Set<string>();

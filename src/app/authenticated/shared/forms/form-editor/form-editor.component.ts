@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Observable } from 'rxjs';
 import { DynamicFormEditorComponent } from '../../../owners/dynamic-form-editor/dynamic-form-editor.component';
-import { OwnerAuthorization } from '../../../owners/models/owner-authorization.model';
+import { OwnerAuthorization } from '../../../owners/models/owner-enums';
 import { OwnerAgreementContext } from '../../../owners/services/owners.service';
 
 @Component({

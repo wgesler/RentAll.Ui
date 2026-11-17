@@ -21,24 +21,12 @@ import { UserGroups } from '../../users/models/user-enums';
 import { ReceiptRequest, ReceiptResponse } from '../models/receipt.model';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
 import { WorkOrderType } from '../models/maintenance-enums';
-import { WorkOrderDisplayList, WorkOrderPreviewSelection, WorkOrderResponse } from '../models/work-order.model';
+import { WorkOrderDisplayList, WorkOrderPreviewSelection, WorkOrderResponse, WorkOrderSelection } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
 import { JournalEntryService } from '../../accounting/services/journal-entry.service';
-import { ThreeWayToggleComponent, ThreeWayToggleValue } from '../../shared/three-way-toggle/three-way-toggle.component';
-
-export interface WorkOrderSelection {
-  workOrderId: string | null;
-  propertyId: string | null;
-  officeId?: number | null;
-  workOrder?: WorkOrderResponse | null;
-  prefilledReceiptId?: string | null;
-  prefilledReceiptSplitKey?: string | null;
-  returnToReceiptList?: boolean;
-  returnReceiptListKind?: 'bills' | 'receipts';
-  returnToReceiptDetail?: boolean;
-  returnReceiptId?: string | null;
-}
+import { ThreeWayToggleComponent } from '../../shared/three-way-toggle/three-way-toggle.component';
+import { ThreeWayToggleValue } from '../../shared/models/three-way-toggle.model';
 
 @Component({
   standalone: true,
@@ -65,6 +53,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() showOwnersOnlyToggle = false;
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
   @Output() previewEvent = new EventEmitter<WorkOrderPreviewSelection>();
+
   private authService = inject(AuthService);
   private workOrderService = inject(WorkOrderService);
   private receiptService = inject(ReceiptService);
@@ -78,13 +67,9 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   private journalEntryService = inject(JournalEntryService);
   private cdr = inject(ChangeDetectorRef);
 
-  isPageReady = false;
-  isServiceError: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['workOrders']));
-  destroy$ = new Subject<void>();
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
-  readonly activeFilterLabels = ['Active', 'Inactive', 'Both'] as const;
+  activeFilterLabels = ['Active', 'Inactive', 'Both'] as const;
   activeFilterIndex: ThreeWayToggleValue = 0;
   activeListCache: WorkOrderResponse[] | null = null;
   inactiveListCache: WorkOrderResponse[] | null = null;
@@ -94,7 +79,7 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
   workOrdersDisplay: WorkOrderDisplayList[] = [];
   allWorkOrders: WorkOrderDisplayList[] = [];
   ownersOnly = false;
-  readonly ownerWorkOrderTypeId = WorkOrderType.Owner;
+  ownerWorkOrderTypeId = WorkOrderType.Owner;
 
   selectedProperty: PropertyResponse | null = null;
   selectedPropertyId: string | null = null;
@@ -117,6 +102,10 @@ export class WorkOrderListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
+  isServiceError: boolean = false;
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['workOrders']));
+  destroy$ = new Subject<void>();
 
   //#region Work-Order List
   ngOnInit(): void {

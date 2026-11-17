@@ -22,6 +22,7 @@ export class DatabaseErrorLogListComponent implements OnInit, OnChanges, OnDestr
   @Input() reloadToken = 0;
   @Output() openDatabaseErrorLog = new EventEmitter<DatabaseErrorLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);

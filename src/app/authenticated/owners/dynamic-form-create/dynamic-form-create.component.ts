@@ -17,9 +17,11 @@ import { EmailCreateDraftService } from '../../email/services/email-create-draft
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { FormTokenProviderInputs } from '../../shared/forms/services/form-token-provider';
-import { OwnerAuthorization, isOwnerAuthorizedAdmin } from '../models/owner-authorization.model';
+import { isOwnerAuthorizedAdmin } from '../models/owner-authorization.model';
+import { OwnerAuthorization } from '../models/owner-enums';
 import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.service';
 import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
 import { OwnersService, OwnerAgreementContext } from '../services/owners.service';
@@ -34,8 +36,6 @@ import { OwnerFormViewModeService } from '../services/owner-form-view-mode.servi
   styleUrl: './dynamic-form-create.component.scss'
 })
 export class DynamicFormCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() formName = '';
   @Input() formKey = '';
   @Input() token: string | null = null;
@@ -47,6 +47,9 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   @Input() sharedContext$: Observable<OwnerAgreementContext | null> | null = null;
   @Output() editRequested = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
   @Output() displayStateUpdated = new EventEmitter<{ processedHtml: string; processedStyles: string }>();
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+
+  private cdr = inject(ChangeDetectorRef);
   private ownersService = inject(OwnersService);
   private ownerFormTokenProviderService = inject(OwnerFormTokenProviderService);
   private ownerFormViewModeService = inject(OwnerFormViewModeService);
@@ -57,10 +60,9 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   private changeDetectorRef = inject(ChangeDetectorRef);
   private router = inject(Router);
   private emailCreateDraftService = inject(EmailCreateDraftService);
-  override toastr: ToastrService;
-  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
-  isPageReady = true;
+  override toastr: ToastrService;
+
   isSaving = false;
   isDownloading = false;
   iframeKey = 0;
@@ -75,10 +77,11 @@ export class DynamicFormCreateComponent extends BaseDocumentComponent implements
   selectedProperty: PropertyResponse | null = null;
   ownerContact: ContactResponse | null = null;
   allContacts: ContactResponse[] = [];
+  ownerAgreementContext: OwnerAgreementContext | null = null;
 
+  isPageReady = true;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
-  private ownerAgreementContext: OwnerAgreementContext | null = null;
 
   get canShowDocuSignButton(): boolean {
     return isOwnerAuthorizedAdmin(this.ownerAuthorization) && this.canUseDocuSign;

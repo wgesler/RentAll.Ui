@@ -18,12 +18,10 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { LeadRentalRequest, LeadRentalResponse } from '../models/lead-rental.model';
+import { LeadRentalRequest, LeadRentalResponse, RentalLeadFormClosed, RentalQuotePropertyOption } from '../models/lead-rental.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
-import { RentalQuotePropertyOption, RentalQuotePropertySelectDialogComponent } from '../rental-list/rental-quote-property-select-dialog.component';
+import { RentalQuotePropertySelectDialogComponent } from '../rental-list/rental-quote-property-select-dialog.component';
 import { LeadsService } from '../services/leads.service';
-
-export type RentalLeadFormClosed = { saved: boolean; rentalId?: number };
 
 @Component({
   standalone: true,
@@ -38,6 +36,7 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Output() closed = new EventEmitter<RentalLeadFormClosed>();
   @Output() officeSelectionRequired = new EventEmitter<void>();
+
   private router = inject(Router);
   private ngZone = inject(NgZone);
   private fb = inject(FormBuilder);
@@ -47,17 +46,15 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   private leadsService = inject(LeadsService);
   private agentService = inject(AgentService);
   private terminologyService = inject(TerminologyService);
-  agentFieldLabel = 'Agent';
-  selectAgentLabel = 'Select Agent';
   private propertyService = inject(PropertyService);
   private utilityService = inject(UtilityService);
   private formatterService = inject(FormatterService);
   private officeService = inject(OfficeService);
   private cdr = inject(ChangeDetectorRef);
 
+  agentFieldLabel = 'Agent';
+  selectAgentLabel = 'Select Agent';
   form: FormGroup;
-  isServiceError = false;
-  isPageReady = false;
   isAddMode = false;
   isSavingCreate = false;
   lead: LeadRentalResponse | null = null;
@@ -70,6 +67,8 @@ export class RentalComponent implements OnInit, OnChanges, OnDestroy {
   activeProperties: PropertyListResponse[] = [];
   agents: AgentResponse[] = [];
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-lead']));
   destroy$ = new Subject<void>();
 

@@ -27,7 +27,9 @@ import { SidebarAttentionService } from '../services/sidebar-attention.service';
 })
 
 export class SidebarComponent implements OnInit, OnDestroy {
-  router = inject(Router);
+  @ViewChild('sideNav') sideNav: MatSidenav;
+
+  protected router = inject(Router);
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
   private breakpointObserver = inject(BreakpointObserver);
@@ -41,9 +43,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private sidebarAttentionService = inject(SidebarAttentionService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly expandedSidebarWidth = 175;
-  readonly collapsedSidebarWidth = 64;
-  @ViewChild('sideNav') sideNav: MatSidenav;
+  expandedSidebarWidth = 175;
+  collapsedSidebarWidth = 64;
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   isExpanded: boolean = true;
   isHandset = false;

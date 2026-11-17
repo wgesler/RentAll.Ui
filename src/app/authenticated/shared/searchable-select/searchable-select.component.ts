@@ -4,11 +4,7 @@ import { FormControl, FormGroupDirective, FormsModule, NgForm } from '@angular/f
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatSelect, MatSelectChange } from '@angular/material/select';
 import { MaterialModule } from '../../../material.module';
-
-export interface SearchableSelectOption<TValue = string | number | null> {
-  value: TValue;
-  label: string;
-}
+import { SearchableSelectOption } from '../models/searchable-select.model';
 
 @Component({
   standalone: true,
@@ -176,7 +172,7 @@ export class SearchableSelectComponent implements OnChanges, AfterViewInit {
   @Output() valueChange = new EventEmitter<string | number | null>();
   @Output() triggerValueClick = new EventEmitter<Event>();
 
-  @ViewChild('searchableSelectRef') private searchableSelectRef?: MatSelect;
+  @ViewChild('searchableSelectRef') searchableSelectRef?: MatSelect;
 
   showErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: (_control: FormControl | null, _form: FormGroupDirective | NgForm | null): boolean => this.showError
@@ -184,6 +180,17 @@ export class SearchableSelectComponent implements OnChanges, AfterViewInit {
 
   searchText = '';
   isPanelOpen = false;
+
+  compareValues = (left: string | number | null, right: string | number | null): boolean => {
+    if (left === right) {
+      return true;
+    }
+    if (left === null || left === undefined || right === null || right === undefined) {
+      return false;
+    }
+    return String(left) === String(right);
+  };
+
   get allowSearchInput(): boolean {
     if (this.isTitleBarOfficeSelect) {
       return false;
@@ -249,15 +256,6 @@ export class SearchableSelectComponent implements OnChanges, AfterViewInit {
   private isInstructionOptionValue(value: string | number | null | undefined): boolean {
     return this.compareValues(value ?? null, this.instructionOptionValue);
   }
-  compareValues = (left: string | number | null, right: string | number | null): boolean => {
-    if (left === right) {
-      return true;
-    }
-    if (left === null || left === undefined || right === null || right === undefined) {
-      return false;
-    }
-    return String(left) === String(right);
-  };
 
   get filteredOptions(): SearchableSelectOption[] {
     if (!this.allowSearchInput) {

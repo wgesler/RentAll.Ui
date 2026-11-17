@@ -32,16 +32,18 @@ export class MobileDocumentViewPageComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private emailCreateDraftService = inject(EmailCreateDraftService);
-  private destroy$ = new Subject<void>();
-  private objectUrl: string | null = null;
+
+  objectUrl: string | null = null;
   documentId = '';
   document: DocumentResponse | null = null;
   title = 'Document';
-  isPageReady = false;
-  isServiceError = false;
   canViewInBrowser = false;
   imageSrc: string | null = null;
   iframeSrc: SafeResourceUrl | null = null;
+
+  isServiceError = false;
+  isPageReady = false;
+  destroy$ = new Subject<void>();
 
   //#region Mobile-Document-View
   ngOnInit(): void {

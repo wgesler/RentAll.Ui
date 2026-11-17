@@ -19,7 +19,7 @@ import { EmailType } from '../../email/models/email.enum';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { UserService } from '../../users/services/user.service';
-import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet, ColumnData } from '../../shared/data-table/models/column-data';
@@ -52,7 +52,6 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   selectedServiceProviderId = '';
@@ -60,6 +59,8 @@ export class DashboardSchedulesComponent implements OnInit, OnDestroy {
   isPreparingEmail = false;
   isDownloadingSchedule = false;
   emailHtml: EmailHtmlResponse | null = null;
+
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Schedules
   ngOnInit(): void {

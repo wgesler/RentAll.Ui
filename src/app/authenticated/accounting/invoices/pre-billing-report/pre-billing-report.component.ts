@@ -55,7 +55,20 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly preBillingDisplayedColumns: ColumnSet = {
+  allCostCodes: CostCodesResponse[] = [];
+  transactionTypes: { value: number; label: string }[] = TransactionTypeLabels;
+
+  invoices: InvoiceResponse[] = [];
+  invoicesDisplay: PreBillingInvoiceDisplay[] = [];
+  expandedRowKeys = new Set<string>();
+  selectedRowKeys = new Set<string>();
+  isAllExpanded = false;
+  isCreatingInvoices = false;
+  noDataMessage = 'No reservations need billing for the selected offices and month.';
+  loadedCompanyName = '';
+  destroyed = false;
+
+  preBillingDisplayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false, includeInFilter: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     invoiceCode: { displayAs: 'Invoice', maxWidth: '20ch', sortType: 'natural', wrap: false },
@@ -66,7 +79,7 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     totalAmount: { displayAs: 'Total', maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
 
-  readonly ledgerLinesDisplayedColumns: ColumnSet = {
+  ledgerLinesDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
     ledgerLineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
     costCode: { displayAs: 'Cost Code', maxWidth: '25ch', wrap: false },
@@ -75,23 +88,10 @@ export class PreBillingReportComponent implements OnInit, OnChanges, OnDestroy {
     amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right' }
   };
 
-  allCostCodes: CostCodesResponse[] = [];
-  transactionTypes: { value: number; label: string }[] = TransactionTypeLabels;
-
   isServiceError = false;
-  invoices: InvoiceResponse[] = [];
-  invoicesDisplay: PreBillingInvoiceDisplay[] = [];
-  expandedRowKeys = new Set<string>();
-  selectedRowKeys = new Set<string>();
-  isAllExpanded = false;
-  isCreatingInvoices = false;
-  noDataMessage = 'No reservations need billing for the selected offices and month.';
-  loadedCompanyName = '';
-
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['preBillingReport']));
   destroy$ = new Subject<void>();
-  private destroyed = false;
 
   //#region Pre-Billing Report
   ngOnInit(): void {

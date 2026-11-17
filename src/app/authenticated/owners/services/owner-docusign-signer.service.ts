@@ -9,7 +9,7 @@ import { OwnerIncludedOwnersService } from './owner-included-owners.service';
   providedIn: 'root'
 })
 export class OwnerDocuSignSignerService {
-  ownerIncludedOwnersService = inject(OwnerIncludedOwnersService);
+  private ownerIncludedOwnersService = inject(OwnerIncludedOwnersService);
   private terminologyService = inject(TerminologyService);
 
 

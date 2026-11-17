@@ -10,17 +10,9 @@ import { AuthService } from '../../../services/auth.service';
 import { MappingService } from '../../../services/mapping.service';
 import { OfficeResponse } from '../models/office.model';
 import { TrackerContextType, getTrackerContextTypes, toTrackerContextType } from '../models/tracker-enum';
-import { TrackerDefinitionListDisplay, TrackerDefinitionOptionRequest, TrackerDefinitionOptionResponse, TrackerDefinitionRequest } from '../models/tracker.model';
+import { TrackerDefinitionListDisplay, TrackerDefinitionOptionRequest, TrackerDefinitionOptionResponse, TrackerDefinitionRequest, TrackerOptionEditorRow } from '../models/tracker.model';
 import { OfficeService } from '../services/office.service';
 import { TrackerService } from '../services/tracker.service';
-
-interface TrackerOptionEditorRow {
-  trackerDefinitionOptionId?: string;
-  label: string;
-  description?: string;
-  sortOrder: number;
-  isActive: boolean;
-}
 
 @Component({
     standalone: true,
@@ -30,8 +22,6 @@ interface TrackerOptionEditorRow {
     styleUrl: './tracker.component.scss'
 })
 export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() id: string | null = null;
   @Input() selectedOfficeId: number | null = null;
   @Input() selectedTrackerContextId: TrackerContextType | null = null;
@@ -39,15 +29,16 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   @Input() trackerData: TrackerDefinitionListDisplay | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
-  trackerService = inject(TrackerService);
-  fb = inject(FormBuilder);
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
+
+  private cdr = inject(ChangeDetectorRef);
+  private trackerService = inject(TrackerService);
+  private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private mappingService = inject(MappingService);
   private toastr = inject(ToastrService);
-  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
 
-  isServiceError: boolean = false;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   tracker: TrackerDefinitionListDisplay | null = null;
@@ -61,8 +52,9 @@ export class TrackerComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   trackerContextOptions: { value: TrackerContextType, label: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region Tracker

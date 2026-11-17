@@ -21,6 +21,8 @@ import { DocumentService } from '../services/document.service';
     styleUrls: ['./document-view.component.scss']
 })
 export class DocumentViewComponent implements OnInit, OnDestroy {
+  @ViewChild('documentIframe', { static: false }) iframeRef!: ElementRef<HTMLIFrameElement>;
+
   private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -29,15 +31,12 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
   private utilityService = inject(UtilityService);
   private authService = inject(AuthService);
-
-  @ViewChild('documentIframe', { static: false }) iframeRef!: ElementRef<HTMLIFrameElement>;
   
   documentId: string;
   document: DocumentResponse | null = null;
   iframeSrc: SafeResourceUrl | null = null;
   imageSrc: string | null = null;
   iframeKey: number = 0;
-  isServiceError: boolean = false;
   canViewInBrowser: boolean = false;
   
   // Return context
@@ -48,11 +47,12 @@ export class DocumentViewComponent implements OnInit, OnDestroy {
   contactTab?: string;
   contactOfficeId?: string;
   shouldPrint: boolean = false; // Flag to trigger print after document loads
-iframeLoadHandler?: () => void;
-  private objectUrl: string | null = null;
+  iframeLoadHandler?: () => void;
+  objectUrl: string | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['document']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['document']));
   destroy$ = new Subject<void>();
 
   //#region Document-View

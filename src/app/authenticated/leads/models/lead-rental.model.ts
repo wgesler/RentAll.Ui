@@ -75,3 +75,15 @@ export interface LeadRentalListDisplay extends LeadRentalResponse {
 }
 
 export type RentalEditSelection = { rentalId: number; officeId: number | null };
+
+export type RentalLeadFormClosed = { saved: boolean; rentalId?: number };
+
+export interface RentalQuotePropertyOption {
+  propertyId: string;
+  propertyCode: string;
+}
+
+export interface RentalQuotePropertySelectDialogData {
+  options: RentalQuotePropertyOption[];
+  selectedPropertyIds: string[];
+}

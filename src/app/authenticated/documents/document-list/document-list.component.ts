@@ -58,9 +58,10 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() officeIdChange = new EventEmitter<number | null>();
   @Output() companyIdChange = new EventEmitter<string | null>();
   @Output() reservationIdChange = new EventEmitter<string | null>();
-  documentService = inject(DocumentService);
-  toastr = inject(ToastrService);
-  router = inject(Router);
+
+  private documentService = inject(DocumentService);
+  private toastr = inject(ToastrService);
+  private router = inject(Router);
   private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
@@ -72,7 +73,6 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
   private emailCreateDraftService = inject(EmailCreateDraftService);
   private cdr = inject(ChangeDetectorRef);
   
-  isServiceError: boolean = false;
   allDocuments: DocumentListDisplay[] = [];
   documentsDisplay: DocumentListDisplay[] = [];
   
@@ -110,7 +110,8 @@ export class DocumentListComponent implements OnInit, OnDestroy, OnChanges {
     'fileName': { displayAs: 'File Name', maxWidth: '70ch'},
     'createdOn': { displayAs: 'Created', maxWidth: '35ch', alignment: 'center' },
   };
-  
+
+  isServiceError: boolean = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();

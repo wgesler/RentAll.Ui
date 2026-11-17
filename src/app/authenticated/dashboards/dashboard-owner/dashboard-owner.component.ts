@@ -66,10 +66,6 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
   upcomingReservationCount: number = 0;
   todayDate: string = '';
 
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'properties', 'agreements', 'reservations']));
-  destroy$ = new Subject<void>();
-
   ownerPropertiesDisplayedColumns: ColumnSet = {
     officeName: { displayAs: 'Office', maxWidth: '15ch' },
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
@@ -103,6 +99,9 @@ export class DashboardOwnerComponent implements OnInit, OnDestroy {
     rate: { displayAs: 'Rate', maxWidth: '12ch', alignment: 'right' }
   };
 
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['currentUser', 'properties', 'agreements', 'reservations']));
+  destroy$ = new Subject<void>();
 
   //#region Owner Dashboard
   ngOnInit(): void {

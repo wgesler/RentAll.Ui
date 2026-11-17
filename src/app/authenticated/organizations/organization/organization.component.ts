@@ -31,21 +31,20 @@ import { OrganizationService } from '../services/organization.service';
 })
 
 export class OrganizationComponent implements OnInit, OnDestroy {
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
+
   private cdr = inject(ChangeDetectorRef);
-  organizationService = inject(OrganizationService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+  private organizationService = inject(OrganizationService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private commonService = inject(CommonService);
-  formatterService = inject(FormatterService);
+  private formatterService = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private authService = inject(AuthService);
   private organizationFeatureService = inject(OrganizationFeatureService);
 
-  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
-  
-  isServiceError: boolean = false;
   organizationId: string;
   organization: OrganizationResponse;
   form: FormGroup;
@@ -64,8 +63,9 @@ export class OrganizationComponent implements OnInit, OnDestroy {
   organizationFeaturesLoadItemCleared = false;
   states: string[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization']));
   destroy$ = new Subject<void>();
 
   //#region Organization

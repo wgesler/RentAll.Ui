@@ -35,7 +35,8 @@ import { PropertyHtmlService } from '../../../properties/services/property-html.
 import { PropertyService } from '../../../properties/services/property.service';
 import { ReservationResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/models/base-document.model';
 import { TitleBarSelectComponent } from '../../../shared/titlebar-select/titlebar-select.component';
 import { TransactionType } from '../../models/accounting-enum';
 import { CostCodesResponse } from '../../models/cost-codes.model';
@@ -60,6 +61,8 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   @Input() reservationIdInput: string | null = null;
   @Input() companyIdInput: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+
   private propertyHtmlService = inject(PropertyHtmlService);
   private accountingService = inject(InvoiceService);
   private propertyService = inject(PropertyService);
@@ -83,6 +86,7 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
   private invoiceHtmlBuilder = inject(InvoiceHtmlBuilderService);
   private cdr = inject(ChangeDetectorRef);
+
   override toastr: ToastrService;
 
   officeId: number | null = null;
@@ -131,13 +135,11 @@ export class InvoiceCreateComponent extends BaseDocumentComponent implements OnI
   debuggingHtml: boolean = true;
   /** Tied to header Layout debug toggle (DebugLayoutBandsService). */
   debuggingLayoutColors: boolean = false;
-  private previewHtmlBeforeIframe: string = '';
+  previewHtmlBeforeIframe: string = '';
   shouldAutoPrint: boolean = false;
   autoPrintExecuted: boolean = false;
   shouldAutoDownload: boolean = false;
   autoDownloadExecuted: boolean = false;
-  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
-
   isPageReady: boolean = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'property', 'emailHtml', 'invoice', 'previewHtml']));
     destroy$ = new Subject<void>();

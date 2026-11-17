@@ -31,7 +31,7 @@ import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlService } from '../../email/services/email-html.service';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { EmailService } from '../../email/services/email.service';
-import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { AgentResponse, agentDropdownLabel, filterAgentsByOffice } from '../../organizations/models/agent.model';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -43,28 +43,18 @@ import { TerminologyService } from '../../organizations/services/terminology.ser
 import { CheckinTimes, CheckoutTimes, ManagementFeeType, PropertyLeaseType, getCheckInTimes, getCheckOutTimes, normalizeCheckInTimeId, normalizeCheckOutTimeId, normalizeManagementFeeTypeId } from '../../properties/models/property-enums';
 import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { PasswordCheckDialogService } from '../../shared/modals/password-check-dialog/password-check-dialog.service';
-
-interface ValidationProblemDetails {
-  title?: string;
-  message?: string;
-  Message?: string;
-  errors?: Record<string, string[]>;
-}
-
-interface ReservationNotificationFormValue {
-  arrivalDate?: string | Date | null;
-  departureDate?: string | Date | null;
-}
-import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogComponent } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogData } from '../../shared/models/dialog.model';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { BillingMethod, BillingType, DepositType, Frequency, ProrateType, ReferralMethodType, ReservationNotice, ReservationStatus, ReservationType, enabledStatusIdsFromColors, filterEnabledReservationStatuses, getBillingMethods, getBillingTypes, getDepositTypes, getFrequencies, getProrateTypes, getReferralMethodTypes, getReservationNotices, getReservationStatus, getReservationStatuses, getReservationTypes, isClientPaymentBillingMethod, resolveBillingArrivalDate, resolveBillingDepartureDate } from '../models/reservation-enum';
 import { InvoiceMethod, PaymentIntegrationType, getInvoiceMethods, normalizeInvoiceMethodId } from '../../accounting/models/accounting-enum';
-import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationRequest, ReservationResponse } from '../models/reservation-model';
+import { AdditionalContactRow, ExtraFeeLineDisplay, ExtraFeeLineRequest, ReservationListResponse, ReservationLoadedContext, ReservationNotificationContext, ReservationNotificationFormValue, ReservationRequest, ReservationResponse, ValidationProblemDetails } from '../models/reservation-model';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { ReservationService } from '../services/reservation.service';
 import { ReservationPaymentDisplay, ReservationPaymentResponse } from '../models/reservation-payment.model';
@@ -83,17 +73,17 @@ import { AccountingOfficeService } from '../../organizations/services/accounting
 })
 
 export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanComponentDeactivate {
-  readonly ManagementFeeType = ManagementFeeType;
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() shellMode: boolean = false;
   @Input() shellOfficeOptions: SearchableSelectOption[] | null = null;
   @Input() reservationIdInput: string | null = null;
   @Output() addModeScopeResolved = new EventEmitter<{ officeId: number | null; propertyId: string | null }>();
   @Output() reservationLoaded = new EventEmitter<ReservationLoadedContext>();
-  reservationService = inject(ReservationService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+  @ViewChildren('extraFeeDescriptionInput') extraFeeDescriptionInputs?: QueryList<ElementRef<HTMLInputElement>>;
+
+  private cdr = inject(ChangeDetectorRef);
+  private reservationService = inject(ReservationService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private contactService = inject(ContactService);
@@ -107,7 +97,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private emailCreateDraftService = inject(EmailCreateDraftService);
   private commonService = inject(CommonService);
   private authService = inject(AuthService);
-  formatterService = inject(FormatterService);
+  private formatterService = inject(FormatterService);
   private dialog = inject(MatDialog);
   private newContactDialogService = inject(NewContactDialogService);
   private leaseReloadService = inject(LeaseReloadService);
@@ -121,9 +111,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   private userService = inject(UserService);
   private dashboardNavigation = inject(DashboardNavigationService);
   private invoiceService = inject(InvoiceService);
-  @ViewChildren('extraFeeDescriptionInput') extraFeeDescriptionInputs?: QueryList<ElementRef<HTMLInputElement>>;
+  private terminologyService = inject(TerminologyService);
 
-  isServiceError: boolean = false;
+  ManagementFeeType = ManagementFeeType;
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
@@ -171,11 +161,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
   agentFieldLabel = 'Agent';
-  private terminologyService = inject(TerminologyService);
+  selectAgentLabel = 'Select Agent';
+  agentRequiredText = 'Agent is required';
   handlersSetup: boolean = false;
   extraFeeLines: ExtraFeeLineDisplay[] = [];
   reservationPayments: ReservationPaymentDisplay[] = [];
-  private reservationPaymentBaselines = new Map<number, { amount: number; startDate: string; endDate: string }>();
+  reservationPaymentBaselines = new Map<number, { amount: number; startDate: string; endDate: string }>();
   savedBillingRate: number | null = null;
   isLoadingReservationPayments = false;
   isSavingReservationPaymentAction = false;
@@ -192,8 +183,176 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   billingStartAfterArrivalOverrideConfirmed = false;
   dateOverrideDialogOpen = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation']));
+  agentSelectionRequiredValidator: ValidatorFn = (control: AbstractControl) => {
+    const value = control.value;
+    if (value === null || value === undefined || value === '') {
+      return { required: true };
+    }
+    return null;
+  };
+
+  referralMethodRequiredValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    if (!this.form?.get('referralFee')?.value) {
+      return null;
+    }
+    const value = control.value;
+    if (value === null || value === undefined || value === ReferralMethodType.None) {
+      return { referralMethodRequired: true };
+    }
+    return null;
+  };
+
+  referralPercentageAmountValidator: ValidatorFn = (): ValidationErrors | null => {
+    return this.getReferralAmountValidationErrors();
+  };
+
+  departureAfterArrivalValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const arrivalRaw = group.get('arrivalDate')?.value;
+    const departureRaw = control.value;
+    if (!arrivalRaw || !departureRaw) {
+      return null;
+    }
+    const arrival = this.parseDateOnly(arrivalRaw);
+    const departure = this.parseDateOnly(departureRaw);
+    if (!arrival || !departure) {
+      return null;
+    }
+    return departure.getTime() > arrival.getTime() ? null : { departureAfterArrival: true };
+  };
+
+  arrivalBeforeDepartureValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const arrivalRaw = control.value;
+    const departureRaw = group.get('departureDate')?.value;
+    if (!arrivalRaw || !departureRaw) {
+      return null;
+    }
+    const arrival = this.parseDateOnly(arrivalRaw);
+    const departure = this.parseDateOnly(departureRaw);
+    if (!arrival || !departure) {
+      return null;
+    }
+    return departure.getTime() > arrival.getTime() ? null : { arrivalBeforeDeparture: true };
+  };
+
+  arrivalNotChangedAfterStartValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    if (this.canEditArrivalDate || this.arrivalChangeOverrideConfirmed) {
+      return null;
+    }
+    return this.isSameDateOnly(this.reservation?.arrivalDate, control.value) ? null : { arrivalNotChangedAfterStart: true };
+  };
+
+  billingStartBeforeArrivalValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const billingStartRaw = control.value;
+    const arrivalRaw = group.get('arrivalDate')?.value;
+    if (!billingStartRaw || !arrivalRaw) {
+      return null;
+    }
+    const billingStart = this.parseDateOnly(billingStartRaw);
+    const arrival = this.parseDateOnly(arrivalRaw);
+    if (!billingStart || !arrival) {
+      return null;
+    }
+    if (this.billingStartAfterArrivalOverrideConfirmed || this.isPersistedBillingStartAfterArrivalPair(billingStart, arrival)) {
+      return null;
+    }
+    return billingStart.getTime() <= arrival.getTime() ? null : { billingStartBeforeArrival: true };
+  };
+
+  billingEndAfterDepartureValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const billingEndRaw = control.value;
+    const departureRaw = group.get('departureDate')?.value;
+    if (!billingEndRaw || !departureRaw) {
+      return null;
+    }
+    const billingEnd = this.parseDateOnly(billingEndRaw);
+    const departure = this.parseDateOnly(departureRaw);
+    if (!billingEnd || !departure) {
+      return null;
+    }
+    return billingEnd.getTime() >= departure.getTime() ? null : { billingEndAfterDeparture: true };
+  };
+
+  billingStartBeforeBillingEndValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const billingStartRaw = control.value;
+    const billingEndRaw = group.get('billingEndDate')?.value;
+    if (!billingStartRaw || !billingEndRaw) {
+      return null;
+    }
+    const billingStart = this.parseDateOnly(billingStartRaw);
+    const billingEnd = this.parseDateOnly(billingEndRaw);
+    if (!billingStart || !billingEnd) {
+      return null;
+    }
+    return billingEnd.getTime() > billingStart.getTime() ? null : { billingStartBeforeBillingEnd: true };
+  };
+
+  billingEndAfterBillingStartValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const group = control.parent;
+    if (!group) {
+      return null;
+    }
+    const billingEndRaw = control.value;
+    const billingStartRaw = group.get('billingStartDate')?.value;
+    if (!billingStartRaw || !billingEndRaw) {
+      return null;
+    }
+    const billingStart = this.parseDateOnly(billingStartRaw);
+    const billingEnd = this.parseDateOnly(billingEndRaw);
+    if (!billingStart || !billingEnd) {
+      return null;
+    }
+    return billingEnd.getTime() > billingStart.getTime() ? null : { billingEndAfterBillingStart: true };
+  };
+
+  arrivalDateCalendarFilter = (date: Date | null): boolean => {
+    const day = this.parseDateOnly(date);
+    if (!day) {
+      return false;
+    }
+    if (this.isPersistedReservationCalendarDate(day)) {
+      return true;
+    }
+    return !this.isDateHeldByPropertyReservation(day);
+  };
+
+  departureDateCalendarFilter = (date: Date | null): boolean => {
+    const day = this.parseDateOnly(date);
+    if (!day) {
+      return false;
+    }
+    if (this.isPersistedReservationCalendarDate(day)) {
+      return true;
+    }
+    const min = this.getMinDepartureDate();
+    if (min && day.getTime() < min.getTime()) {
+      return false;
+    }
+    return !this.isDateHeldByPropertyReservation(day);
+  };
+
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation']));
   destroy$ = new Subject<void>();
 
   //#region Reservation
@@ -1353,9 +1512,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   //#endregion
 
   //#region Form Response Methods
-  selectAgentLabel = 'Select Agent';
-  agentRequiredText = 'Agent is required';
-
   applyAgentFieldLabel(): void {
     const officeId = this.selectedOffice?.officeId ?? this.globalSelectionService.getSelectedOfficeIdValue();
     this.agentFieldLabel = this.terminologyService.labelFor('Agent', officeId);
@@ -1573,147 +1729,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
   }
 
-  agentSelectionRequiredValidator: ValidatorFn = (control: AbstractControl) => {
-    const value = control.value;
-    if (value === null || value === undefined || value === '') {
-      return { required: true };
-    }
-    return null;
-  };
-
-  referralMethodRequiredValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    if (!this.form?.get('referralFee')?.value) {
-      return null;
-    }
-    const value = control.value;
-    if (value === null || value === undefined || value === ReferralMethodType.None) {
-      return { referralMethodRequired: true };
-    }
-    return null;
-  };
-
-  referralPercentageAmountValidator: ValidatorFn = (): ValidationErrors | null => {
-    return this.getReferralAmountValidationErrors();
-  };
-
-  departureAfterArrivalValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    const group = control.parent;
-    if (!group) {
-      return null;
-    }
-    const arrivalRaw = group.get('arrivalDate')?.value;
-    const departureRaw = control.value;
-    if (!arrivalRaw || !departureRaw) {
-      return null;
-    }
-    const arrival = this.parseDateOnly(arrivalRaw);
-    const departure = this.parseDateOnly(departureRaw);
-    if (!arrival || !departure) {
-      return null;
-    }
-    return departure.getTime() > arrival.getTime() ? null : { departureAfterArrival: true };
-  };
-
-  arrivalBeforeDepartureValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    const group = control.parent;
-    if (!group) {
-      return null;
-    }
-    const arrivalRaw = control.value;
-    const departureRaw = group.get('departureDate')?.value;
-    if (!arrivalRaw || !departureRaw) {
-      return null;
-    }
-    const arrival = this.parseDateOnly(arrivalRaw);
-    const departure = this.parseDateOnly(departureRaw);
-    if (!arrival || !departure) {
-      return null;
-    }
-    return departure.getTime() > arrival.getTime() ? null : { arrivalBeforeDeparture: true };
-  };
-
-  arrivalNotChangedAfterStartValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    if (this.canEditArrivalDate || this.arrivalChangeOverrideConfirmed) {
-      return null;
-    }
-    return this.isSameDateOnly(this.reservation?.arrivalDate, control.value) ? null : { arrivalNotChangedAfterStart: true };
-  };
-
-  billingStartBeforeArrivalValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    const group = control.parent;
-    if (!group) {
-      return null;
-    }
-    const billingStartRaw = control.value;
-    const arrivalRaw = group.get('arrivalDate')?.value;
-    if (!billingStartRaw || !arrivalRaw) {
-      return null;
-    }
-    const billingStart = this.parseDateOnly(billingStartRaw);
-    const arrival = this.parseDateOnly(arrivalRaw);
-    if (!billingStart || !arrival) {
-      return null;
-    }
-    if (this.billingStartAfterArrivalOverrideConfirmed || this.isPersistedBillingStartAfterArrivalPair(billingStart, arrival)) {
-      return null;
-    }
-    return billingStart.getTime() <= arrival.getTime() ? null : { billingStartBeforeArrival: true };
-  };
-
-  billingEndAfterDepartureValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    const group = control.parent;
-    if (!group) {
-      return null;
-    }
-    const billingEndRaw = control.value;
-    const departureRaw = group.get('departureDate')?.value;
-    if (!billingEndRaw || !departureRaw) {
-      return null;
-    }
-    const billingEnd = this.parseDateOnly(billingEndRaw);
-    const departure = this.parseDateOnly(departureRaw);
-    if (!billingEnd || !departure) {
-      return null;
-    }
-    return billingEnd.getTime() >= departure.getTime() ? null : { billingEndAfterDeparture: true };
-  };
-
-  billingStartBeforeBillingEndValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    const group = control.parent;
-    if (!group) {
-      return null;
-    }
-    const billingStartRaw = control.value;
-    const billingEndRaw = group.get('billingEndDate')?.value;
-    if (!billingStartRaw || !billingEndRaw) {
-      return null;
-    }
-    const billingStart = this.parseDateOnly(billingStartRaw);
-    const billingEnd = this.parseDateOnly(billingEndRaw);
-    if (!billingStart || !billingEnd) {
-      return null;
-    }
-    return billingEnd.getTime() > billingStart.getTime() ? null : { billingStartBeforeBillingEnd: true };
-  };
-
-  billingEndAfterBillingStartValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    const group = control.parent;
-    if (!group) {
-      return null;
-    }
-    const billingEndRaw = control.value;
-    const billingStartRaw = group.get('billingStartDate')?.value;
-    if (!billingStartRaw || !billingEndRaw) {
-      return null;
-    }
-    const billingStart = this.parseDateOnly(billingStartRaw);
-    const billingEnd = this.parseDateOnly(billingEndRaw);
-    if (!billingStart || !billingEnd) {
-      return null;
-    }
-    return billingEnd.getTime() > billingStart.getTime() ? null : { billingEndAfterBillingStart: true };
-  };
-
   revalidateReservationDateFields(): void {
     if (!this.form) {
       return;
@@ -1823,32 +1838,6 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     }
     this.applyDepartureFromStayDays(days);
   }
-
-  arrivalDateCalendarFilter = (date: Date | null): boolean => {
-    const day = this.parseDateOnly(date);
-    if (!day) {
-      return false;
-    }
-    if (this.isPersistedReservationCalendarDate(day)) {
-      return true;
-    }
-    return !this.isDateHeldByPropertyReservation(day);
-  };
-
-  departureDateCalendarFilter = (date: Date | null): boolean => {
-    const day = this.parseDateOnly(date);
-    if (!day) {
-      return false;
-    }
-    if (this.isPersistedReservationCalendarDate(day)) {
-      return true;
-    }
-    const min = this.getMinDepartureDate();
-    if (min && day.getTime() < min.getTime()) {
-      return false;
-    }
-    return !this.isDateHeldByPropertyReservation(day);
-  };
 
   loadPropertyReservationDateRanges(propertyId: string | null | undefined): void {
     const id = propertyId?.trim() ?? '';

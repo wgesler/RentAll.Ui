@@ -10,19 +10,7 @@ import { DashboardPropertyTurnoverRow, MaintenanceListDisplay } from '../../shar
 import { PropertyLeaseType } from '../../properties/models/property-enums';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 import { DashboardNavigationService } from '../services/dashboard-navigation.service';
-
-type OnlineTurnoverRow = DashboardPropertyTurnoverRow & {
-  expand: string;
-  expanded: boolean;
-  maintenanceRows: MaintenanceListDisplay[];
-  expandClick: (event: Event, item: OnlineTurnoverRow) => void;
-};
-
-type OnlineLeaseTypeSection = {
-  leaseTypeId: PropertyLeaseType;
-  title: string;
-  rows: OnlineTurnoverRow[];
-};
+import { OnlineLeaseTypeSection, OnlineTurnoverRow } from '../models/dashboard-model';
 
 const ONLINE_LEASE_TYPE_SECTIONS: ReadonlyArray<{ leaseTypeId: PropertyLeaseType; title: string }> = [
   { leaseTypeId: PropertyLeaseType.PropertyManagement, title: 'Property Management' },
@@ -43,12 +31,13 @@ export class DashboardOnlineComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   leaseTypeSections: OnlineLeaseTypeSection[] = [];
   orphanMaintenanceRows: MaintenanceListDisplay[] = [];
   expandedPropertyKeys = new Set<string>();
+
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Online
   ngOnInit(): void {

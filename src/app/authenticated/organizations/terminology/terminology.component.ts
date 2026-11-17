@@ -23,6 +23,7 @@ export class TerminologyComponent implements OnInit, OnDestroy, OnChanges {
   @Input() officeId: number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+
   private terminologyService = inject(TerminologyService);
   private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);

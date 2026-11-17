@@ -37,6 +37,8 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() refreshTrigger = 0;
   @Output() transferSelect = new EventEmitter<TransferSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  @ViewChild('transferSplitsTemplate') transferSplitsTemplate?: TemplateRef<unknown>;
+
   private transferService = inject(TransferService);
   private mappingService = inject(MappingService);
   private propertyService = inject(PropertyService);
@@ -48,11 +50,6 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
-  @ViewChild('transferSplitsTemplate') transferSplitsTemplate?: TemplateRef<unknown>;
-
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transfers']));
-  destroy$ = new Subject<void>();
   showInactive = false;
   isAdmin = false;
   canEditIsActiveCheckbox = false;
@@ -67,7 +64,7 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
   transferSearchInFlightKey: string | null = null;
   cancelTransfersLoad$ = new Subject<void>();
 
-  readonly transferDisplayedColumns: ColumnSet = {
+  transferDisplayedColumns: ColumnSet = {
     transferDate: { displayAs: 'Transfer Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
     transferCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
@@ -82,7 +79,7 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
-  readonly transferSplitDisplayedColumns: ColumnSet = {
+  transferSplitDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', wrap: false },
@@ -91,6 +88,10 @@ export class TransfersListComponent implements OnInit, OnChanges, OnDestroy {
     description: { displayAs: 'Description', maxWidth: '44ch', wrap: false },
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transfers']));
+  destroy$ = new Subject<void>();
 
   //#region Transfers List
   ngOnInit(): void {

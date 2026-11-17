@@ -117,3 +117,11 @@ export function getInspectionTypes(): { value: number; label: string }[] {
   }));
 }
 //#endregion
+
+//#region Receipt Draft Source Flags
+export enum ReceiptDraftSourceFlags {
+  None = 0,
+  Upload = 1,
+  StatementImport = 2
+}
+//#endregion

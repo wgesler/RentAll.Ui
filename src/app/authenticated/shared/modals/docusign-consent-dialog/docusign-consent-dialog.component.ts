@@ -1,10 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
-
-export interface DocuSignConsentDialogData {
-  consentUrl: string;
-}
+import { DocuSignConsentDialogData } from '../../models/dialog.model';
 
 @Component({
   selector: 'app-docusign-consent-dialog',
@@ -14,8 +11,8 @@ export interface DocuSignConsentDialogData {
   styleUrl: './docusign-consent-dialog.component.scss'
 })
 export class DocuSignConsentDialogComponent {
-  data = inject<DocuSignConsentDialogData>(MAT_DIALOG_DATA);
-  dialogRef = inject(MatDialogRef<DocuSignConsentDialogComponent>);
+  protected data = inject<DocuSignConsentDialogData>(MAT_DIALOG_DATA);
+  private dialogRef = inject(MatDialogRef<DocuSignConsentDialogComponent>);
 
   openConsentPage(): void {
     window.open(this.data.consentUrl, '_blank', 'noopener,noreferrer');

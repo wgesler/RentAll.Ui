@@ -26,6 +26,7 @@ export class AccountingLogListComponent implements OnInit, OnChanges, OnDestroy 
   @Input() reloadToken = 0;
   @Output() openAccountingLog = new EventEmitter<AccountingLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+
   private logService = inject(LogService);
   private propertyService = inject(PropertyService);
   private invoiceService = inject(InvoiceService);

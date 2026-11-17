@@ -13,6 +13,7 @@ import { ApplicationLogResponse } from '../models/log.model';
 export class ApplicationLogComponent implements OnInit, OnDestroy {
   @Input() row: ApplicationLogResponse | null = null;
   @Output() closed = new EventEmitter<void>();
+
   constructor() {}
 
   //#region Application-Log

@@ -2,10 +2,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
-
-export interface PropertyCodeDialogResult {
-  code: string;
-}
+import { PropertyCodeDialogResult } from '../models/property.model';
 
 @Component({
   standalone: true,

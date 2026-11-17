@@ -10,11 +10,9 @@ import { FormatterService } from '../../../services/formatter-service';
 import { UtilityService } from '../../../services/utility.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { LeadPartnerRequest, LeadPartnerResponse, LeadPartnerUpdateRequest } from '../models/lead-partner.model';
+import { LeadPartnerRequest, LeadPartnerResponse, LeadPartnerUpdateRequest, PartnerLeadFormClosed } from '../models/lead-partner.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
-
-export type PartnerLeadFormClosed = { saved: boolean; partnerId?: number };
 
 @Component({
   standalone: true,
@@ -39,8 +37,6 @@ export class PartnerComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   form: FormGroup;
-  isServiceError = false;
-  isPageReady = false;
   isAddMode = false;
   isSavingPartnerLead = false;
   lead: LeadPartnerResponse | null = null;
@@ -50,6 +46,8 @@ export class PartnerComponent implements OnInit, OnChanges, OnDestroy {
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['partner-lead']));
   destroy$ = new Subject<void>();
 

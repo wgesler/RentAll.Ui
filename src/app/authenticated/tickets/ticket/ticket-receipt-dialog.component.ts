@@ -4,20 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
 import { ReceiptResponse } from '../../maintenance/models/receipt.model';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
-import { PropertyResponse } from '../../properties/models/property.model';
-
-export interface TicketReceiptDialogData {
-  property: PropertyResponse | null;
-  ticketId: string | null;
-  receiptId?: string | null;
-  organizationId?: string | null;
-  onCreated?: (receipt: ReceiptResponse) => void;
-}
-
-export interface TicketReceiptDialogResult {
-  saved: boolean;
-  receipt?: ReceiptResponse;
-}
+import { TicketReceiptDialogData, TicketReceiptDialogResult } from '../models/ticket-models';
 
 @Component({
   standalone: true,
@@ -27,17 +14,17 @@ export interface TicketReceiptDialogResult {
   styleUrl: './ticket-receipt-dialog.component.scss'
 })
 export class TicketReceiptDialogComponent {
+  @ViewChild('receiptDetail') receiptDetail?: ReceiptComponent;
+
   private dialogRef = inject<MatDialogRef<TicketReceiptDialogComponent, TicketReceiptDialogResult>>(MatDialogRef);
 
-  @ViewChild('receiptDetail') receiptDetail?: ReceiptComponent;
+  data: TicketReceiptDialogData;
 
   constructor() {
     const data = inject<TicketReceiptDialogData>(MAT_DIALOG_DATA);
 
     this.data = data;
   }
-
-  data: TicketReceiptDialogData;
 
   get isSubmitting(): boolean {
     return this.receiptDetail?.isSubmitting ?? false;

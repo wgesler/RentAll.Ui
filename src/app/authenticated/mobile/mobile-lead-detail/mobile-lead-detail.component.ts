@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, In
 import { ToastrService } from 'ngx-toastr';
 import { MaterialModule } from '../../../material.module';
 import { CommonMessage } from '../../../enums/common-message.enum';
-import { GeneralLeadFormClosed } from '../../leads/general/general.component';
-import { OwnerLeadFormClosed } from '../../leads/owner/owner.component';
-import { PartnerLeadFormClosed } from '../../leads/partner/partner.component';
-import { RentalLeadFormClosed } from '../../leads/rental/rental.component';
+import { GeneralLeadFormClosed } from '../../leads/models/lead-general.model';
+import { OwnerLeadFormClosed } from '../../leads/models/lead-owner.model';
+import { PartnerLeadFormClosed } from '../../leads/models/lead-partner.model';
+import { RentalLeadFormClosed } from '../../leads/models/lead-rental.model';
 import { MobileLeadGeneralComponent } from '../mobile-lead-general/mobile-lead-general.component';
 import { MobileLeadOwnerComponent } from '../mobile-lead-owner/mobile-lead-owner.component';
 import { MobileLeadPartnerComponent } from '../mobile-lead-partner/mobile-lead-partner.component';

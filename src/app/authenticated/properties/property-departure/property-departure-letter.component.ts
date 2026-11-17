@@ -30,7 +30,8 @@ import { BuildingService } from '../../organizations/services/building.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse, ReservationResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { getCheckInTime, getCheckOutTime, getTrashPickupDay } from '../models/property-enums';
 import { PropertyHtmlResponse } from '../models/property-html.model';
 import { PropertyInformationResponse } from '../models/property-information.model';
@@ -57,6 +58,7 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
   @Input() showReservationOnly: boolean = false;
   @Input() reservations: ReservationListResponse[] = [];
   @Output() reservationSelected = new EventEmitter<string | null>();
+
   private propertyHtmlService = inject(PropertyHtmlService);
   private propertyInformationService = inject(PropertyInformationService);
   private propertyService = inject(PropertyService);
@@ -78,6 +80,7 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
   private router = inject(Router);
   private emailCreateDraftService = inject(EmailCreateDraftService);
   private cdr = inject(ChangeDetectorRef);
+
   override toastr: ToastrService;
 
   isSubmitting: boolean = false;
@@ -101,16 +104,16 @@ export class PropertyDepartureLetterComponent extends BaseDocumentComponent impl
   iframeKey: number = 0;
   isDownloading: boolean = false;
   debuggingHtml: boolean = false; // environment.local || environment.dev;
-  isPageReady: boolean = false;
   propertyReservationsLoaded: boolean = false;
   pendingFilterOfficeId: number | null | undefined = undefined;
   isBranded: boolean = true;
   includeDepartureDate: boolean = true;
   reservationLoadSeq = 0;
-  private emailHtmlLoadSeq = 0;
-
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'departureLetter', 'propertyInformation', 'organization', 'buildings', 'emailHtml', 'logo']));
+  emailHtmlLoadSeq = 0;
   logoSourcesLoaded = { accountingOffices: false, organization: false };
+
+  isPageReady: boolean = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['property', 'reservations', 'departureLetter', 'propertyInformation', 'organization', 'buildings', 'emailHtml', 'logo']));
   destroy$ = new Subject<void>();
 
   constructor() {

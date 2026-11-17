@@ -20,7 +20,8 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { AccountingOfficeService } from '../../organizations/services/accounting-office.service';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { PropertyResponse } from '../models/property.model';
 import { QuoteListingColumnFlags, QuotePropertyListingLink } from '../models/quote.model';
@@ -39,8 +40,9 @@ import { MappingService } from '../../../services/mapping.service';
   styleUrl: './quote-create.component.scss'
 })
 export class QuoteCreateComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
-
   @Input() propertyIds: string[] = [];
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+
   private fb = inject(FormBuilder);
   private sanitizer = inject(DomSanitizer);
   private http = inject(HttpClient);
@@ -59,9 +61,8 @@ export class QuoteCreateComponent extends BaseDocumentComponent implements OnIni
   private partnerService = inject(PartnerService);
   private leadsService = inject(LeadsService);
   private cdr = inject(ChangeDetectorRef);
-  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
 
-  readonly quoteSnapshotQueryKeys = { preparedForName: 'qpfn', quoteEmail: 'qem', agentName: 'qag', quoteValidFor: 'qvf'};
+  quoteSnapshotQueryKeys = { preparedForName: 'qpfn', quoteEmail: 'qem', agentName: 'qag', quoteValidFor: 'qvf'};
 
   form: FormGroup;
   isLoadingLinks = false;

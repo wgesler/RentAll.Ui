@@ -72,6 +72,8 @@ export interface ReplaceOwnerAgreementInformationOptions {
   managementFeeTypeId?: number | null;
 }
 
+export type AgreementInfoScopeOption = 'organization' | 'office' | 'property';
+
 const SECTION_ONE_ITEM_FOUR_PLACEHOLDER = /\{\{\s*sectionOneItemFourLi\s*\}\}/i;
 
 const SECTION_ONE_ITEM_FOUR_DEFAULTS: Record<'split' | 'minimum' | 'flat', string> = {

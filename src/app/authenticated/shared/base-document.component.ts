@@ -4,10 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { take } from 'rxjs';
 import { DocumentExportService } from '../../services/document-export.service';
-import { DocumentHtmlService, PrintStyleOptions } from '../../services/document-html.service';
-import { ContactResponse } from '../contacts/models/contact.model';
-import { DocumentType } from '../documents/models/document.enum';
-import { EmailType } from '../email/models/email.enum';
+import { DocumentHtmlService } from '../../services/document-html.service';
 import { GenerateDocumentFromHtmlDto } from '../documents/models/document.model';
 import { AuthService } from '../../services/auth.service';
 import { GlobalSelectionService } from '../organizations/services/global-selection.service';
@@ -15,75 +12,24 @@ import { OfficeService } from '../organizations/services/office.service';
 import { DocuSignService } from '../email/services/docusign.service';
 import { EmailService } from '../email/services/email.service';
 import { DocumentService } from '../documents/services/document.service';
-import { FileDetails } from '../documents/models/document.model';
 import { extractDocuSignConsentUrl, isDocuSignConsentRequired } from '../email/utils/docusign-error.util';
 import { sendDocumentDocuSign } from '../email/utils/send-document-docusign';
 import { sendDocumentEmail } from '../email/utils/send-document-email';
 import { DocuSignConsentDialogComponent } from './modals/docusign-consent-dialog/docusign-consent-dialog.component';
-
-export interface DocumentConfig {
-  previewIframeHtml: string;
-  previewIframeStyles: string;
-  organizationId: string | null;
-  selectedOfficeId: number | null;
-  selectedOfficeName?: string;
-  selectedReservationId?: string | null;
-  propertyId?: string | null;
-  contacts?: ContactResponse[];
-  isDownloading: boolean;
-  printStyleOptions?: PrintStyleOptions;
-}
-
-export interface DownloadConfig {
-  fileName: string;
-  documentType: DocumentType;
-  noPreviewMessage: string;
-  noSelectionMessage: string;
-  errorMessage?: string;
-}
-export interface EmailConfig {
-  subject: string;
-  toEmail: string;
-  toName: string;
-  ccEmails?: string[];
-  bccEmails?: string[];
-  fromEmail: string;
-  fromName: string;
-  documentType: DocumentType;
-  emailType: EmailType;
-  plainTextContent: string;
-  htmlContent?: string;
-  includeDocumentAttachment?: boolean;
-  fileDetails?: FileDetails | null;
-  additionalFileDetails?: FileDetails[];
-  errorMessage?: string;
-}
-
-export interface DocuSignSignerConfig {
-  email: string;
-  name: string;
-  routingOrder: number;
-}
-
-export interface DocuSignConfig {
-  subject: string;
-  signers: DocuSignSignerConfig[];
-  documentType: DocumentType;
-  fileName: string;
-  errorMessage?: string;
-}
+import { DocumentConfig, DocuSignConfig, DownloadConfig, EmailConfig } from './models/base-document.model';
 
 export abstract class BaseDocumentComponent {
-  public documentService = inject(DocumentService);
-  public documentExportService = inject(DocumentExportService);
-  public documentHtmlService = inject(DocumentHtmlService);
-  public toastr = inject(ToastrService);
+  protected documentService = inject(DocumentService);
+  protected documentExportService = inject(DocumentExportService);
+  protected documentHtmlService = inject(DocumentHtmlService);
+  protected toastr = inject(ToastrService);
   protected emailService = inject(EmailService);
   protected authService = inject(AuthService);
   protected docuSignService = inject(DocuSignService);
   private readonly docuSignGlobalSelectionService = inject(GlobalSelectionService);
   private readonly docuSignOfficeService = inject(OfficeService);
   private readonly dialog = inject(MatDialog);
+
   isSendingDocuSign = false;
 
   get hasDocuSignAccess(): boolean {

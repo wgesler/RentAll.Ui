@@ -30,7 +30,8 @@ import { ReceiptPrefill, ReceiptRequest, ReceiptResponse, ReceiptSelection, isRe
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../../maintenance/work-order-create/work-order-create.component';
-import { WorkOrderListComponent, WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
+import { WorkOrderListComponent } from '../../maintenance/work-order-list/work-order-list.component';
+import { WorkOrderSelection } from '../../maintenance/models/work-order.model';
 import { WorkOrderPreviewSelection, WorkOrderResponse } from '../../maintenance/models/work-order.model';
 import { ReceiptsListComponent } from '../../maintenance/receipts-list/receipts-list.component';
 import { CreditReportComponent } from '../vendors/credit-report/credit-report.component';
@@ -54,7 +55,7 @@ import { PropertyCodeResponse, PropertyResponse } from '../../properties/models/
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { InvoiceComponent } from '../invoices/invoice/invoice.component';
 import { InvoiceCreateComponent } from '../invoices/invoice-create/invoice-create.component';
 import { InvoiceListComponent } from '../invoices/invoice-list/invoice-list.component';
@@ -75,7 +76,7 @@ import { OwnerReportComponent, clearOwnerReportKindCache } from '../owners/owner
 import { OwnerStatementCreateComponent } from '../owners/owner-statement-create/owner-statement-create.component';
 import { OwnerStatementListComponent } from '../owners/owner-statement-list/owner-statement-list.component';
 import { BillReportComponent } from '../vendors/bill-report/bill-report.component';
-import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellInvoiceKind, AccountingShellOwnerKind, AccountingShellReportKind } from '../models/accounting-shell.model';
+import { AccountingShellBankActivityKind, AccountingShellBillsReceiptKind, AccountingShellGeneralLedgerKind, AccountingShellInvoiceKind, AccountingShellNavigationState, AccountingShellOwnerKind, AccountingShellPinnedTopBarState, AccountingShellReportKind, JournalEntrySyncProgressKey, JournalEntrySyncProgressRow } from '../models/accounting-shell.model';
 import { JournalEntryRecapComponent } from '../general-ledger/journal-entry-recap/journal-entry-recap.component';
 import { ReconcileComponent } from '../bank/reconcile/reconcile.component';
 import { BeginReconciliationDialogComponent } from '../bank/reconcile/begin-reconciliation-dialog.component';
@@ -95,56 +96,12 @@ import { JournalEntryLineSelection, JournalEntryResponse, JournalEntrySyncResult
 import { OwnerStatementActivityLinkSelection, OwnerStatementJournalEntryLineSearchRequest, OwnerStatementListViewState, OwnerStatementMonthLineListDisplay, OwnerStatementReportKind } from '../models/owner-statement.model';
 import { OwnerReportDetailsComponent } from '../owners/owner-report-details/owner-report-details.component';
 import { SecurityDepositService } from '../services/security-deposit.service';
-import { SecurityDepositJournalSelection, SecurityDepositsListComponent } from '../bank/security-deposits-list/security-deposits-list.component';
+import { SecurityDepositsListComponent } from '../bank/security-deposits-list/security-deposits-list.component';
 import { SecurityDepositReportComponent } from '../bank/security-deposit-report/security-deposit-report.component';
-import { SecurityDepositReportSelection } from '../models/security-deposit-report.model';
+import { SecurityDepositJournalSelection, SecurityDepositReportSelection } from '../models/security-deposit-report.model';
 import { OwnerReportsCacheService, EscrowReportCacheService } from '../services/owner-reports-cache.service';
 import { OwnerReportSearchRequest } from '../models/owner-report.model';
 import { EscrowReportAmountDrillDownSelection, EscrowReportJournalEntryLineSearchRequest } from '../models/escrow-report.model';
-
-type JournalEntrySyncProgressKey =
-  | 'invoice'
-  | 'payment'
-  | 'bill'
-  | 'receipt'
-  | 'workOrder'
-  | 'deposit'
-  | 'transfer'
-  | 'departureFee'
-  | 'linenAndTowelFee'
-  | 'retainedEarnings';
-
-interface JournalEntrySyncProgressRow {
-  key: JournalEntrySyncProgressKey;
-  label: string;
-  total: number;
-  processed: number;
-  skipped: number;
-  errors: number;
-  status: string;
-}
-
-interface AccountingShellPinnedTopBarState {
-  enabled: boolean;
-  startDate: string;
-  endDate: string;
-  /** @deprecated Legacy pinned state; migrated to startDate/endDate on load. */
-  asOfDate?: string;
-  /** @deprecated Legacy pinned state; migrated to startDate/endDate on load. */
-  asOfStart?: string;
-}
-
-interface AccountingShellNavigationState {
-  selectedTabIndex: number;
-  selectedInvoiceKind?: AccountingShellInvoiceKind;
-  selectedBillsReceiptKind?: AccountingShellBillsReceiptKind;
-  selectedBankActivityKind?: AccountingShellBankActivityKind;
-  selectedOwnerKind?: AccountingShellOwnerKind;
-  selectedReportKind?: AccountingShellReportKind;
-  selectedGeneralLedgerKind?: AccountingShellGeneralLedgerKind;
-  selectedOwnerStatementReportKind?: OwnerStatementReportKind;
-}
-
 @Component({
     selector: 'app-accounting-shell',
     standalone: true,
@@ -194,6 +151,23 @@ interface AccountingShellNavigationState {
     styleUrls: ['./accounting-shell.component.scss']
 })
 export class AccountingShellComponent implements OnInit, OnDestroy {
+  @ViewChild(CreditReportComponent) creditReport?: CreditReportComponent;
+  @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
+  @ViewChild(PaymentListComponent) accountingPaymentList?: PaymentListComponent;
+  @ViewChild('preBillingInvoiceEditor') preBillingInvoiceEditor?: InvoiceComponent;
+  @ViewChild('missingInvoiceEditor') missingInvoiceEditor?: InvoiceComponent;
+  @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
+  @ViewChild('financialReport') financialReport?: FinancialReportComponent;
+  @ViewChild('arAgingReport') arAgingReport?: ArAgingReportComponent;
+  @ViewChild('ownerApAgingReport') ownerApAgingReport?: ApAgingReportComponent;
+  @ViewChild('reportsApAgingReport') reportsApAgingReport?: ApAgingReportComponent;
+  @ViewChild('reconcileAccountReport') reconcileAccountReport?: ReconcileAccountReportComponent;
+  @ViewChild('billsReceiptsMenuTrigger') billsReceiptsMenuTrigger?: MatMenuTrigger;
+  @ViewChild('invoicesMenuTrigger') invoicesMenuTrigger?: MatMenuTrigger;
+  @ViewChild('bankActivitiesMenuTrigger') bankActivitiesMenuTrigger?: MatMenuTrigger;
+  @ViewChild('ownersMenuTrigger') ownersMenuTrigger?: MatMenuTrigger;
+  @ViewChild('reportsMenuTrigger') reportsMenuTrigger?: MatMenuTrigger;
+
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
@@ -220,50 +194,35 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
 
-  private readonly clearPinsEventName = 'rentall-clear-pins';
-  @ViewChild(CreditReportComponent) creditReport?: CreditReportComponent;
-  @ViewChild(InvoiceListComponent) accountingInvoiceList?: InvoiceListComponent;
-  @ViewChild(PaymentListComponent) accountingPaymentList?: PaymentListComponent;
-  @ViewChild('preBillingInvoiceEditor') preBillingInvoiceEditor?: InvoiceComponent;
-  @ViewChild('missingInvoiceEditor') missingInvoiceEditor?: InvoiceComponent;
-  @ViewChild('accountingInvoiceEditor') accountingInvoiceEditor?: InvoiceComponent;
-  @ViewChild('financialReport') financialReport?: FinancialReportComponent;
-  @ViewChild('arAgingReport') arAgingReport?: ArAgingReportComponent;
-  @ViewChild('ownerApAgingReport') ownerApAgingReport?: ApAgingReportComponent;
-  @ViewChild('reportsApAgingReport') reportsApAgingReport?: ApAgingReportComponent;
-  @ViewChild('reconcileAccountReport') reconcileAccountReport?: ReconcileAccountReportComponent;
-  @ViewChild('billsReceiptsMenuTrigger') billsReceiptsMenuTrigger?: MatMenuTrigger;
-  @ViewChild('invoicesMenuTrigger') invoicesMenuTrigger?: MatMenuTrigger;
-  @ViewChild('bankActivitiesMenuTrigger') bankActivitiesMenuTrigger?: MatMenuTrigger;
-  @ViewChild('ownersMenuTrigger') ownersMenuTrigger?: MatMenuTrigger;
-  @ViewChild('reportsMenuTrigger') reportsMenuTrigger?: MatMenuTrigger;
+  static reconcileSetupDialogBodyClass = 'accounting-reconcile-setup-dialog-open';
+  clearPinsEventName = 'rentall-clear-pins';
 
-  private skipNextDropdownTabMenuOpen = false;
-  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
-  private readonly shellNavigationStorageKeyPrefix = 'rentall-accounting-shell-navigation';
-  readonly tabInvoices = 0;
-  readonly tabBillsReceipts = 1;
-  readonly tabBankActivities = 2;
-  readonly tabOwners = 3;
-  readonly tabMaxIndexLimited = 2;
-  readonly tabReports = 4;
-  readonly tabGeneralLedger = 5;
-  readonly tabMaxIndex = 5;
-  readonly shellInvoiceMenuOptions: { kind: AccountingShellInvoiceKind; label: string }[] = [
+  skipNextDropdownTabMenuOpen = false;
+  pinnedDateRangeStorageKeyPrefix = 'rentall-accounting-shell-pinned-dates';
+  shellNavigationStorageKeyPrefix = 'rentall-accounting-shell-navigation';
+  tabInvoices = 0;
+  tabBillsReceipts = 1;
+  tabBankActivities = 2;
+  tabOwners = 3;
+  tabMaxIndexLimited = 2;
+  tabReports = 4;
+  tabGeneralLedger = 5;
+  tabMaxIndex = 5;
+  shellInvoiceMenuOptions: { kind: AccountingShellInvoiceKind; label: string }[] = [
     { kind: 'invoices', label: 'Invoices' },
     { kind: 'payments', label: 'Payments' },
     { kind: 'missingInvoiceReport', label: 'Missing Invoice Report' },
     { kind: 'preBillingReport', label: 'Pre-Billing Report' }
   ];
-  readonly shellBillsReceiptMenuOptions: { kind: AccountingShellBillsReceiptKind; label: string }[] = [
+  shellBillsReceiptMenuOptions: { kind: AccountingShellBillsReceiptKind; label: string }[] = [
     { kind: 'bills', label: 'Bills' },
     { kind: 'receipts', label: 'Receipts' },
     { kind: 'workOrders', label: 'Work Orders' },
     { kind: 'rentRoll', label: 'Rent Roll' },
     { kind: 'payments', label: 'Bill Payments' }
   ];
-  readonly PaymentKind = PaymentKind;
-  readonly shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
+  PaymentKind = PaymentKind;
+  shellBankActivityMenuOptions: { kind: AccountingShellBankActivityKind; label: string }[] = [
     { kind: 'undepositedFunds', label: 'Undeposited Funds' },
     { kind: 'deposits', label: 'Deposits' },
     { kind: 'untransferredFunds', label: 'Untransferred Funds' },
@@ -273,7 +232,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'securityDeposits', label: 'Security Deposits' },
     { kind: 'reconcile', label: 'Reconcile' }
   ];
-  readonly shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
+  shellOwnerMenuOptions: { kind: AccountingShellOwnerKind; label: string }[] = [
     { kind: 'workOrders', label: 'Work Orders' },
     { kind: 'utilities', label: 'Utilities & Bills' },
     { kind: 'statements', label: 'Accrual & Cash' },
@@ -282,7 +241,7 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
     { kind: 'ownerStatements', label: 'Owner Statements' },
     { kind: 'ownerPayments', label: 'Owner Payments' }
   ];
-  readonly shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
+  shellReportMenuOptions: { kind: AccountingShellReportKind; label: string }[] = [
     { kind: 'profitLoss', label: 'Profit & Loss' },
     { kind: 'balanceSheet', label: 'Balance Sheet' },
     { kind: 'arAging', label: 'AR Aging' },
@@ -405,19 +364,10 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   selectedApAgingSortBy: ApAgingSortBy = 'default';
   arAgingReportFilters: ArAgingReportFilters = this.buildArAgingReportFilters();
   apAgingReportFilters: ApAgingReportFilters = this.buildApAgingReportFilters();
-  readonly shellArAgingDatePresetOptions = AR_AGING_DATE_PRESET_OPTIONS;
-  readonly shellArAgingIntervalOptions = AR_AGING_INTERVAL_OPTIONS;
-  readonly shellArAgingThroughOptions = AR_AGING_THROUGH_OPTIONS;
-  readonly shellArAgingSortByOptions = AR_AGING_SORT_BY_OPTIONS;
-  get shellApAgingSortByOptions(): { value: ApAgingSortBy; label: string }[] {
-    if (!this.isOwnerApAgingViewActive) {
-      return AP_AGING_SORT_BY_OPTIONS;
-    }
-
-    return AP_AGING_SORT_BY_OPTIONS.map(option =>
-      option.value === 'vendor' ? { ...option, label: 'Owner' } : option
-    );
-  }
+  shellArAgingDatePresetOptions = AR_AGING_DATE_PRESET_OPTIONS;
+  shellArAgingIntervalOptions = AR_AGING_INTERVAL_OPTIONS;
+  shellArAgingThroughOptions = AR_AGING_THROUGH_OPTIONS;
+  shellArAgingSortByOptions = AR_AGING_SORT_BY_OPTIONS;
   selectedGlPropertyId: string | null = null;
   selectedGlReservationId: string | null = null;
   selectedBillsPropertyId: string | null = null;
@@ -446,8 +396,8 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   reconcileRefreshTrigger = 0;
   reconcileSetup: BeginReconciliationDialogResult | null = null;
   reconcileAccountReportContext: ReconcileAccountReportContext | null = null;
-  private preserveReconcileAccountReportContext = false;
-  private beginReconciliationDialogOpen = false;
+  preserveReconcileAccountReportContext = false;
+  beginReconciliationDialogOpen = false;
   reconcileHistoryRows: ReconcileResponse[] = [];
   shellReconcileStatementDateOptions: SearchableSelectOption[] = [];
   selectedReconcileId: number | null = null;
@@ -505,13 +455,30 @@ export class AccountingShellComponent implements OnInit, OnDestroy {
   isArAgingDrillDownActive = false;
   isApAgingDrillDownActive = false;
   isOwnerReportsLoading = false;
-  private isOwnerReportsApiLoading = false;
-  private ownerBundleAwaitingManualGo = false;
-  private escrowReportAwaitingManualGo = false;
-  private ownerViewLoadingFlashTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private readonly ownerViewLoadingFlashMs = 350;
+  isOwnerReportsApiLoading = false;
+  ownerBundleAwaitingManualGo = false;
+  escrowReportAwaitingManualGo = false;
+  ownerViewLoadingFlashTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  ownerViewLoadingFlashMs = 350;
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.cdr.markForCheck();
+  };
 
   destroy$ = new Subject<void>();
+
+  get shellApAgingSortByOptions(): { value: ApAgingSortBy; label: string }[] {
+    if (!this.isOwnerApAgingViewActive) {
+      return AP_AGING_SORT_BY_OPTIONS;
+    }
+
+    return AP_AGING_SORT_BY_OPTIONS.map(option =>
+      option.value === 'vendor' ? { ...option, label: 'Owner' } : option
+    );
+  }
 
   constructor() {
     this.syncInvoiceSearchDateRange();
@@ -3638,8 +3605,6 @@ ensureDateRangeIncludesTransactionDate(transactionDate: string): void {
   //#endregion
 
   //#region Reconcile
-  private static readonly reconcileSetupDialogBodyClass = 'accounting-reconcile-setup-dialog-open';
-
   openBeginReconciliationDialog(activateOnContinue = false): void {
     if (this.beginReconciliationDialogOpen) {
       return;
@@ -6544,13 +6509,5 @@ navigateAccountingShellListUrl(queryParams: Record<string, string | null> = {}):
     this.destroy$.next();
     this.destroy$.complete();
   }
-
-  onClearPins = (): void => {
-    if (!this.dateRangePinned) {
-      return;
-    }
-    this.dateRangePinned = false;
-    this.cdr.markForCheck();
-  };
   //#endregion
 }

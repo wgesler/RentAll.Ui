@@ -192,5 +192,23 @@ export interface OfficeListDisplay {
   quoteDisclaimer?: string | null;
 }
 
+export type OfficeCostCodeKey =
+  | 'furnishedRentChargeCcId'
+  | 'furnishedRentExpenseCcId'
+  | 'unfurnishedRentChargeCcId'
+  | 'unfurnishedRentExpenseCcId'
+  | 'maidServiceChargeCcId'
+  | 'maidServiceExpenseCcId'
+  | 'parkingChargeCcId'
+  | 'parkingExpenseCcId'
+  | 'departureFeeCcId'
+  | 'petFeeCcId'
+  | 'applicationFeeCcId'
+  | 'administrativeFeeCcId'
+  | 'securityDepositCcId'
+  | 'securityDepositWaiverCcId';
 
-
+export interface OfficeCopyPayload {
+  office: OfficeResponse;
+  organizationId: string | null;
+}

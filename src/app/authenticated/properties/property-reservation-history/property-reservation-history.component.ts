@@ -29,6 +29,8 @@ import { InvoiceHistoryDisplayRow, ReservationHistoryDisplayRow } from '../model
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PropertyReservationHistoryComponent implements OnInit, OnChanges, OnDestroy {
+  @Input() propertyId: string | null = null;
+
   private mappingService = inject(MappingService);
   private mixedMappingService = inject(MixedMappingService);
   private utilityService = inject(UtilityService);
@@ -41,8 +43,6 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
   private terminologyService = inject(TerminologyService);
   private globalSelectionService = inject(GlobalSelectionService);
 
-  @Input() propertyId: string | null = null;
-
   reservations: ReservationListResponse[] = [];
   tableData: ReservationHistoryDisplayRow[] = [];
   expandedReservations = new Set<string>();
@@ -51,9 +51,15 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
   paymentsByReservationId = new Map<string, ReservationPaymentResponse[]>();
   loadingInvoiceReservationIds = new Set<string>();
 
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations']));
-  destroy$ = new Subject<void>();
+  invoiceColumns: ColumnSet = {
+    invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch' },
+    period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
+    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
+    dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
+    totalAmount: { displayAs: 'Total', maxWidth: '12ch', alignment: 'right' },
+    paidAmount: { displayAs: 'Paid', maxWidth: '12ch', alignment: 'right' },
+    dueAmount: { displayAs: 'Due', maxWidth: '12ch', alignment: 'right' }
+  };
 
   displayedColumns: ColumnSet = {
     expand: { displayAs: ' ', maxWidth: '5ch', sort: false },
@@ -69,15 +75,9 @@ export class PropertyReservationHistoryComponent implements OnInit, OnChanges, O
     rate: { displayAs: 'Rate', maxWidth: '12ch', alignment: 'right' }
   };
 
-  invoiceColumns: ColumnSet = {
-    invoiceNumber: { displayAs: 'Invoice', maxWidth: '20ch' },
-    period: { displayAs: 'Period', maxWidth: '12ch', alignment: 'center' },
-    invoiceDate: { displayAs: 'Invoice Date', maxWidth: '15ch', alignment: 'center' },
-    dueDate: { displayAs: 'Due Date', maxWidth: '15ch', alignment: 'center' },
-    totalAmount: { displayAs: 'Total', maxWidth: '12ch', alignment: 'right' },
-    paidAmount: { displayAs: 'Paid', maxWidth: '12ch', alignment: 'right' },
-    dueAmount: { displayAs: 'Due', maxWidth: '12ch', alignment: 'right' }
-  };
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations']));
+  destroy$ = new Subject<void>();
 
   //#region Property Reservation History
   ngOnInit(): void {

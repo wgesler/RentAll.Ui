@@ -22,9 +22,9 @@ import { OrganizationService } from '../services/organization.service';
   styleUrl: './branding.component.scss'
 })
 export class BrandingComponent implements OnInit, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() organizationId: string | null = null;
+
+  private cdr = inject(ChangeDetectorRef);
   private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
@@ -42,14 +42,10 @@ export class BrandingComponent implements OnInit, OnDestroy {
   collapsedLogoPath: string | null = null;
   hasNewCollapsedFileUpload: boolean = false;
   isSubmitting: boolean = false;
-  isServiceError: boolean = false;
   isUploadingLogo: boolean = false;
   isUploadingCollapsedLogo: boolean = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['branding']));
-  isPageReady = false;
-
-  private readonly defaultBranding: BrandingResponse = {
+  defaultBranding: BrandingResponse = {
     organizationId: '',
     primaryColor: '#3f51b5',
     accentColor: '#ae1f66',
@@ -58,6 +54,10 @@ export class BrandingComponent implements OnInit, OnDestroy {
       logoPath: null,
       collapsedLogoPath: null
   };
+
+  isServiceError: boolean = false;
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['branding']));
 
   //#region Branding
   ngOnInit(): void {

@@ -53,9 +53,10 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   @Input() shellCreateInPlace = false;
   @Output() previewEvent = new EventEmitter<InvoicePreviewSelection>();
   @Output() invoiceCreated = new EventEmitter<InvoiceResponse>();
-  invoiceService = inject(InvoiceService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+
+  private invoiceService = inject(InvoiceService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private officeService = inject(OfficeService);
@@ -64,14 +65,13 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   private authService = inject(AuthService);
   private mappingService = inject(MappingService);
   private costCodesService = inject(CostCodesService);
-  formatter = inject(FormatterService);
+  private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private globalSelectionService = inject(GlobalSelectionService);
   private terminologyService = inject(TerminologyService);
   private journalEntryService = inject(JournalEntryService);
   private cdr = inject(ChangeDetectorRef);
 
-  isServiceError: boolean = false;
   invoiceId: string;
   invoice: InvoiceResponse;
   form: FormGroup;
@@ -119,11 +119,12 @@ export class InvoiceComponent implements OnInit, OnDestroy, OnChanges {
   lastContextKey: string | null = null;
   activeInvoiceLoadId = 0;
   organizationId = '';
-  private addModeQueryParamsBound = false;
-  private lastPrefetchedInvoiceKey: string | null = null;
-
-  isPageReady = false;
+  addModeQueryParamsBound = false;
+  lastPrefetchedInvoiceKey: string | null = null;
   isInvoiceContentReady = false;
+
+  isServiceError: boolean = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoice']));
   destroy$ = new Subject<void>();
 

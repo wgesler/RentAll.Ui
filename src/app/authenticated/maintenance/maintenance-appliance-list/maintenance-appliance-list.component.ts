@@ -7,23 +7,10 @@ import { FileDetails } from '../../../shared/models/fileDetails';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { ImageViewDialogComponent } from '../../shared/modals/image-view-dialog/image-view-dialog.component';
 import { ImageViewDialogData } from '../../shared/modals/image-view-dialog/image-view-dialog-data';
-import { ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
+import { ApplianceEditRow, ApplianceRequest, ApplianceResponse } from '../models/appliance.model';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { UtilityService, ImageOptimizationFailedError } from '../../../services/utility.service';
-
-interface ApplianceEditRow {
-  rowId: number;
-  applianceId?: number;
-  applianceName: string;
-  manufacturer: string;
-  modelNo: string;
-  serialNo: string;
-  decalPath: string | null;
-  decalPreviewDataUrl: string | null;
-  fileDetails?: FileDetails | null;
-  hasNewFileUpload: boolean;
-}
 
 @Component({
   standalone: true,
@@ -41,6 +28,7 @@ export class MaintenanceApplianceListComponent implements OnChanges {
   @Input() property: PropertyResponse | null = null;
   @Output() saveChanges = new EventEmitter<{ upserts: ApplianceRequest[]; deleteIds: number[] }>();
   @Output() deleteExisting = new EventEmitter<number>();
+
   private dialog = inject(MatDialog);
   private utilityService = inject(UtilityService);
   private toastr = inject(ToastrService);

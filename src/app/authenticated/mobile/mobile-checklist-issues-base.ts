@@ -5,8 +5,9 @@ import { DocumentType } from '../documents/models/document.enum';
 import { EmailType } from '../email/models/email.enum';
 import { EmailCreateDraftService } from '../email/services/email-create-draft.service';
 import { inlineIssuePhotoSources } from '../email/utils/inline-email-issue-photos';
-import { ChecklistIssueEntry, ChecklistIssuesDialogData } from '../maintenance/inspection/dialog-checklist-issues.component';
-import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../shared/base-document.component';
+import { ChecklistIssueEntry, ChecklistIssuesDialogData } from '../maintenance/models/inspection.model';
+import { BaseDocumentComponent } from '../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../shared/models/base-document.model';
 import { TicketStateType } from '../tickets/models/ticket-enum';
 import { TicketRequest } from '../tickets/models/ticket-models';
 import { TicketService } from '../tickets/services/ticket.service';
@@ -20,11 +21,11 @@ type ChecklistIssueGroup = {
 };
 
 export abstract class MobileChecklistIssuesBase extends BaseDocumentComponent {
-  data: ChecklistIssuesDialogData | null = null;
   protected ticketService = inject(TicketService);
   protected router = inject(Router);
   private emailCreateDraftService = inject(EmailCreateDraftService);
 
+  data: ChecklistIssuesDialogData | null = null;
   isDownloading = false;
   isPreparingEmail = false;
   isCreatingTicket = false;

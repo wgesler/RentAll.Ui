@@ -19,7 +19,7 @@ import { EmailListComponent } from '../../email/email-list/email-list.component'
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { LeaseComponent } from '../lease/lease.component';
 import { LeaseInformationComponent } from '../lease-information/lease-information.component';
@@ -49,6 +49,10 @@ import { ReservationService } from '../services/reservation.service';
   styleUrl: './reservation-shell.component.scss'
 })
 export class ReservationShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+  @ViewChild('reservationSection') reservationSection?: ReservationComponent;
+  @ViewChild('reservationInvoiceList') reservationInvoiceList?: InvoiceListComponent;
+  @ViewChild('previewAllInvoiceEditor') previewAllInvoiceEditor?: InvoiceComponent;
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private authService = inject(AuthService);
@@ -57,10 +61,6 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   private reservationService = inject(ReservationService);
   private utilityService = inject(UtilityService);
   private mappingService = inject(MappingService);
-
-  @ViewChild('reservationSection') reservationSection?: ReservationComponent;
-  @ViewChild('reservationInvoiceList') reservationInvoiceList?: InvoiceListComponent;
-  @ViewChild('previewAllInvoiceEditor') previewAllInvoiceEditor?: InvoiceComponent;
 
   selectedTabIndex: number = 0;
   selectedOfficeId: number | null = null;
@@ -95,7 +95,7 @@ export class ReservationShellComponent implements OnInit, OnDestroy, CanComponen
   previewAllInvoiceEditorInstance = 0;
   activeOfficeId: number | null = null;
   activePropertyId: string | null = null;
-  private reservationsLoadedPropertyId: string | null = null;
+  reservationsLoadedPropertyId: string | null = null;
 
   destroy$ = new Subject<void>();
 

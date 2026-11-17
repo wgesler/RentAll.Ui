@@ -48,6 +48,7 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() forRentAllTickets = false;
   @Output() ticketSelected = new EventEmitter<{ ticketId: string | number | null; ticketCode: string | null; propertyId: string | null; propertyCode: string | null; reservationId: string | null; reservationCode: string | null; officeId: number | null; officeName: string | null }>();
   @Output() ticketUpdated = new EventEmitter<void>();
+
   private router = inject(Router);
   private terminologyService = inject(TerminologyService);
   private dialog = inject(MatDialog);
@@ -63,7 +64,6 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   showInactive = false;
-  isPageReady: boolean = false;
   selectedOfficeId: number | null = null;
   selectedOffice: TicketOfficeFilterOption | null = null;
   selectedPropertyId: string | null = null;
@@ -105,12 +105,13 @@ export class TicketListComponent implements OnInit, OnChanges, OnDestroy {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
+  isPageReady: boolean = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['tickets']));
+  destroy$ = new Subject<void>();
+
   get activeTicketsDisplayedColumns(): ColumnSet {
     return this.forRentAllTickets ? this.rentAllTicketsDisplayedColumns : this.ticketsDisplayedColumns;
   }
-
-  destroy$ = new Subject<void>();
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['tickets']));
 
   //#region Ticket-List
   ngOnChanges(changes: SimpleChanges): void {

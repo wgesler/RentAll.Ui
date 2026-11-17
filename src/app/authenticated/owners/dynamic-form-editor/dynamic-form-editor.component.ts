@@ -9,7 +9,7 @@ import { Observable, of, Subject, take } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';
 import { FormTokenProviderInputs } from '../../shared/forms/services/form-token-provider';
-import { OwnerAuthorization } from '../models/owner-authorization.model';
+import { OwnerAuthorization } from '../models/owner-enums';
 import { DynamicFormDraftService } from '../services/dynamic-form-draft.service';
 import { OwnerAgreementContext } from '../services/owners.service';
 import { OwnerFormTokenProviderService } from '../services/owner-form-token-provider.service';
@@ -23,8 +23,6 @@ import { OwnerFormViewModeService } from '../services/owner-form-view-mode.servi
   styleUrl: './dynamic-form-editor.component.scss'
 })
 export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy {
-
-
   @Input() formName = '';
   @Input() formKey = '';
   @Input() token: string | null = null;
@@ -40,6 +38,8 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   @Input() reloadVersion = 0;
   @Input() sharedContext$: Observable<OwnerAgreementContext | null> | null = null;
   @Output() viewRequested = new EventEmitter<string>();
+  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
+
   private sanitizer = inject(DomSanitizer);
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
@@ -48,7 +48,6 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   private ownerFormTokenProviderService = inject(OwnerFormTokenProviderService);
   private ownerFormViewModeService = inject(OwnerFormViewModeService);
   private changeDetectorRef = inject(ChangeDetectorRef);
-  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
 
   isLoading = false;
   hasDraft = false;
@@ -56,7 +55,7 @@ export class DynamicFormEditorComponent implements OnInit, OnChanges, OnDestroy 
   baseTemplateHtml = '';
   templateStyles = '';
   iframeKey = 0;
-  private ownerAgreementContext: OwnerAgreementContext | null = null;
+  ownerAgreementContext: OwnerAgreementContext | null = null;
 
   destroy$ = new Subject<void>();
 

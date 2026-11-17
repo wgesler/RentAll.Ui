@@ -14,7 +14,7 @@ import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationCodeResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { AlertComponent } from '../alert/alert.component';
 import { EmailListComponent } from '../email-list/email-list.component';
@@ -37,6 +37,9 @@ import { AlertResponse } from '../models/alert.model';
   styleUrl: './emails-shell.component.scss'
 })
 export class EmailsShellComponent implements OnInit, OnDestroy {
+  @ViewChild('emailsTabList') emailsTabList?: EmailListComponent;
+  @ViewChild('alertsTabList') alertsTabList?: AlertListComponent;
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private authService = inject(AuthService);
@@ -46,11 +49,8 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   private propertyService = inject(PropertyService);
   private reservationService = inject(ReservationService);
 
-  private readonly clearPinsEventName = 'rentall-clear-pins';
-  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-emails-shell-pinned-dates';
-
-  @ViewChild('emailsTabList') emailsTabList?: EmailListComponent;
-  @ViewChild('alertsTabList') alertsTabList?: AlertListComponent;
+  clearPinsEventName = 'rentall-clear-pins';
+  pinnedDateRangeStorageKeyPrefix = 'rentall-emails-shell-pinned-dates';
 
   selectedTabIndex = 0;
   selectedAlertId: string | null = null;
@@ -74,8 +74,20 @@ export class EmailsShellComponent implements OnInit, OnDestroy {
   availableReservations: SearchableSelectOption[] = [];
 
   organizationId = '';
+  initialOfficeScopeApplied = false;
+
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.clearPinnedDateRangeStorage();
+    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
+    this.refreshPropertyOptions();
+    this.refreshReservationOptions();
+  };
+
   destroy$ = new Subject<void>();
-  private initialOfficeScopeApplied = false;
 
   constructor() {
     // Before child lists bind @Input date range — ngOnInit is too late (first search can omit dates).
@@ -588,17 +600,6 @@ persistPinnedTopBarIfActive(): void {
     const userKey = this.authService.getUser()?.userId?.trim() || 'anonymous';
     return `${this.pinnedDateRangeStorageKeyPrefix}-${userKey}`;
   }
-
-  onClearPins = (): void => {
-    if (!this.dateRangePinned) {
-      return;
-    }
-    this.dateRangePinned = false;
-    this.clearPinnedDateRangeStorage();
-    this.applyOfficeFromGlobal(this.globalSelectionService.getSelectedOfficeIdValue());
-    this.refreshPropertyOptions();
-    this.refreshReservationOptions();
-  };
   //#endregion
 
   ngOnDestroy(): void {

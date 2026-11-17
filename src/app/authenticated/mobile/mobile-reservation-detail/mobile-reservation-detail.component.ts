@@ -40,6 +40,7 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
   @Input() reservationId = '';
   @Output() dirtyChange = new EventEmitter<boolean>();
   @ViewChild('notesTextarea') notesTextarea?: ElementRef<HTMLTextAreaElement>;
+
   private reservationService = inject(ReservationService);
   private mixedMappingService = inject(MixedMappingService);
   private mappingService = inject(MappingService);
@@ -55,6 +56,7 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
   private router = inject(Router);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+
   reservation: ReservationResponse | null = null;
   fields: MobileListField[] = [];
   agentOptions: MobileListFieldOption[] = [];
@@ -63,11 +65,9 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
   enabledReservationStatusIds: Set<number> | null = null;
   propertyCode = '';
   propertyAddress = '';
-  isPageReady = false;
   isSaving = false;
   isDirty = false;
-  destroy$ = new Subject<void>();
-  readonly reservationPanelFieldKeys = [
+  reservationPanelFieldKeys = [
     'reservationCode',
     'officeName',
     'propertyCode',
@@ -93,7 +93,7 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
     'unitTenantCode',
     'garageCode'
   ] as const;
-  readonly billingPanelFieldKeys = [
+  billingPanelFieldKeys = [
     'billingTypeId',
     'billingRate',
     'depositTypeId',
@@ -111,6 +111,9 @@ export class MobileReservationDetailComponent implements OnInit, OnChanges, OnDe
     'frequencyId',
     'invoiceMethodId'
   ] as const;
+
+  isPageReady = false;
+  destroy$ = new Subject<void>();
 
   //#region Mobile-Reservation-Detail
   get isAddMode(): boolean {

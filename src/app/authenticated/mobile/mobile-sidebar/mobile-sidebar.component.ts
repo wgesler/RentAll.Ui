@@ -23,6 +23,8 @@ import { MobileNavAttentionService, MobileNavAttentionState } from '../mobile-na
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MobileSidebarComponent implements OnInit, OnDestroy {
+  @ViewChild('sideNav') sideNav: MatSidenav;
+
   private router = inject(Router);
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
@@ -33,8 +35,8 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
   private mobileReceiptCaptureService = inject(MobileReceiptCaptureService);
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private mobileNavAttentionService = inject(MobileNavAttentionService);
-  readonly collapsedSidebarWidth = 64;
-  @ViewChild('sideNav') sideNav: MatSidenav;
+
+  collapsedSidebarWidth = 64;
   navItems: MobileNavItem[] = [];
   selectedItem: MobileNavItem | null = null;
   selectedTabPath: string | null = null;
@@ -48,6 +50,7 @@ export class MobileSidebarComponent implements OnInit, OnDestroy {
     leadTabAttention: {},
     ticketTabAttention: {}
   };
+
   destroy$ = new Subject<void>();
 
   //#region Mobile-Sidebar

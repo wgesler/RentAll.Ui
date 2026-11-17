@@ -27,7 +27,8 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogComponent } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogData } from '../../shared/models/dialog.model';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { ReservationStatus, ReservationType } from '../models/reservation-enum';
@@ -48,11 +49,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
 
   @Input() officeId: number | null = null;
   @Output() officeIdChange = new EventEmitter<number | null>();
-  reservationService = inject(ReservationService);
-  toastr = inject(ToastrService);
-  router = inject(Router);
-  route = inject(ActivatedRoute);
-  mappingService = inject(MappingService);
+
+  private reservationService = inject(ReservationService);
+  private toastr = inject(ToastrService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private mappingService = inject(MappingService);
   private formatterService = inject(FormatterService);
   private propertyService = inject(PropertyService);
   private terminologyService = inject(TerminologyService);
@@ -67,7 +69,6 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   private cdr = inject(ChangeDetectorRef);
   
   panelOpenState: boolean = true;
-  isServiceError: boolean = false;
   showInactive: boolean = false;
   allReservations: ReservationListDisplay[] = [];
   reservationsDisplay: ReservationListDisplay[] = [];
@@ -92,10 +93,11 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
   canEditIsActiveCheckbox = false;
 
   /** Page-level office filter: seeded from global; does not write global. */
-  private pageOfficeId: number | null = null;
-  private initialOfficeScopeApplied = false;
-  private readonly compactViewportWidth = 1024;
-  private readonly fullReservationsDisplayedColumns: ColumnSet = {
+  pageOfficeId: number | null = null;
+  initialOfficeScopeApplied = false;
+  compactViewportWidth = 1024;
+
+  fullReservationsDisplayedColumns: ColumnSet = {
     'reservationCode': { displayAs: 'Reservation', maxWidth: '16ch', sortType: 'natural' },
     'externalRefNo': { displayAs: 'Ref No', maxWidth: '14ch', sortType: 'natural' },
     'propertyCode': { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
@@ -107,11 +109,12 @@ export class ReservationListComponent implements OnInit, OnDestroy, OnChanges {
     'departureDate': { displayAs: 'Departure', maxWidth: '16ch', alignment: 'center'},
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '20ch' }
   };
-  private readonly compactReservationsDisplayedColumns: ColumnSet = {
+  compactReservationsDisplayedColumns: ColumnSet = {
     'reservationCode': { displayAs: 'Code', maxWidth: '16ch', sortType: 'natural' }
   };
   reservationsDisplayedColumns: ColumnSet = this.fullReservationsDisplayedColumns;
 
+  isServiceError: boolean = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservations', 'properties', 'officeScope']));
   destroy$ = new Subject<void>();

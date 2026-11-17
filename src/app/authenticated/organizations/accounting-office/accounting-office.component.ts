@@ -32,22 +32,17 @@ import { TerminologyService } from '../services/terminology.service';
 import { CostCodesService } from '../../accounting/services/cost-codes.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { CheckHtmlService } from '../../accounting/services/check-html.service';
 import { CheckHtmlResponse } from '../../accounting/models/check-html.model';
-import { CheckLayoutEditorDialogComponent, CheckLayoutEditorDialogData } from './check-layout-editor-dialog/check-layout-editor-dialog.component';
+import { CheckLayoutEditorDialogComponent } from './check-layout-editor-dialog/check-layout-editor-dialog.component';
+import { CheckLayoutEditorDialogData, ClosedPeriodSnapshot } from '../models/accounting-office.model';
 import { PasswordCheckDialogService } from '../../shared/modals/password-check-dialog/password-check-dialog.service';
 import { GenericModalComponent } from '../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../shared/modals/generic/models/generic-modal-data';
 import { UserGroups } from '../../users/models/user-enums';
-
-type ClosedPeriodSnapshot = {
-  existingMonth: number;
-  existingYear: number;
-  nextMonth: number;
-  nextYear: number;
-};
 
 @Component({
     standalone: true,
@@ -64,10 +59,14 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   @Input() copyFrom: AccountingOfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
-  accountingOfficeService = inject(AccountingOfficeService);
+  @ViewChild('firstInput') firstInputRef: MatSelect;
+  @ViewChild('primaryBankAccountInput') primaryBankAccountInput?: ElementRef<HTMLInputElement>;
+  @ViewChildren('bankCardPanInput') bankCardPanInputs!: QueryList<ElementRef<HTMLInputElement>>;
+
+  private accountingOfficeService = inject(AccountingOfficeService);
   private bankCardService = inject(BankCardService);
   private bankService = inject(BankService);
-  fb = inject(FormBuilder);
+  private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private terminologyService = inject(TerminologyService);
@@ -85,11 +84,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   private dialog = inject(MatDialog);
   private passwordCheckDialogService = inject(PasswordCheckDialogService);
   private cdr = inject(ChangeDetectorRef);
-  @ViewChild('firstInput') firstInputRef: MatSelect;
-  @ViewChild('primaryBankAccountInput') primaryBankAccountInput?: ElementRef<HTMLInputElement>;
-  @ViewChildren('bankCardPanInput') bankCardPanInputs!: QueryList<ElementRef<HTMLInputElement>>;
-  
-  isServiceError: boolean = false;
+
   form: FormGroup;
   paymentIntegrationTypes = PaymentIntegrationTypeLabels;
   fileName: string = null;
@@ -102,8 +97,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   primaryBankAccountLastFour = '';
   primaryBankAccountVisible = false;
   primaryBankAccountFocused = false;
-  private primaryBankAccountClear = '';
-  private primaryBankAccountRevealed = '';
+  primaryBankAccountClear = '';
+  primaryBankAccountRevealed = '';
   checkStockPreviewDataUrl: string = null;
   checkStockPdfThumbnailUrl: string = null;
   hasNewCheckStockUpload: boolean = false;
@@ -115,10 +110,10 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   primaryCheckLayoutChanged = false;
   isSubmitting: boolean = false;
   isResyncingPostingStatus = false;
-  private suppressClosedPeriodRevert = false;
-  private closedPeriodAdvanceAcknowledged = { soft: false, hard: false };
-  private closedPeriodReversalAcknowledged = { soft: false, hard: false };
-  private closedPeriodValidationPending = false;
+  suppressClosedPeriodRevert = false;
+  closedPeriodAdvanceAcknowledged = { soft: false, hard: false };
+  closedPeriodReversalAcknowledged = { soft: false, hard: false };
+  closedPeriodValidationPending = false;
   isUploadingLogo: boolean = false;
   isAddMode: boolean = false;
   hasManagementAccess = false;
@@ -132,7 +127,7 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
     const day = index + 1;
     return { value: day, label: String(day).padStart(2, '0') };
   });
-  readonly accountingYearMax = new Date().getFullYear();
+  accountingYearMax = new Date().getFullYear();
 
   // Bank card state
   bankCards: BankCardResponse[] = [];
@@ -144,8 +139,8 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   editingBankCardNumberIndexes = new Set<number>();
   bankCardNumberUpdatePendingIndexes = new Set<number>();
   bankCardPanLoadingIndexes = new Set<number>();
-  private revealedBankCardPanByIndex = new Map<number, string>();
-  private bankCardLastSavedState = new Map<number, { cardTypeId: number; cardName: string; chartOfAccountId: number | null }>();
+  revealedBankCardPanByIndex = new Map<number, string>();
+  bankCardLastSavedState = new Map<number, { cardTypeId: number; cardName: string; chartOfAccountId: number | null }>();
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
   bankCardChartOfAccountOptions: SearchableSelectOption<number>[] = [];
 
@@ -192,8 +187,9 @@ export class AccountingOfficeComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   destroy$ = new Subject<void>();
 
   //#region Office

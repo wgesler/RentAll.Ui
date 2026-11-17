@@ -22,7 +22,6 @@ import { MobileViewportService } from '../mobile-viewport.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MobileLayoutComponent implements OnInit, OnDestroy {
-  private static readonly mobileLayoutHtmlClass = 'rentall-mobile-layout';
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
   private mobileChromeOverlayService = inject(MobileChromeOverlayService);
   private mobileReceiptCaptureService = inject(MobileReceiptCaptureService);
@@ -30,11 +29,14 @@ export class MobileLayoutComponent implements OnInit, OnDestroy {
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
-  readonly hidePrimaryChrome$ = this.mobileChromeOverlayService.primaryChromeHidden$;
-  readonly receiptCaptureInProgress$ = this.mobileReceiptCaptureService.captureInProgress$;
-  private layoutDebugStateBeforeMobile = false;
-  private destroy$ = new Subject<void>();
+
+  static mobileLayoutHtmlClass = 'rentall-mobile-layout';
+  hidePrimaryChrome$ = this.mobileChromeOverlayService.primaryChromeHidden$;
+  receiptCaptureInProgress$ = this.mobileReceiptCaptureService.captureInProgress$;
+  layoutDebugStateBeforeMobile = false;
   showPendingReceiptDraftsPrompt = false;
+
+  destroy$ = new Subject<void>();
 
   //#region Mobile-Layout
   ngOnInit(): void {

@@ -1,7 +1,7 @@
 import { firstValueFrom } from 'rxjs';
 import { GenerateDocumentFromHtmlDto } from '../../documents/models/document.model';
 import { DocumentService } from '../../documents/services/document.service';
-import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { EmailAddress, EmailRequest } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 import { DocumentHtmlService } from '../../../services/document-html.service';

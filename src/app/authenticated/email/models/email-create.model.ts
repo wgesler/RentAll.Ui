@@ -1,4 +1,4 @@
-import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 
 export interface EmailCreateDraft {
   emailConfig: EmailConfig;

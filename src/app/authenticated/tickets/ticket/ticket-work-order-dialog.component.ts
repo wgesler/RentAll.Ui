@@ -4,22 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
 import { WorkOrderResponse } from '../../maintenance/models/work-order.model';
 import { WorkOrderComponent } from '../../maintenance/work-order/work-order.component';
-import { PropertyResponse } from '../../properties/models/property.model';
-
-export interface TicketWorkOrderDialogData {
-  property: PropertyResponse;
-  maintenanceId: string | null;
-  workOrderId?: string | null;
-  initialTitle?: string | null;
-  initialDescription?: string | null;
-  initialReservationId?: string | null;
-  onCreated?: (workOrder: WorkOrderResponse) => void;
-}
-
-export interface TicketWorkOrderDialogResult {
-  saved: boolean;
-  workOrder?: WorkOrderResponse;
-}
+import { TicketWorkOrderDialogData, TicketWorkOrderDialogResult } from '../models/ticket-models';
 
 @Component({
   standalone: true,
@@ -29,17 +14,17 @@ export interface TicketWorkOrderDialogResult {
   styleUrl: './ticket-work-order-dialog.component.scss'
 })
 export class TicketWorkOrderDialogComponent {
+  @ViewChild('workOrderDetail') workOrderDetail?: WorkOrderComponent;
+
   private dialogRef = inject<MatDialogRef<TicketWorkOrderDialogComponent, TicketWorkOrderDialogResult>>(MatDialogRef);
 
-  @ViewChild('workOrderDetail') workOrderDetail?: WorkOrderComponent;
+  data: TicketWorkOrderDialogData;
 
   constructor() {
     const data = inject<TicketWorkOrderDialogData>(MAT_DIALOG_DATA);
 
     this.data = data;
   }
-
-  data: TicketWorkOrderDialogData;
 
   get isSubmitting(): boolean {
     return this.workOrderDetail?.isSubmitting ?? false;

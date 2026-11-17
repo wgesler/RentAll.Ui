@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
-import { DocuSignSignersDialogComponent, DocuSignSignersDialogData } from '../../shared/modals/docusign-signers-dialog/docusign-signers-dialog.component';
+import { DocuSignSignersDialogComponent } from '../../shared/modals/docusign-signers-dialog/docusign-signers-dialog.component';
+import { DocuSignSignersDialogData } from '../../shared/models/dialog.model';
 import { DocuSignSignerConfig, OwnerDocuSignSignersPromptInput } from '../models/owner-docusign.model';
 import { OwnerDocuSignSignerService } from './owner-docusign-signer.service';
 
@@ -9,8 +10,8 @@ import { OwnerDocuSignSignerService } from './owner-docusign-signer.service';
   providedIn: 'root'
 })
 export class OwnerDocuSignSignersDialogService {
-  dialog = inject(MatDialog);
-  ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
+  private dialog = inject(MatDialog);
+  private ownerDocuSignSignerService = inject(OwnerDocuSignSignerService);
 
 
   async promptForSigners(input: OwnerDocuSignSignersPromptInput): Promise<DocuSignSignerConfig[] | null> {

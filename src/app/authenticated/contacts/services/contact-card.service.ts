@@ -8,6 +8,7 @@ import { ContactCardPanResponse, ContactCardRequest, ContactCardResponse } from 
 export class ContactCardService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
+
   private readonly controller = this.configService.config().apiUrl + 'contact/';
 
   getContactCardPan(contactId: string, contactCardId: number): Observable<ContactCardPanResponse> {

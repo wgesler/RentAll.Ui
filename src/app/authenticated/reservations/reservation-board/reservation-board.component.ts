@@ -52,6 +52,9 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   @Input() readOnly: boolean = false;
   @Input() readOnlyOwnerLayout: boolean = false;
   @Input() showReservationNames: boolean = true;
+  @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
+  @ViewChild('partnerPropertyDescriptionContent') partnerPropertyDescriptionContent?: ElementRef<HTMLElement>;
+
   private propertyService = inject(PropertyService);
   private partnerService = inject(PartnerService);
   private reservationService = inject(ReservationService);
@@ -71,13 +74,11 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   private formatterService = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);
 
-  private readonly clearPinsEventName = 'rentall-clear-pins';
-  @ViewChild('boardContextMenuTrigger') boardContextMenuTrigger?: MatMenuTrigger;
-  @ViewChild('partnerPropertyDescriptionContent') partnerPropertyDescriptionContent?: ElementRef<HTMLElement>;
+  clearPinsEventName = 'rentall-clear-pins';
 
-  readonly boardAddressMaxChars = 23;
-  readonly petDepartureColor = '#8B5A2B';
-  readonly reservationPollIntervalMs = 60_000;
+  boardAddressMaxChars = 23;
+  petDepartureColor = '#8B5A2B';
+  reservationPollIntervalMs = 60_000;
   getPropertyStatusLetter = getPropertyStatusLetter;  
   properties: BoardProperty[] = [];
   allPropertyRows: PropertyListResponse[] = [];
@@ -96,7 +97,7 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   colorMap: Map<number, string> = new Map(); // Maps reservationStatusId to color hex
   checkedInNoticeColorMap = new Map<number, string>();
   displayTextCache = new Map<string, string>();
-  readonly reservationBoardLegendStatusIdSource: number[] = [
+  reservationBoardLegendStatusIdSource: number[] = [
     ReservationStatus.PreBooking,
     ReservationStatus.Confirmed,
     ReservationStatus.CheckedIn,
@@ -109,8 +110,8 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   ];
   reservationBoardLegendStatusIds: number[] = [...this.reservationBoardLegendStatusIdSource];
 
-  readonly externalCalendarReservationIdPrefix = 'extcal:';
-  readonly stickyDateRangeStorageKeyPrefix = 'rentall-reservation-board-sticky-dates';
+  externalCalendarReservationIdPrefix = 'extcal:';
+  stickyDateRangeStorageKeyPrefix = 'rentall-reservation-board-sticky-dates';
 
   startDate: Date = null;
   endDate: Date = null;
@@ -154,6 +155,14 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   officeUseDailyOnBoardById = new Map<number, boolean>();
   externalCalendarLoadSequence = 0;
   externalCalendarLoadPending = false;
+
+  onClearPins = (): void => {
+    if (!this.dateRangeSticky) {
+      return;
+    }
+    this.dateRangeSticky = false;
+    this.markViewForCheck();
+  };
 
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'reservations', 'properties', 'officeScope']));
   destroy$ = new Subject<void>();
@@ -2284,14 +2293,6 @@ export class ReservationBoardComponent implements OnInit, OnChanges, AfterViewCh
   //#endregion
 
   //#region Utility Methods
-  onClearPins = (): void => {
-    if (!this.dateRangeSticky) {
-      return;
-    }
-    this.dateRangeSticky = false;
-    this.markViewForCheck();
-  };
-
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }

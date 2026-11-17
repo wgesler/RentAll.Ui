@@ -34,14 +34,15 @@ export class LayoutComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
 
-  readonly timeoutData = { data: { title: 'Session Timed-Out', message: 'Would you like to continue?', no: 'Leave', yes: 'Stay' } };
+  timeoutData = { data: { title: 'Session Timed-Out', message: 'Would you like to continue?', no: 'Leave', yes: 'Stay' } };
   static isIdleModalOn = false;
 
   isLoading = true;
   idleMonitor: boolean = false;
-  destroy$ = new Subject<void>();
   dialogRef: MatDialogRef<GenericModalComponent>;
   showPendingReceiptDraftsPrompt = false;
+
+  destroy$ = new Subject<void>();
 
   constructor() {
     const idle = this.idle;

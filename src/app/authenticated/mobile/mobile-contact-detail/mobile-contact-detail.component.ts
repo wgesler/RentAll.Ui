@@ -24,6 +24,7 @@ import { MobileListField, MobileListFieldOption } from '../mobile-list-table/mob
 export class MobileContactDetailComponent implements OnChanges, OnDestroy {
   @Input() contactId = '';
   @Output() dirtyChange = new EventEmitter<boolean>();
+
   private contactService = inject(ContactService);
   private mappingService = inject(MappingService);
   private commonService = inject(CommonService);
@@ -31,12 +32,14 @@ export class MobileContactDetailComponent implements OnChanges, OnDestroy {
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
+
   fields: MobileListField[] = [];
   states: string[] = [];
   propertyCodes: MobileListFieldOption[] = [];
-  isPageReady = false;
   isSaving = false;
   isDirty = false;
+
+  isPageReady = false;
   destroy$ = new Subject<void>();
 
   //#region Mobile-Contact-Detail

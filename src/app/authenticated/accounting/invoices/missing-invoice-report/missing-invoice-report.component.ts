@@ -57,24 +57,14 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  private readonly invoiceReportBaseColumns: ColumnSet = {
+  invoiceReportBaseColumns: ColumnSet = {
     ...invoicePreviewListBaseColumns,
     ignore: { displayAs: 'Ignore', maxWidth: '10ch', alignment: 'center', headerAlignment: 'center', isCheckbox: true, checkboxEditable: true }
-  };
-
-  readonly ledgerLinesDisplayedColumns: ColumnSet = {
-    lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
-    ledgerLineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
-    costCode: { displayAs: 'Cost Code', maxWidth: '25ch', wrap: false },
-    transactionType: { displayAs: 'Type', maxWidth: '15ch', wrap: false },
-    description: { displayAs: 'Description', maxWidth: '15ch', wrap: true },
-    amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right' }
   };
 
   allCostCodes: CostCodesResponse[] = [];
   transactionTypes: { value: number; label: string }[] = TransactionTypeLabels;
 
-  isServiceError = false;
   invoices: InvoiceResponse[] = [];
   invoicesDisplay: MissingInvoiceReportDisplay[] = [];
   expandedRowKeys = new Set<string>();
@@ -83,13 +73,23 @@ export class MissingInvoiceReportComponent implements OnInit, OnChanges, OnDestr
   isCreatingInvoices = false;
   noDataMessage = 'No missing invoices through the current month.';
   loadedCompanyName = '';
+  destroyed = false;
 
+  ledgerLinesDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
+    ledgerLineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
+    costCode: { displayAs: 'Cost Code', maxWidth: '25ch', wrap: false },
+    transactionType: { displayAs: 'Type', maxWidth: '15ch', wrap: false },
+    description: { displayAs: 'Description', maxWidth: '15ch', wrap: true },
+    amount: { displayAs: 'Amount', maxWidth: '15ch', wrap: false, alignment: 'right' }
+  };
+
+  invoiceReportDisplayedColumns = this.invoiceReportBaseColumns;
+
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['missingInvoiceReport']));
   destroy$ = new Subject<void>();
-  private destroyed = false;
-
-  readonly invoiceReportDisplayedColumns = this.invoiceReportBaseColumns;
 
   //#region Missing Invoice Report
   ngOnInit(): void {

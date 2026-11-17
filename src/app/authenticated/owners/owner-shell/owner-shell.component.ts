@@ -12,7 +12,7 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { PropertyListResponse } from '../../properties/models/property.model';
 import { StateFormResponse } from '../../organizations/models/state-form.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { OwnerInformationComponent } from '../owner-information/owner-information.component';
 import { PropertyInformationComponent } from '../property-information/property-information.component';
@@ -25,11 +25,11 @@ import { SharedFormEditorComponent } from '../../shared/forms/form-editor/form-e
 import { SharedFormCreateComponent } from '../../shared/forms/form-create/form-create.component';
 import { OwnerAgreementContext, OwnersService } from '../services/owners.service';
 import {
-  OwnerAuthorization,
   isOwnerAuthorizedAdmin,
   isOwnerUnauthorized,
   resolveOwnerAuthorization
 } from '../models/owner-authorization.model';
+import { OwnerAuthorization } from '../models/owner-enums';
 
 @Component({
   standalone: true,
@@ -50,6 +50,8 @@ import {
   styleUrl: './owner-shell.component.scss'
 })
 export class OwnerShellComponent implements OnInit, OnDestroy {
+  @ViewChild(MatTabGroup) ownerShellTabGroup?: MatTabGroup;
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private authService = inject(AuthService);
@@ -59,12 +61,12 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly newPropertyOptionValue = 'new';
-  readonly allStatesCode = 'XX';
-  readonly ownerEntityTypeId = EntityType.Owner;
+  newPropertyOptionValue = 'new';
+  allStatesCode = 'XX';
+  ownerEntityTypeId = EntityType.Owner;
 
-  readonly OwnerAuthorization = OwnerAuthorization;
-  readonly isOwnerUnauthorized = isOwnerUnauthorized;
+  OwnerAuthorization = OwnerAuthorization;
+  isOwnerUnauthorized = isOwnerUnauthorized;
 
   ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   isOwnerListMode = false;
@@ -73,14 +75,13 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   token = '';
   leadOwnerId: number | null = null;
   ownerAgreementContext$: Observable<OwnerAgreementContext> | null = null;
-  destroy$ = new Subject<void>();
 
   selectedOfficeId: number | null = null;
   selectedOrganizationId: string | null = null;
   tokenPropertyOffice = '';
   offices: OfficeResponse[] = [];
   officesSubscription?: Subscription;
-  private initialOfficeScopeApplied = false;
+  initialOfficeScopeApplied = false;
 
   selectedPropertyId = this.newPropertyOptionValue;
   newPropertyCode = '';
@@ -108,7 +109,7 @@ export class OwnerShellComponent implements OnInit, OnDestroy {
   }> = {};
   dynamicFormReloadVersion: Record<string, number> = {};
 
-  @ViewChild(MatTabGroup) ownerShellTabGroup?: MatTabGroup;
+  destroy$ = new Subject<void>();
 
   //#region Owner-Shell
   ngOnInit(): void {

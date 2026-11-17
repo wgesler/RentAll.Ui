@@ -37,6 +37,8 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() refreshTrigger = 0;
   @Output() depositSelect = new EventEmitter<DepositSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  @ViewChild('depositSplitsTemplate') depositSplitsTemplate?: TemplateRef<unknown>;
+
   private depositService = inject(DepositService);
   private mappingService = inject(MappingService);
   private propertyService = inject(PropertyService);
@@ -48,11 +50,6 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
 
-  @ViewChild('depositSplitsTemplate') depositSplitsTemplate?: TemplateRef<unknown>;
-
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['deposits']));
-  destroy$ = new Subject<void>();
   showInactive = false;
   isAdmin = false;
   canEditIsActiveCheckbox = false;
@@ -65,9 +62,9 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
   depositsLoadId = 0;
   lastDepositSearchKey: string | null = null;
   depositSearchInFlightKey: string | null = null;
-  private cancelDepositsLoad$ = new Subject<void>();
+  cancelDepositsLoad$ = new Subject<void>();
 
-  readonly depositDisplayedColumns: ColumnSet = {
+  depositDisplayedColumns: ColumnSet = {
     depositDate: { displayAs: 'Deposit Date', wrap: false, maxWidth: '15ch', alignment: 'center' },
     depositCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
@@ -82,7 +79,7 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
-  readonly depositSplitDisplayedColumns: ColumnSet = {
+  depositSplitDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', wrap: false },
@@ -91,6 +88,10 @@ export class DepositsListComponent implements OnInit, OnChanges, OnDestroy {
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['deposits']));
+  destroy$ = new Subject<void>();
 
   //#region Deposits List
   ngOnInit(): void {

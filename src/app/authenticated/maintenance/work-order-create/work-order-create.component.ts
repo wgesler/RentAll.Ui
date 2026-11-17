@@ -23,7 +23,8 @@ import { ReceiptResponse, Split } from '../models/receipt.model';
 import { WorkOrderItemResponse, WorkOrderResponse } from '../models/work-order.model';
 import { ReceiptService } from '../services/receipt.service';
 import { WorkOrderService } from '../services/work-order.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyService } from '../../properties/services/property.service';
 import { ReservationResponse } from '../../reservations/models/reservation-model';
@@ -48,6 +49,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   @Input() propertyIdInput: string | null = null;
   @Input() reservationIdInput: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private workOrderService = inject(WorkOrderService);
@@ -66,6 +68,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   private organizationService = inject(OrganizationService);
   private formatterService = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);
+
   override toastr: ToastrService;
 
   workOrderId: string | null = null;
@@ -80,7 +83,6 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   iframeKey = 0;
   isDownloading = false;
   isSubmitting = false;
-  isPageReady = false;
   organizationId = '';
 
   workOrder: WorkOrderResponse | null = null;
@@ -96,6 +98,7 @@ export class WorkOrderCreateComponent extends BaseDocumentComponent implements O
   accountingOfficeLogo = '';
   organization: OrganizationResponse | null = null;
 
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reservation', 'property', 'emailHtml', 'workOrder', 'previewHtml', 'template', 'propertyReceipts', 'organization']));
   destroy$ = new Subject<void>();
 

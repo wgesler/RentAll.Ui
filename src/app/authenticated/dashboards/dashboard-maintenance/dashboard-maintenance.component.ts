@@ -13,20 +13,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 import { DashboardNavigationService } from '../services/dashboard-navigation.service';
-
-type DashboardMaintenancePropertyRow = {
-  maintenanceItemId: number;
-  propertyId: string;
-  propertyCode: string;
-  name: string;
-  lastServiced: string;
-  months: string;
-  dateDue: string;
-  dateDueSortKey: string;
-  notes: string;
-  needsMaintenance: true;
-  needsMaintenanceState: 'red' | 'yellow' | 'green';
-};
+import { DashboardMaintenancePropertyRow } from '../models/dashboard-model';
 
 @Component({
   standalone: true,
@@ -45,8 +32,8 @@ export class DashboardMaintenanceComponent implements OnInit, OnDestroy {
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
   private toastr = inject(ToastrService);
-  private destroy$ = new Subject<void>();
-  private pendingMonthsById = new Map<number, number>();
+
+  pendingMonthsById = new Map<number, number>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   items: MaintenanceItemListResponse[] = [];
@@ -55,7 +42,7 @@ export class DashboardMaintenanceComponent implements OnInit, OnDestroy {
   loadFailed = false;
   includeGreen = false;
 
-  readonly columns: ColumnSet = {
+  columns: ColumnSet = {
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', sortType: 'natural' },
     name: { displayAs: 'Name', maxWidth: '30ch', wrap: false },
     lastServiced: { displayAs: 'Last Serviced', maxWidth: '16ch', alignment: 'center', headerAlignment: 'center', wrap: false },
@@ -64,6 +51,8 @@ export class DashboardMaintenanceComponent implements OnInit, OnDestroy {
     needsMaintenance: { displayAs: 'Status', isCheckbox: true, maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false },
     notes: { displayAs: 'Notes', wrap: true }
   };
+
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Maintenance
   ngOnInit(): void {

@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -26,23 +25,21 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
-  buildingService = inject(BuildingService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
+
+  private cdr = inject(ChangeDetectorRef);
+  private buildingService = inject(BuildingService);
+  private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private formatterService = inject(FormatterService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
-  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
-  
-  isServiceError: boolean = false;
+
   routeBuildingId: string | null = null;
   building: BuildingResponse;
   form: FormGroup;
@@ -53,8 +50,9 @@ export class BuildingComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   trashDays: { value: number, label: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['building']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['building']));
   destroy$ = new Subject<void>();
 
   //#region Buildings

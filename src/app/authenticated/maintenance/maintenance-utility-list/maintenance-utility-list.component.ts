@@ -4,17 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../../material.module';
 import { FormatterService } from '../../../services/formatter-service';
 import { PropertyResponse } from '../../properties/models/property.model';
-import { UtilityRequest, UtilityResponse } from '../models/utility.model';
-
-interface UtilityEditRow {
-  rowId: number;
-  utilityId?: number;
-  utilityName: string;
-  phone: string;
-  accountName: string;
-  accountNumber: string;
-  notes: string;
-}
+import { UtilityEditRow, UtilityRequest, UtilityResponse } from '../models/utility.model';
 
 @Component({
   standalone: true,
@@ -32,6 +22,7 @@ export class MaintenanceUtilityListComponent implements OnChanges {
   @Input() property: PropertyResponse | null = null;
   @Output() saveChanges = new EventEmitter<{ upserts: UtilityRequest[]; deleteIds: number[] }>();
   @Output() deleteExisting = new EventEmitter<number>();
+
   private formatterService = inject(FormatterService);
 
   rows: UtilityEditRow[] = [];

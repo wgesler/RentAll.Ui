@@ -9,7 +9,8 @@ import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MappingService } from '../../../../services/mapping.service';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../../shared/models/searchable-select.model';
 import { AccountType, PaymentKind, PaymentType, PaymentTypeLabels, TransactionType } from '../../models/accounting-enum';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { CostCodesResponse } from '../../models/cost-codes.model';
@@ -48,6 +49,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<PaymentResponse>();
+
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private paymentService = inject(PaymentService);
@@ -63,36 +65,31 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   private accountingOfficeService = inject(AccountingOfficeService);
   private utilityService = inject(UtilityService);
   private mappingService = inject(MappingService);
-  formatter = inject(FormatterService);
+  protected formatter = inject(FormatterService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
   form: FormGroup;
   isAddMode = false;
   isSubmitting = false;
-  isPageReady = false;
   isPaymentContentReady = false;
   organizationId = '';
   payment: PaymentResponse | null = null;
   invoices: InvoiceResponse[] = [];
   bills: ReceiptResponse[] = [];
   propertyCodeLookup = new Map<string, string>();
-  readonly ownerApAllocationId = 'owner-ap';
+  ownerApAllocationId = 'owner-ap';
   ownerApAllocationLabel = 'Owner A/Payable';
   ownerApPropertyOptions: SearchableSelectOption<string>[] = [];
-  private ownerInboundProperties: PropertyListResponse[] = [];
-  private defaultOwnerApAccountId = 0;
+  ownerInboundProperties: PropertyListResponse[] = [];
+  defaultOwnerApAccountId = 0;
   owedOwners: OwnerOwedAllocationOption[] = [];
   costCodeOptions: SearchableSelectOption<number>[] = [];
   bankAccountOptions: SearchableSelectOption<number>[] = [];
-  private officeCostCodes: CostCodesResponse[] = [];
-  private officeChartOfAccounts: ChartOfAccountResponse[] = [];
+  officeCostCodes: CostCodesResponse[] = [];
+  officeChartOfAccounts: ChartOfAccountResponse[] = [];
   allocationOptions: SearchableSelectOption<string>[] = [];
-  get paymentTypeOptions(): { value: PaymentType; label: string }[] {
-    const selected = Number(this.form?.get('paymentTypeId')?.value);
-    return PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit || type.value === selected);
-  }
-  readonly comparePaymentTypeIds = (left: number | null, right: number | null): boolean => left === right;
+  comparePaymentTypeIds = (left: number | null, right: number | null): boolean => left === right;
   amountFocused = false;
   amountEditValue = '';
   saveValidationHighlightActive = false;
@@ -100,12 +97,9 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   focusedSplitAmountIndex: number | null = null;
   splitAmountEditValue = '';
   isSyncingInitialSplit = false;
-  private nextSplitLineKey = 1;
+  nextSplitLineKey = 1;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
-  destroy$ = new Subject<void>();
-
-  readonly requirePositiveAmount = (control: AbstractControl): ValidationErrors | null => {
+  requirePositiveAmount = (control: AbstractControl): ValidationErrors | null => {
     const raw = this.sanitizeSignedDecimalInput(control.value?.toString() ?? '').trim();
     const amount = parseFloat(raw);
     if (!raw || !Number.isFinite(amount) || Math.abs(amount) < 0.000001) {
@@ -114,15 +108,33 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
     return null;
   };
 
-  readonly requireCostCodeId = (control: AbstractControl): ValidationErrors | null => {
+  requireCostCodeId = (control: AbstractControl): ValidationErrors | null => {
     const costCodeId = Number(control.value ?? 0);
     return Number.isFinite(costCodeId) && costCodeId > 0 ? null : { required: true };
   };
 
-  readonly requireAllocationId = (control: AbstractControl): ValidationErrors | null => {
+  requireAllocationId = (control: AbstractControl): ValidationErrors | null => {
     const allocationId = (control.value || '').toString().trim();
     return allocationId.length > 0 ? null : { required: true };
   };
+
+  requireOwnerApProperty = (control: AbstractControl): ValidationErrors | null => {
+    const invoiceId = (control.get('invoiceId')?.value || '').toString().trim();
+    if (invoiceId !== this.ownerApAllocationId) {
+      return null;
+    }
+    const propertyId = (control.get('propertyId')?.value || '').toString().trim();
+    return propertyId.length > 0 ? null : { propertyRequired: true };
+  };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  destroy$ = new Subject<void>();
+
+  get paymentTypeOptions(): { value: PaymentType; label: string }[] {
+    const selected = Number(this.form?.get('paymentTypeId')?.value);
+    return PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit || type.value === selected);
+  }
 
   get isOwnerPayment(): boolean {
     return this.paymentKind === PaymentKind.OwnerOutbound;
@@ -865,15 +877,6 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
       description: new FormControl(split?.description || '', [Validators.required])
     }, { validators: [this.requireOwnerApProperty] });
   }
-
-  readonly requireOwnerApProperty = (control: AbstractControl): ValidationErrors | null => {
-    const invoiceId = (control.get('invoiceId')?.value || '').toString().trim();
-    if (invoiceId !== this.ownerApAllocationId) {
-      return null;
-    }
-    const propertyId = (control.get('propertyId')?.value || '').toString().trim();
-    return propertyId.length > 0 ? null : { propertyRequired: true };
-  };
 
   isOwnerApSplit(splitIndex: number): boolean {
     return (this.splitsFormArray.at(splitIndex)?.get('invoiceId')?.value || '').toString().trim() === this.ownerApAllocationId;
@@ -2052,6 +2055,7 @@ export class PaymentComponent implements OnInit, OnChanges, OnDestroy {
   markViewForCheck(): void {
     this.cdr.markForCheck();
   }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

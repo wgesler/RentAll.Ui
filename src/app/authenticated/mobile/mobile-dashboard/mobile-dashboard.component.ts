@@ -12,7 +12,7 @@ import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { EmailHtmlService } from '../../email/services/email-html.service';
-import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { MaterialModule } from '../../../material.module';
 import { PropertyMaintenanceBase } from '../../shared/base-classes/property-maintenance.base';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
@@ -73,10 +73,6 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
   private cdr = inject(ChangeDetectorRef);
   private scheduleSnapshotService = inject(DashboardScheduleSnapshotService);
 
-  override itemsToLoad$ = new BehaviorSubject<Set<string>>(
-    new Set(['activeReservations', 'propertyMaintenanceList', 'cleaners', 'carpetUsers', 'inspectors'])
-  );
-
   housekeepingById = new Map<string, string>();
   carpetById = new Map<string, string>();
   inspectorById = new Map<string, string>();
@@ -108,6 +104,10 @@ export class MobileDashboardComponent extends PropertyMaintenanceBase implements
   scheduleDotTypeByDayKey = new Map<string, Set<MobileScheduleDotType>>();
   selectedScheduleCalendarDayKey: string | null = null;
   assigneeUserIdForScope: string | null = null;
+
+  override itemsToLoad$ = new BehaviorSubject<Set<string>>(
+    new Set(['activeReservations', 'propertyMaintenanceList', 'cleaners', 'carpetUsers', 'inspectors'])
+  );
 
   get showServiceProviderFilter(): boolean {
     return !this.assigneeUserIdForScope;

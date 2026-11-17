@@ -27,8 +27,8 @@ import { AccountingOfficeResponse } from '../models/accounting-office.model';
 import { FeatureType, OrganizationType } from '../models/organization-enum';
 import { OrganizationPartnerOptionResponse, OrganizationResponse } from '../models/organization.model';
 import { OrganizationFeatureService } from '../services/organization-feature.service';
-import { OfficeResponse } from '../models/office.model';
-import { OfficeListComponent, OfficeCopyPayload } from '../office-list/office-list.component';
+import { OfficeCopyPayload, OfficeResponse } from '../models/office.model';
+import { OfficeListComponent } from '../office-list/office-list.component';
 import { OfficeComponent } from '../office/office.component';
 import { RegionListComponent } from '../region-list/region-list.component';
 import { RegionComponent } from '../region/region.component';
@@ -78,16 +78,6 @@ import { EmailTemplateListComponent } from '../../email/email-template-list/emai
     styleUrls: ['./configuration.component.scss']
 })
 export class ConfigurationComponent implements OnInit, OnDestroy {
-  private router = inject(Router);
-  private navigationContext = inject(NavigationContextService);
-  private organizationService = inject(OrganizationService);
-  private organizationFeatureService = inject(OrganizationFeatureService);
-  private officeService = inject(OfficeService);
-  private authService = inject(AuthService);
-  private commonService = inject(CommonService);
-  private globalSelectionService = inject(GlobalSelectionService);
-  private terminologyService = inject(TerminologyService);
-
   @ViewChild(OfficeListComponent) officeListComponent?: OfficeListComponent;
   @ViewChild(AgentListComponent) agentListComponent?: AgentListComponent;
   @ViewChild(RegionListComponent) regionListComponent?: RegionListComponent;
@@ -99,6 +89,16 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   @ViewChild(AccountingOfficeListComponent) accountingOfficeListComponent?: AccountingOfficeListComponent;
   @ViewChild(ColorListComponent) colorListComponent?: ColorListComponent;
   @ViewChild(StateFormListComponent) stateFormListComponent?: StateFormListComponent;
+
+  private router = inject(Router);
+  private navigationContext = inject(NavigationContextService);
+  private organizationService = inject(OrganizationService);
+  private organizationFeatureService = inject(OrganizationFeatureService);
+  private officeService = inject(OfficeService);
+  private authService = inject(AuthService);
+  private commonService = inject(CommonService);
+  private globalSelectionService = inject(GlobalSelectionService);
+  private terminologyService = inject(TerminologyService);
 
   expandedSections = {offices: false, accountingOffices: false, partners: false, agents: false, regions: false, terminology: false, area: false, building: false, chartOfAccounts: false, costCodes: false, color: false, trackers: false, stateForms: false, email: false };
   agentsPanelTitle = 'Agents';

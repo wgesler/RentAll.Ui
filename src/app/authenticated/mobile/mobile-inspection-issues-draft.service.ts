@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { ChecklistIssuesDialogData } from '../maintenance/inspection/dialog-checklist-issues.component';
+import { ChecklistIssuesDialogData } from '../maintenance/models/inspection.model';
 
 export interface MobileInspectionIssuesDraft {
   data: ChecklistIssuesDialogData;

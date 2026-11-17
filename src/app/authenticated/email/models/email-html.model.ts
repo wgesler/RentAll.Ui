@@ -26,3 +26,24 @@ export interface EmailHtmlResponse {
   createdOn: string;
   modifiedOn?: string;
 }
+
+export interface EmailTemplateDialogData {
+  name: string;
+  subject: string;
+  body: string;
+  hasSubject: boolean;
+}
+
+export interface EmailTemplateDialogResult {
+  subject: string;
+  body: string;
+}
+
+export interface EmailTemplateRow {
+  key: string;
+  name: string;
+  subjectField: keyof EmailHtmlResponse | null;
+  bodyField: keyof EmailHtmlResponse;
+  subject: string;
+  content: string;
+}

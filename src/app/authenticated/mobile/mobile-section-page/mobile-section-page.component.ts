@@ -35,11 +35,12 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
   @ViewChild('propertyDetail') propertyDetail?: MobilePropertyDetailComponent;
   @ViewChild('ticketDetail') ticketDetail?: MobileTicketDetailComponent;
   @ViewChild('inspectionDetail') inspectionDetail?: MobileInspectionDetailComponent;
+
   private router = inject(Router);
   private authService = inject(AuthService);
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private cdr = inject(ChangeDetectorRef);
-  destroy$ = new Subject<void>();
+
   section: MobileNavItem | null = null;
   tab: MobileNavTab | null = null;
   detailId = '';
@@ -59,6 +60,8 @@ export class MobileSectionPageComponent implements OnInit, OnDestroy {
   propertyReturnTo: 'board' | 'list' = 'list';
   titleTabs: MobileNavTab[] = [];
   hasPendingUserReceiptDrafts = false;
+
+  destroy$ = new Subject<void>();
 
   //#region Mobile-Section
   ngOnInit(): void {

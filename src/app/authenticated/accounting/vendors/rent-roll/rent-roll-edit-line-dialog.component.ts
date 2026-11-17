@@ -4,7 +4,8 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { take } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../../shared/models/searchable-select.model';
 import { ChartOfAccountsService } from '../../services/chart-of-accounts.service';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { ContactResponse } from '../../../contacts/models/contact.model';
@@ -20,44 +21,7 @@ import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyCodeResponse } from '../../../properties/models/property.model';
 import { NewContactDialogService } from '../../../shared/contacts/new-contact-dialog.service';
 import { RECEIPT_COMPANY_PROPERTY_ID, isReceiptCompanyPropertyId } from '../../../maintenance/models/receipt.model';
-
-export interface RentRollEditLineDialogData {
-  propertyId?: string | null;
-  propertyCode: string;
-  allowPropertySelection?: boolean;
-  officeId: number | null;
-  vendorId: string | null;
-  vendorName: string;
-  bankCardId: number | null;
-  terms: string;
-  chartOfAccountId: number | null;
-  startDate: string | null;
-  endDate: string | null;
-  depositAmount: number;
-  oneTimeAmount: number;
-  monthlyAmount: number;
-  dailyAmount: number;
-  isRent: boolean;
-  notes: string;
-}
-
-export interface RentRollEditLineDialogResult {
-  officeId: number | null;
-  propertyId: string | null;
-  vendorId: string | null;
-  vendorName: string;
-  bankCardId: number | null;
-  terms: string;
-  chartOfAccountId: number | null;
-  startDate: string | null;
-  endDate: string | null;
-  deposit: number | null;
-  oneTime: number | null;
-  monthly: number | null;
-  daily: number | null;
-  isRent: boolean;
-  notes: string | null;
-}
+import { RentRollEditLineDialogData, RentRollEditLineDialogResult } from '../../models/rent-roll.model';
 
 @Component({
   standalone: true,
@@ -67,7 +31,7 @@ export interface RentRollEditLineDialogResult {
   styleUrl: './rent-roll-edit-line-dialog.component.scss'
 })
 export class RentRollEditLineDialogComponent {
-  data = inject<RentRollEditLineDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<RentRollEditLineDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<RentRollEditLineDialogComponent, RentRollEditLineDialogResult | undefined>>(MatDialogRef);
   private fb = inject(FormBuilder);
   private chartOfAccountsService = inject(ChartOfAccountsService);
@@ -87,11 +51,11 @@ export class RentRollEditLineDialogComponent {
   bankCardOptions: SearchableSelectOption<number>[] = [{ value: 0, label: 'Bill' }];
   propertyOptions: SearchableSelectOption<string>[] = [];
   chartOfAccountOptions: SearchableSelectOption<number>[] = [];
-  readonly defaultTerms = getTermType(TermType.DueOnReceipt) || 'Due on receipt';
-  private vendorById = new Map<string, ContactResponse>();
-  private propertyOfficeById = new Map<string, number>();
-  private allPropertyCodes: PropertyCodeResponse[] = [];
-  private bankCardLoadId = 0;
+  defaultTerms = getTermType(TermType.DueOnReceipt) || 'Due on receipt';
+  vendorById = new Map<string, ContactResponse>();
+  propertyOfficeById = new Map<string, number>();
+  allPropertyCodes: PropertyCodeResponse[] = [];
+  bankCardLoadId = 0;
 
   constructor() {
     const data = this.data;

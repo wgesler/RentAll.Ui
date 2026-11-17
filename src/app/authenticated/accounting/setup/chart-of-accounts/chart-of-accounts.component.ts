@@ -3,7 +3,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../../enums/common-message.enum';
@@ -26,26 +25,24 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
   styleUrl: './chart-of-accounts.component.scss'
 })
 export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() id: string | number | null = null;
   @Input() officeId: number | null = null;
   @Input() source: 'accounting' | 'configuration' = 'accounting';
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
-  chartOfAccountsService = inject(ChartOfAccountsService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+  @ViewChild('officeSelect') officeSelectRef: MatSelect;
+  @ViewChild('accountNoInput') accountNoInputRef: ElementRef<HTMLInputElement>;
+
+  private cdr = inject(ChangeDetectorRef);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private mappingService = inject(MappingService);
   private formatterService = inject(FormatterService);
   private utilityService = inject(UtilityService);
-  @ViewChild('officeSelect') officeSelectRef: MatSelect;
-  @ViewChild('accountNoInput') accountNoInputRef: ElementRef<HTMLInputElement>;
 
-  isServiceError = false;
   accountId: number | null = null;
   chartOfAccount: ChartOfAccountResponse | null = null;
   form: FormGroup;
@@ -60,8 +57,9 @@ export class ChartOfAccountComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   selectedOffice: OfficeResponse | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccount']));
+  isServiceError = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['chartOfAccount']));
   destroy$ = new Subject<void>();
 
   //#region ChartOfAccount

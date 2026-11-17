@@ -48,10 +48,9 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   private globalSelectionService = inject(GlobalSelectionService);
   private propertySelectionFilterService = inject(PropertySelectionFilterService);
 
-  private readonly clearPinsEventName = 'rentall-clear-pins';
+  clearPinsEventName = 'rentall-clear-pins';
   form: FormGroup;
   isSubmitting: boolean = false;
-  isServiceError: boolean = false;
   states: string[] = [];
   offices: OfficeResponse[] = [];
   regions: RegionResponse[] = [];
@@ -70,8 +69,13 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
   formFilterTrackingSetup = false;
   selectionSticky = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
+  onClearPins = (): void => {
+    this.selectionSticky = false;
+  };
+
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['selection', 'lookups']));
   destroy$ = new Subject<void>();
 
   //#region Property-Selection
@@ -612,9 +616,5 @@ export class PropertySelectionComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
     this.itemsToLoad$.complete();
   }
-
-  onClearPins = (): void => {
-    this.selectionSticky = false;
-  };
   //#endregion
 }

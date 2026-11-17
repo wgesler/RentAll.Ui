@@ -32,16 +32,16 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
   @Input() isLoading = false;
   @Output() lineSelectEvent = new EventEmitter<{ journalEntryId: string; journalEntryLineId: string }>();
   @Output() sourceLinkSelect = new EventEmitter<OwnerStatementActivityLinkSelection>();
+
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private journalEntrySourceService = inject(JournalEntrySourceService);
   private mappingService = inject(MappingService);
   private cdr = inject(ChangeDetectorRef);
   private terminologyService = inject(TerminologyService);
 
-  isServiceError = false;
   rowsDisplay: JournalEntryRecapRowDisplay[] = [];
   noActivityMessage = 'Press Go to run the report.';
-  private readonly noDataMessage = 'No journal entry recap activity for the selected filters and date range.';
+  noDataMessage = 'No journal entry recap activity for the selected filters and date range.';
 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '5ch', sort: false, wrap: false, alignment: 'center' },
@@ -65,6 +65,7 @@ export class JournalEntryRecapComponent implements OnInit, OnChanges, OnDestroy 
     ownerPayment: { displayAs: 'OwnPay', maxWidth: '12ch', alignment: 'right', sort: false }
   };
 
+  isServiceError = false;
   destroy$ = new Subject<void>();
 
   //#region Journal Entry Recap

@@ -24,6 +24,7 @@ export class MobileReceiptCaptureService {
   private captureReceiptDraftService = inject(MobileCaptureReceiptDraftService);
   private toastr = inject(ToastrService);
   private dialog = inject(MatDialog);
+
   private readonly captureInProgressSubject = new BehaviorSubject<boolean>(false);
   readonly captureInProgress$ = this.captureInProgressSubject.asObservable();
 

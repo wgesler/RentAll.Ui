@@ -40,7 +40,7 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private terminologyService = inject(TerminologyService);
-  isServiceError = false;
+
   rowsDisplay: TransferFlatReportRowDisplay[] = [];
   lineAllocations: TransferReportLineAllocationResponse[] = [];
   noActivityMessage = 'No transfer detail lines for the selected transfer.';
@@ -48,15 +48,11 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
   chartOfAccounts: ChartOfAccountResponse[] = [];
   currentTransfer: TransferResponse | null = null;
   transferReportLoadId = 0;
+  transferReportAmountColumnWidth = '5.5rem';
+
   displayedColumns: ColumnSet = {};
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transferReport']));
-  isPageReady = false;
-  destroy$ = new Subject<void>();
-
-  readonly transferReportAmountColumnWidth = '5.5rem';
-
-  readonly transferReportDisplayedColumns: ColumnSet = {
+  transferReportDisplayedColumns: ColumnSet = {
     transferDate: { displayAs: 'Date', maxWidth: '12ch', wrap: false },
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', wrap: false },
     reservationCode: { displayAs: 'Reservation', maxWidth: '16ch', wrap: false, sortType: 'natural' },
@@ -70,6 +66,10 @@ export class TransferReportComponent implements OnInit, OnChanges, OnDestroy {
     outOfBalance: { displayAs: 'Out of Balance', maxWidth: '12ch', alignment: 'center', headerAlignment: 'center', sort: false }
   };
 
+  isServiceError = false;
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['transferReport']));
+  destroy$ = new Subject<void>();
 
   //#region Transfer Report
   ngOnInit(): void {

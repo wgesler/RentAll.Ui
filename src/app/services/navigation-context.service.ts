@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { OwnerAuthorization } from '../authenticated/owners/models/owner-authorization.model';
+import { OwnerAuthorization } from '../authenticated/owners/models/owner-enums';
 
 @Injectable({
   providedIn: 'root'

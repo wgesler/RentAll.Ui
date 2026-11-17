@@ -33,10 +33,10 @@ import { LeadsService } from '../services/leads.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
-
   officeId = input<number | null>(null);
   requestNewOwner = output<void>();
   requestEditOwner = output<OwnerEditSelection>();
+
   private clipboard = inject(Clipboard);
   private router = inject(Router);
   private ngZone = inject(NgZone);
@@ -50,8 +50,6 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
 
-  isServiceError = false;
-  isPageReady = false;
   showInactive = false;
   allOwners: LeadOwnerListDisplay[] = [];
   ownersDisplay: LeadOwnerListDisplay[] = [];
@@ -71,6 +69,8 @@ export class OwnerListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-leads']));
   destroy$ = new Subject<void>();
 

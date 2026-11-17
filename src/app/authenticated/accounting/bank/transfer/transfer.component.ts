@@ -13,7 +13,8 @@ import { PropertyService } from '../../../properties/services/property.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../../shared/models/searchable-select.model';
 import { TransferRequest, TransferResponse, TransferSplit } from '../../models/transfer.model';
 import { TransferService } from '../../services/transfer.service';
 import { JournalEntryService } from '../../services/journal-entry.service';
@@ -39,6 +40,8 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   @Input() autoBackOnSave = true;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<TransferResponse>();
+  @ViewChild('overallAmountInput') overallAmountInput?: ElementRef<HTMLInputElement>;
+
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private transferService = inject(TransferService);
@@ -48,15 +51,13 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private accountingOfficeService = inject(AccountingOfficeService);
   private utilityService = inject(UtilityService);
-  formatter = inject(FormatterService);
+  protected formatter = inject(FormatterService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
-  @ViewChild('overallAmountInput') overallAmountInput?: ElementRef<HTMLInputElement>;
 
   form: FormGroup;
   isAddMode = false;
   isSubmitting = false;
-  isPageReady = false;
   isTransferContentReady = false;
   organizationId = '';
   transfer: TransferResponse | null = null;
@@ -74,10 +75,7 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
   saveValidationHighlightActive = false;
   isSyncingInitialSplit = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
-  destroy$ = new Subject<void>();
-
-  readonly requirePositiveAmount = (control: AbstractControl): ValidationErrors | null => {
+  requirePositiveAmount = (control: AbstractControl): ValidationErrors | null => {
     const raw = this.sanitizeSignedDecimalInput(control.value?.toString() ?? '').trim();
     const amount = parseFloat(raw);
     if (!raw || !Number.isFinite(amount) || Math.abs(amount) < 0.000001) {
@@ -86,10 +84,14 @@ export class TransferComponent implements OnInit, OnChanges, OnDestroy, AfterVie
     return null;
   };
 
-  readonly requireAccountId = (control: AbstractControl): ValidationErrors | null => {
+  requireAccountId = (control: AbstractControl): ValidationErrors | null => {
     const accountId = Number(control.value ?? 0);
     return Number.isFinite(accountId) && accountId > 0 ? null : { required: true };
   };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  destroy$ = new Subject<void>();
 
   constructor() {
     this.form = this.fb.group({});

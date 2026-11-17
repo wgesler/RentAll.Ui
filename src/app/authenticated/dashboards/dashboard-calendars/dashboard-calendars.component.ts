@@ -12,29 +12,13 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ServiceType } from '../../shared/models/mixed-enums';
 import { MaintenanceListDisplay } from '../../shared/models/mixed-models';
 import {
-  DashboardCalendarEventKind,
   DashboardCalendarFocus,
   DashboardCompanyDataService,
   DashboardCompanyDataSnapshot,
   emptyDashboardCompanyDataSnapshot
 } from '../services/dashboard-company-data.service';
 import { DashboardNavigationService } from '../services/dashboard-navigation.service';
-
-type ScheduleDotType = 'blue' | 'purple' | 'green' | 'pink';
-type ScheduleCalendarCell = { day: number | null; dateKey: string | null; isToday: boolean; isWeekend: boolean };
-type ScheduleCalendarMonth = { title: string; cells: ScheduleCalendarCell[] };
-type CalendarDayEvent = {
-  propertyCode: string;
-  reservationCode: string;
-  contactName: string;
-  eventLabel: string;
-  eventKind: DashboardCalendarEventKind;
-  targetTabIndex: number;
-  propertyId: string | null;
-  reservationId: string | null;
-  maintenanceId: string | null;
-  dateKey: string;
-};
+import { CalendarDayEvent, ScheduleCalendarCell, ScheduleCalendarMonth, ScheduleDotType } from '../models/dashboard-model';
 
 @Component({
   standalone: true,
@@ -54,7 +38,6 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
   private utilityService = inject(UtilityService);
-  private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   maidDisplayRows: MaintenanceListDisplay[] = [];
@@ -70,6 +53,8 @@ export class DashboardCalendarsComponent implements OnInit, OnDestroy {
   selectedDayLabel = '';
   dayEventsPerPage = 4;
   hasManagementAccess = false;
+
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Calendars
   ngOnInit(): void {

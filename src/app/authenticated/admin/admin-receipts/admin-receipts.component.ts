@@ -43,7 +43,7 @@ export class AdminReceiptsComponent implements OnChanges {
   isLoading = false;
   filesLoading = false;
   isMatching = false;
-  private loadVersion = 0;
+  loadVersion = 0;
 
   get selectedReceipt(): MissingReceipt | null {
     return this.receipts.find(receipt => receipt.receiptId === this.selectedReceiptId) ?? null;

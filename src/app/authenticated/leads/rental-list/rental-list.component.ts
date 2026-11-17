@@ -18,12 +18,9 @@ import { PropertyService } from '../../properties/services/property.service';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { LeadRentalListDisplay, RentalEditSelection } from '../models/lead-rental.model';
+import { LeadRentalListDisplay, RentalEditSelection, RentalQuotePropertyOption } from '../models/lead-rental.model';
 import { formatLeadStateLabel, LEAD_STATE_SELECT_OPTIONS, LeadStateDropdownCell, LeadStateType } from '../models/lead-enums';
-import {
-  RentalQuotePropertyOption,
-  RentalQuotePropertySelectDialogComponent
-} from './rental-quote-property-select-dialog.component';
+import { RentalQuotePropertySelectDialogComponent } from './rental-quote-property-select-dialog.component';
 import { LeadsService } from '../services/leads.service';
 
 @Component({
@@ -35,10 +32,10 @@ import { LeadsService } from '../services/leads.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
-
   officeId = input<number | null>(null);
   requestNewRental = output<void>();
   requestEditRental = output<RentalEditSelection>();
+
   private router = inject(Router);
   private ngZone = inject(NgZone);
   private toastr = inject(ToastrService);
@@ -52,8 +49,6 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
   private propertyService = inject(PropertyService);
   private cdr = inject(ChangeDetectorRef);
 
-  isServiceError = false;
-  isPageReady = false;
   showInactive = false;
   allRentals: LeadRentalListDisplay[] = [];
   rentalsDisplay: LeadRentalListDisplay[] = [];
@@ -74,9 +69,10 @@ export class RentalListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-leads']));
   destroy$ = new Subject<void>();
-
 
   //#region Rental-List
   ngOnInit(): void {

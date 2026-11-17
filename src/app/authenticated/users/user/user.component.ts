@@ -35,14 +35,8 @@ import {
   resolveStartupPageId
 } from '../../shared/access/role-access';
 import { UserGroups, getUserGroupOptions } from '../models/user-enums';
-import { UserRequest, UserResponse } from '../models/user.model';
+import { UserDialogData, UserRequest, UserResponse } from '../models/user.model';
 import { UserService } from '../services/user.service';
-
-export interface UserDialogData {
-  userId: string;
-  isDialog?: boolean;
-  selfEdit?: boolean;
-}
 
 @Component({
     standalone: true,
@@ -53,14 +47,14 @@ export interface UserDialogData {
 })
 
 export class UserComponent implements OnInit, OnChanges, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() id: string = 'new';
   @Input() selectedOrganizationId: string | null = null;
   @Output() closed = new EventEmitter<{ saved?: boolean; userId?: string }>();
-  userService = inject(UserService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+
+  private cdr = inject(ChangeDetectorRef);
+  private userService = inject(UserService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private organizationListService = inject(OrganizationListService);
@@ -69,7 +63,6 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private terminologyService = inject(TerminologyService);
-  agentFieldLabel = 'Agent';
   private agentService = inject(AgentService);
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
@@ -77,10 +70,10 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private propertyService = inject(PropertyService);
-  dialogData? = inject<UserDialogData>(MAT_DIALOG_DATA, { optional: true });
+  private dialogData? = inject<UserDialogData>(MAT_DIALOG_DATA, { optional: true });
   private dialogRef = inject<MatDialogRef<UserComponent>>(MatDialogRef, { optional: true });
 
-  isServiceError: boolean = false;
+  agentFieldLabel = 'Agent';
   userId: string;
   user: UserResponse;
   form: FormGroup;
@@ -108,7 +101,7 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   isCurrentUserSuperAdmin: boolean = false;
   hasDocuSignAccess = false;
   organizationId = '';
-  private allFeatures: FeatureResponse[] = [];
+  allFeatures: FeatureResponse[] = [];
   
   // Profile picture properties
   isUploadingProfilePicture: boolean = false;
@@ -118,8 +111,9 @@ export class UserComponent implements OnInit, OnChanges, OnDestroy {
   profilePath: string = null;
   originalprofilePath: string = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['user']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['user']));
   destroy$ = new Subject<void>();
 
   constructor() {

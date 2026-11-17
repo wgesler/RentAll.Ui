@@ -265,3 +265,43 @@ export interface InvoicePreviewSelection {
   companyId?: string | null;
   returnToEditor?: boolean;
 }
+
+export type InvoiceLedgerLineLike = Pick<LedgerLineResponse, 'costCodeId' | 'amount'> & {
+  transactionTypeId?: number;
+  transactionType?: string;
+};
+
+export type LedgerLineDisplayRow = LedgerLineListDisplay & {
+  reservationId?: string | null;
+  transactionTypeId?: number;
+};
+
+export interface InvoiceListDisplayRow extends Omit<InvoiceResponse, 'totalAmount' | 'paidAmount' | 'invoiceDate' | 'dueDate' | 'ledgerLines'> {
+  selected?: boolean;
+  invoiceNumber: string;
+  reservationCode: string;
+  propertyCode: string;
+  responsibleParty: string;
+  totalAmount: string;
+  totalAmountValue: number;
+  paidAmount: string;
+  paidAmountValue: number;
+  paidAmountDisplay: string;
+  dueAmount: string;
+  dueAmountValue: number;
+  originalDueAmountValue?: number;
+  applyAmount: string;
+  applyAmountValue: number;
+  applyAmountDisplay: string;
+  applyAmountEditable: boolean;
+  startDate: string;
+  endDate: string;
+  period: string;
+  invoiceDate: string;
+  dueDate: string;
+  created: string;
+  expand: string;
+  expanded: boolean;
+  ledgerLines: LedgerLineListDisplay[];
+  expandClick: (event: Event, item: InvoiceListDisplayRow) => void;
+}

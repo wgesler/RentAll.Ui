@@ -23,6 +23,7 @@ import { TerminologyService } from '../services/terminology.service';
 export class TerminologyListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() officeId: number | null = null;
   @Output() terminologySelected = new EventEmitter<string | number | null>();
+
   private terminologyService = inject(TerminologyService);
   private toastr = inject(ToastrService);
   private mappingService = inject(MappingService);

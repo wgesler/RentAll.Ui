@@ -7,17 +7,8 @@ import { FormatterService } from '../../../../services/formatter-service';
 import { MappingService } from '../../../../services/mapping.service';
 import { UtilityService } from '../../../../services/utility.service';
 import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
-import { OwnerAccrualReportResponse, OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportResponse, OwnerReportSearchResponse, OwnerReportVisibleRow, OwnerCashReportResponse } from '../../models/owner-report.model';
+import { OwnerAccrualReportResponse, OwnerReportActivityLinkSelection, OwnerReportAmountDrillDownSelection, OwnerReportDescriptionSegment, OwnerReportDrillDownMetric, OwnerReportKind, OwnerReportKindCache, OwnerReportListViewState, OwnerReportOfficeGroup, OwnerReportPropertyActivityLineDisplay, OwnerReportPropertyActivityLineResponse, OwnerReportResponse, OwnerReportSearchResponse, OwnerReportVisibleRow, OwnerCashReportResponse } from '../../models/owner-report.model';
 import { OwnerReportsCacheService } from '../../services/owner-reports-cache.service';
-
-interface OwnerReportKindCache {
-  ownerReports: OwnerReportResponse[];
-  propertyActivityLinesRaw: OwnerReportPropertyActivityLineResponse[];
-  expandedRowIds: string[];
-  officeReadyToCloseRowIds: string[];
-  isServiceError: boolean;
-  viewState: OwnerReportListViewState | null;
-}
 
 const ownerReportKindCache = new Map<OwnerReportKind, OwnerReportKindCache>();
 
@@ -43,6 +34,8 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   @Output() amountDrillDownSelect = new EventEmitter<OwnerReportAmountDrillDownSelection>();
   @Output() viewStateChange = new EventEmitter<OwnerReportListViewState>();
   @Output() reportKindChange = new EventEmitter<OwnerReportKind>();
+  @ViewChild('ownerReportTableWrap') ownerReportTableWrap?: ElementRef<HTMLElement>;
+
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private commonService = inject(CommonService);
   private formatter = inject(FormatterService);
@@ -50,10 +43,6 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
-  @ViewChild('ownerReportTableWrap') ownerReportTableWrap?: ElementRef<HTMLElement>;
-
-  isPageReady = false;
-  isServiceError = false;
   awaitingGoRun = false;
   emptyStateMessage = 'No owner statement activity for the selected filters.';
   companyName = '';
@@ -64,9 +53,12 @@ export class OwnerReportComponent implements OnInit, OnChanges, OnDestroy {
   officeReadyToCloseRowIds = new Set<string>();
   noActivityPropertyRowIds = new Set<string>();
   propertyActivityLinesByPropertyRowId = new Map<string, OwnerReportPropertyActivityLineDisplay[]>();
-  private propertyActivityLinesRaw: OwnerReportPropertyActivityLineResponse[] = [];
+  propertyActivityLinesRaw: OwnerReportPropertyActivityLineResponse[] = [];
   ownerReportFixedHeightPx = 0;
   dimensionsUpdateScheduled = false;
+
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 

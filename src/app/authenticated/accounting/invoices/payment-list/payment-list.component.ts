@@ -44,6 +44,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() refreshTrigger = 0;
   @Output() paymentSelect = new EventEmitter<PaymentSelection>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
+  @ViewChild('paymentLedgerLinesTemplate') paymentLedgerLinesTemplate?: TemplateRef<unknown>;
+
   private paymentService = inject(PaymentService);
   private mappingService = inject(MappingService);
   private authService = inject(AuthService);
@@ -56,8 +58,6 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   private reservationService = inject(ReservationService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
-
-  @ViewChild('paymentLedgerLinesTemplate') paymentLedgerLinesTemplate?: TemplateRef<unknown>;
 
   showInactive = false;
   isAdmin = false;
@@ -77,12 +77,8 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   paymentSearchInFlightKey: string | null = null;
   cancelPaymentsLoad$ = new Subject<void>();
 
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['payments']));
-  destroy$ = new Subject<void>();
-
   activePaymentDisplayedColumns: ColumnSet = {};
-  readonly invoicePaymentDisplayedColumns: ColumnSet = {
+  invoicePaymentDisplayedColumns: ColumnSet = {
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     paymentKindDescription: { displayAs: 'Kind', wrap: false, maxWidth: '14ch' },
@@ -97,7 +93,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
-  readonly billPaymentDisplayedColumns: ColumnSet = {
+  billPaymentDisplayedColumns: ColumnSet = {
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '16ch' },
@@ -110,7 +106,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '18ch' }
   };
 
-  readonly paymentBillAllocationDisplayedColumns: ColumnSet = {
+  paymentBillAllocationDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     receiptCode: { displayAs: 'Bill', maxWidth: '15ch', wrap: false, sortType: 'natural' },
     billNumber: { displayAs: 'Bill Number', maxWidth: '24ch', wrap: true },
@@ -118,7 +114,7 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
 
-  readonly ownerPaymentDisplayedColumns: ColumnSet = {
+  ownerPaymentDisplayedColumns: ColumnSet = {
     paymentDate: { displayAs: 'Date', wrap: false, maxWidth: '16ch', alignment: 'center' },
     paymentCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     paymentTypeDescription: { displayAs: 'Type', wrap: false, maxWidth: '16ch' },
@@ -131,13 +127,25 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '18ch' }
   };
 
-  readonly paymentOwnerAllocationDisplayedColumns: ColumnSet = {
+  paymentOwnerAllocationDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
     propertyCode: { displayAs: 'Property', maxWidth: '16ch', wrap: false, sortType: 'natural' },
     ownerName: { displayAs: 'Owner', maxWidth: '28ch', wrap: true },
     description: { displayAs: 'Description', maxWidth: '38ch', wrap: true },
     amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
   };
+
+  paymentLedgerLineDisplayedColumns: ColumnSet = {
+    lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
+    invoiceCode: { displayAs: 'Invoice', maxWidth: '22ch', wrap: false, sortType: 'natural' },
+    ledgerLineDate: { displayAs: 'Date', maxWidth: '18ch', wrap: false, alignment: 'center' },
+    description: { displayAs: 'Description', maxWidth: '22ch', wrap: true },
+    amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
+  };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['payments']));
+  destroy$ = new Subject<void>();
 
   get isOutboundPaymentList(): boolean {
     return this.paymentKind === PaymentKind.Bill;
@@ -150,14 +158,6 @@ export class PaymentListComponent implements OnInit, OnChanges, OnDestroy {
   get isBillStylePaymentList(): boolean {
     return this.isOutboundPaymentList || this.isOwnerPaymentList;
   }
-
-  readonly paymentLedgerLineDisplayedColumns: ColumnSet = {
-    lineNo: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: false, alignment: 'center', headerAlignment: 'center' },
-    invoiceCode: { displayAs: 'Invoice', maxWidth: '22ch', wrap: false, sortType: 'natural' },
-    ledgerLineDate: { displayAs: 'Date', maxWidth: '18ch', wrap: false, alignment: 'center' },
-    description: { displayAs: 'Description', maxWidth: '22ch', wrap: true },
-    amount: { displayAs: 'Amount', maxWidth: '18ch', wrap: false, alignment: 'right', headerAlignment: 'right', sort: false }
-  };
 
   //#region Payment List
   ngOnInit(): void {

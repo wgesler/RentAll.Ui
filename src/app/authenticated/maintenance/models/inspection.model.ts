@@ -29,6 +29,58 @@ export interface InspectionResponse {
   modifiedBy: string;
 }
 
+export type ChecklistMode = 'template' | 'answer' | 'readonly';
+
+export type ChecklistType = 'inspection';
+
+export type ChecklistIssueEntry = {
+  sectionTitle: string;
+  setLabel?: string;
+  lineText: string;
+  issueText: string;
+  photoSrc?: string | null;
+};
+
+export type ChecklistIssueEntryView = ChecklistIssueEntry & { _rid: number };
+
+export type ChecklistIssueGroup = {
+  sectionTitle: string;
+  setLabel?: string;
+  issues: ChecklistIssueEntryView[];
+};
+
+export type ChecklistIssuesDialogData = {
+  issues: ChecklistIssueEntry[];
+  propertyCode?: string | null;
+  dateText?: string | null;
+  organizationId?: string | null;
+  officeId?: number | null;
+  officeName?: string | null;
+  propertyId?: string | null;
+  reservationId?: string | null;
+  fromEmail?: string | null;
+  fromName?: string | null;
+  toEmail?: string | null;
+  toName?: string | null;
+};
+
+export type DialogIssueItemResult = {
+  issueText: string;
+  photoFile: File | null;
+};
+
+export type MobileAnswerSnapshotRow = {
+  sectionKey: string;
+  repeatIndex: number;
+  itemIndex: number;
+  checked: boolean;
+  photoPath: string | null;
+  documentId: string | null;
+  count: number | null;
+  issue: string | null;
+  hasIssue: boolean;
+};
+
 export interface InspectionDisplayList {
   inspectionId: number;
   officeId: number;

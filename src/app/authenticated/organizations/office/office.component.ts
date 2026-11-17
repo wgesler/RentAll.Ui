@@ -18,7 +18,7 @@ import { UserRequest, UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { FeatureType, IRSMethodType, OrganizationType, getIRSMethodTypes } from '../models/organization-enum';
 import { FeatureResponse } from '../models/organization-feature.model';
-import { OfficeRequest, OfficeResponse } from '../models/office.model';
+import { OfficeCostCodeKey, OfficeRequest, OfficeResponse } from '../models/office.model';
 import { getQbClassTypes, getQbNameTypes } from '../models/qb-type-enum';
 import { OrganizationFeatureService } from '../services/organization-feature.service';
 import { OrganizationService } from '../services/organization.service';
@@ -40,8 +40,13 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   @Input() copyFrom: OfficeResponse | null = null; // When set in add mode, form is pre-filled (name cleared)
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
-  officeService = inject(OfficeService);
-  fb = inject(FormBuilder);
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
+  @ViewChild('quotePrefaceEditor') set quotePrefaceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {this.quotePrefaceEditor = value; this.syncQuoteTextEditorFromForm('quotePreface'); }
+  @ViewChild('quoteSuffixEditor') set quoteSuffixEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteSuffixEditor = value; this.syncQuoteTextEditorFromForm('quoteSuffix'); }
+  @ViewChild('quoteDisclaimerEditor') set quoteDisclaimerEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteDisclaimerEditor = value; this.syncQuoteTextEditorFromForm('quoteDisclaimer'); }
+
+  private officeService = inject(OfficeService);
+  private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private organizationFeatureService = inject(OrganizationFeatureService);
@@ -53,14 +58,10 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
   private terminologyService = inject(TerminologyService);
+
   securityDepositWaiverLabel = 'Security Deposit Waiver';
   securityDepositWaiverRequiredText = 'Security Deposit Waiver is required';
-  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
-  @ViewChild('quotePrefaceEditor') set quotePrefaceEditorRef(value: ElementRef<HTMLDivElement> | undefined) {this.quotePrefaceEditor = value; this.syncQuoteTextEditorFromForm('quotePreface'); }
-  @ViewChild('quoteSuffixEditor') set quoteSuffixEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteSuffixEditor = value; this.syncQuoteTextEditorFromForm('quoteSuffix'); }
-  @ViewChild('quoteDisclaimerEditor') set quoteDisclaimerEditorRef(value: ElementRef<HTMLDivElement> | undefined) { this.quoteDisclaimerEditor = value; this.syncQuoteTextEditorFromForm('quoteDisclaimer'); }
 
-  isServiceError: boolean = false;
   office: OfficeResponse;
   form: FormGroup;
   fileName: string = null;
@@ -90,8 +91,9 @@ export class OfficeComponent implements OnInit, OnDestroy, OnChanges, AfterViewI
   hasTicketingAccess = false;
   isPartnerOrganization = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['office']));
   destroy$ = new Subject<void>();
 
   //#region Office
@@ -1148,22 +1150,6 @@ quotePastePlainToHtml(plain: string): string {
   }
 
   buildValidCostCodeRequest(formValue: Record<string, unknown>): Partial<OfficeRequest> {
-    type OfficeCostCodeKey =
-      | 'furnishedRentChargeCcId'
-      | 'furnishedRentExpenseCcId'
-      | 'unfurnishedRentChargeCcId'
-      | 'unfurnishedRentExpenseCcId'
-      | 'maidServiceChargeCcId'
-      | 'maidServiceExpenseCcId'
-      | 'parkingChargeCcId'
-      | 'parkingExpenseCcId'
-      | 'departureFeeCcId'
-      | 'petFeeCcId'
-      | 'applicationFeeCcId'
-      | 'administrativeFeeCcId'
-      | 'securityDepositCcId'
-      | 'securityDepositWaiverCcId';
-
     const costCodeKeys: OfficeCostCodeKey[] = [
       'furnishedRentChargeCcId',
       'furnishedRentExpenseCcId',

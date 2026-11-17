@@ -46,6 +46,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   @Input() isLoading = false;
   @Output() viewStatement = new EventEmitter<OwnerStatementMonthLineListDisplay>();
   @Output() ownersPaid = new EventEmitter<void>();
+
   private commonService = inject(CommonService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
   private ownerStatementService = inject(OwnerStatementService);
@@ -60,8 +61,6 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
 
-  isPageReady = false;
-  isServiceError = false;
   isPayingOwners = false;
   isClosingMonth = false;
   isDownloadingOwnerStatements = false;
@@ -85,8 +84,8 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
   allLines: OwnerStatementMonthLineListDisplay[] = [];
   lines: OwnerStatementMonthLineListDisplay[] = [];
   selectedOwnerStatementLines: OwnerStatementMonthLineListDisplay[] = [];
-  private customToBePaidByLineId = new Map<string, string>();
-  private readonly ownerStatementBaseColumns: ColumnSet = {
+  customToBePaidByLineId = new Map<string, string>();
+  ownerStatementBaseColumns: ColumnSet = {
     ownerName: { displayAs: 'Owner', wrap: false, maxWidth: '35ch' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     monthDisplay: { displayAs: 'Period', wrap: false, maxWidth: '20ch', alignment: 'center' },
@@ -97,7 +96,7 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
     ownerPaymentPaid: { displayAs: 'Paid', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' },
     endingBalance: { displayAs: 'Balance', wrap: false, maxWidth: '15ch', alignment: 'right', headerAlignment: 'right' }
   };
-  private readonly ownerStatementToBePaidColumn: ColumnSet = {
+  ownerStatementToBePaidColumn: ColumnSet = {
     toBePaid: {
       displayAs: 'To Be Paid',
       wrap: false,
@@ -108,6 +107,9 @@ export class OwnerStatementListComponent implements OnInit, OnChanges, OnDestroy
       suppressRowClick: true
     }
   };
+
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 

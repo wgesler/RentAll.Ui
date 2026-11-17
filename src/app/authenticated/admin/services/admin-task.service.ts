@@ -22,6 +22,7 @@ export interface StorageRepairEvent {
 export class AdminTaskService {
   private http = inject(HttpClient);
   private configService = inject(ConfigService);
+
   private readonly controller = this.configService.config().apiUrl + 'admin/storage/';
 
   repair(task: string): Observable<StorageRepairEvent> {

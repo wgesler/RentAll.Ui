@@ -13,6 +13,7 @@ import { DatabaseErrorLogResponse } from '../models/log.model';
 export class DatabaseErrorLogComponent implements OnInit, OnDestroy {
   @Input() row: DatabaseErrorLogResponse | null = null;
   @Output() closed = new EventEmitter<void>();
+
   constructor() {}
 
   //#region Database-Error-Log

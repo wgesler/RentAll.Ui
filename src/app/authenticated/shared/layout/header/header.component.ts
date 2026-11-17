@@ -46,7 +46,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private debugLayoutBandsService = inject(DebugLayoutBandsService);
   private cdr = inject(ChangeDetectorRef);
 
-  private readonly clearPinsEventName = 'rentall-clear-pins';
+  clearPinsEventName = 'rentall-clear-pins';
   isLoggedIn: Observable<boolean> = this.authService.getIsLoggedIn$();
   brandingLogoUrl$: Observable<string> = this.brandingService.getLogoUrl$();
   brandingCollapsedLogoUrl$: Observable<string> = this.brandingService.getCollapsedLogoUrl$();
@@ -60,14 +60,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
   selectedGlobalOfficeId: number | null = null;
   organizationId = '';
   canViewUserAudit = false;
-  private globalOfficeOptionsInitialized = false;
+  globalOfficeOptionsInitialized = false;
 
   // Profile picture properties
   profilePictureUrl: string | null = null;
-  destroy$ = new Subject<void>();
-  private userSubscription?: Subscription;
+  userSubscription?: Subscription;
 
-markViewForCheck(): void {
+  destroy$ = new Subject<void>();
+
+  markViewForCheck(): void {
     this.cdr.markForCheck();
   }
   

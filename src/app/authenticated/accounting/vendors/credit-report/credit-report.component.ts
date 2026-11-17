@@ -45,7 +45,7 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly lineColumns: ColumnSet = {
+  lineColumns: ColumnSet = {
     chargeDate: { displayAs: 'Date', maxWidth: '12ch', alignment: 'center' },
     bankCardDropdown: { displayAs: 'Card', wrap: true, maxWidth: '25ch', suppressRowClick: true, searchableDropdown: true, dropdownSearchPlaceholder: 'Type to filter bank cards...' },
     cardOwner: { displayAs: 'Card Owner', maxWidth: '22ch', wrap: true },
@@ -66,11 +66,12 @@ export class CreditReportComponent implements OnInit, OnChanges, OnDestroy {
   bankCardOptions: Array<{ bankCardId: number; label: string; cardName: string }> = [];
   warnings: string[] = [];
   fileName = '';
-  isServiceError = false;
   hasProcessed = false;
   draftsCreated = false;
   isCreatingDrafts = false;
   isSavingMatches = false;
+
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();

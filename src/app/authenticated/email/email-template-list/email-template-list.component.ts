@@ -13,18 +13,9 @@ import { OrganizationFeatureService } from '../../organizations/services/organiz
 import { UserGroups } from '../../users/models/user-enums';
 import { DataTableComponent } from '../../shared/data-table/data-table.component';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
-import { EmailTemplateDialogComponent, EmailTemplateDialogResult } from '../email-template-dialog/email-template-dialog.component';
-import { EmailHtmlResponse } from '../models/email-html.model';
+import { EmailTemplateDialogComponent } from '../email-template-dialog/email-template-dialog.component';
+import { EmailHtmlResponse, EmailTemplateDialogResult, EmailTemplateRow } from '../models/email-html.model';
 import { EmailHtmlService } from '../services/email-html.service';
-
-interface EmailTemplateRow {
-  key: string;
-  name: string;
-  subjectField: keyof EmailHtmlResponse | null;
-  bodyField: keyof EmailHtmlResponse;
-  subject: string;
-  content: string;
-}
 
 const EMAIL_TEMPLATES: Array<Pick<EmailTemplateRow, 'key' | 'name' | 'subjectField' | 'bodyField'>> = [
   { key: 'welcome', name: 'Welcome Letter', subjectField: 'letterSubject', bodyField: 'welcomeLetter' },
@@ -77,11 +68,12 @@ export class EmailTemplateListComponent implements OnInit, OnChanges, OnDestroy 
   template: EmailHtmlResponse | null = null;
   resolvedOrganizationId = '';
   resolvedOfficeId: number | null = null;
-  isPageReady = false;
   isSaving = false;
   sourceLabel = '';
-  private features: FeatureResponse[] = [];
-  private destroy$ = new Subject<void>();
+  features: FeatureResponse[] = [];
+
+  isPageReady = false;
+  destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     combineLatest([

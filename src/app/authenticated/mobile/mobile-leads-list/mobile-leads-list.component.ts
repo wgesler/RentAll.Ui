@@ -26,6 +26,7 @@ import { MobileListRow } from '../mobile-list-table/mobile-list.model';
 })
 export class MobileLeadsListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() tabPath = 'rentals';
+
   private router = inject(Router);
   private authService = inject(AuthService);
   private leadsService = inject(LeadsService);
@@ -35,16 +36,17 @@ export class MobileLeadsListComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   rows: MobileListRow[] = [];
-  isPageReady = false;
   showInactive = false;
   selectedOfficeId: number | null = null;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['leads']));
-  destroy$ = new Subject<void>();
-
-  readonly listColumns: ColumnSet = {
+  rawRows: unknown[] = [];
+  listColumns: ColumnSet = {
     name: { displayAs: 'Name', maxWidth: '16ch', wrap: false },
     status: { displayAs: 'Status', maxWidth: '12ch', wrap: false }
   };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['leads']));
+  destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.itemsToLoad$.pipe(takeUntil(this.destroy$)).subscribe(items => {
@@ -130,8 +132,6 @@ export class MobileLeadsListComponent implements OnInit, OnChanges, OnDestroy {
     onComplete();
     this.markViewForCheck();
   }
-
-  private rawRows: unknown[] = [];
 
   private applyRows(): void {
     let mapped = this.mapRows(this.rawRows);

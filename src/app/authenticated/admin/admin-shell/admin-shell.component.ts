@@ -10,7 +10,7 @@ import { OrganizationResponse } from '../../organizations/models/organization.mo
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { OfficeService } from '../../organizations/services/office.service';
 import { OrganizationService } from '../../organizations/services/organization.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { AdminTasksComponent } from '../admin-tasks/admin-tasks.component';
 import { AdminReceiptsComponent } from '../admin-receipts/admin-receipts.component';
@@ -28,9 +28,9 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   private organizationService = inject(OrganizationService);
   private globalSelectionService = inject(GlobalSelectionService);
   private utilityService = inject(UtilityService);
-  private destroy$ = new Subject<void>();
-  private readonly clearPinsEventName = 'rentall-clear-pins';
-  private readonly pinnedTopBarStorageKeyPrefix = 'rentall-admin-shell-pinned-dates';
+
+  clearPinsEventName = 'rentall-clear-pins';
+  pinnedTopBarStorageKeyPrefix = 'rentall-admin-shell-pinned-dates';
 
   organizations: OrganizationResponse[] = [];
   organizationId = '';
@@ -46,6 +46,18 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   appliedStartDate: string | null = null;
   appliedEndDate: string | null = null;
   searchNonce = 0;
+
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.clearPinnedTopBarStorage();
+    this.setDefaultTopBar();
+    this.loadOffices();
+  };
+
+  destroy$ = new Subject<void>();
 
   get organizationOptions(): SearchableSelectOption[] {
     return this.organizations.map(organization => ({
@@ -272,16 +284,6 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     const userKey = this.authService.getUser()?.userId?.trim() || 'anonymous';
     return `${this.pinnedTopBarStorageKeyPrefix}-${userKey}`;
   }
-
-  onClearPins = (): void => {
-    if (!this.dateRangePinned) {
-      return;
-    }
-    this.dateRangePinned = false;
-    this.clearPinnedTopBarStorage();
-    this.setDefaultTopBar();
-    this.loadOffices();
-  };
 
   ngOnDestroy(): void {
     window.removeEventListener(this.clearPinsEventName, this.onClearPins);

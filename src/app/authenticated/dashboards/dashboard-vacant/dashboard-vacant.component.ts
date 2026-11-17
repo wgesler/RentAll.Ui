@@ -9,13 +9,7 @@ import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { MaintenanceListDisplay, PropertyVacancyDisplay } from '../../shared/models/mixed-models';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 import { DashboardNavigationService } from '../services/dashboard-navigation.service';
-
-type VacantTurnoverRow = PropertyVacancyDisplay & {
-  expand: string;
-  expanded: boolean;
-  maintenanceRows: MaintenanceListDisplay[];
-  expandClick: (event: Event, item: VacantTurnoverRow) => void;
-};
+import { VacantTurnoverRow } from '../models/dashboard-model';
 
 @Component({
   standalone: true,
@@ -30,13 +24,14 @@ export class DashboardVacantComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   turnoverDisplayRows: VacantTurnoverRow[] = [];
   orphanMaintenanceRows: MaintenanceListDisplay[] = [];
   expandedPropertyKeys = new Set<string>();
   isAllExpanded = false;
+
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Vacant
   ngOnInit(): void {

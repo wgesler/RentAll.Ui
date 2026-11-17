@@ -26,7 +26,6 @@ import { ReservationService } from '../../reservations/services/reservation.serv
 export class MobileReservationBoardComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('headInner') headInner?: ElementRef<HTMLElement>;
   @ViewChild('boardScroll') boardScroll?: ElementRef<HTMLElement>;
-  private readonly onBoardScrollEnd = () => this.syncBoardHeaderScroll();
 
   private authService = inject(AuthService);
   private mappingService = inject(MappingService);
@@ -50,6 +49,9 @@ export class MobileReservationBoardComponent implements OnInit, AfterViewInit, O
   reservations: ReservationListResponse[] = [];
   reservationsByProperty = new Map<string, ReservationListResponse[]>();
   colorMap = new Map<number, string>();
+
+  onBoardScrollEnd = () => this.syncBoardHeaderScroll();
+
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['colors', 'properties', 'reservations']));
   destroy$ = new Subject<void>();

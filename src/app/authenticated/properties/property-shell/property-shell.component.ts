@@ -26,9 +26,10 @@ import { PropertyReservationHistoryComponent } from '../property-reservation-his
 import { PropertyComponent } from '../property/property.component';
 import { PropertyWelcomeLetterComponent } from '../property-welcome/property-welcome-letter.component';
 import { DashboardNavigationService } from '../../dashboards/services/dashboard-navigation.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
-import { AddAlertDialogComponent, AddAlertDialogData } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogComponent } from '../../shared/modals/add-alert-dialog/add-alert-dialog.component';
+import { AddAlertDialogData } from '../../shared/models/dialog.model';
 import { UserGroups } from '../../users/models/user-enums';
 
 @Component({
@@ -50,6 +51,10 @@ import { UserGroups } from '../../users/models/user-enums';
   styleUrl: './property-shell.component.scss'
 })
 export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy, CanComponentDeactivate {
+  @ViewChild('propertySection') propertySection?: PropertyComponent;
+  @ViewChild(PropertyWelcomeLetterComponent) propertyWelcomeLetter?: PropertyWelcomeLetterComponent;
+  @ViewChild(PropertyDepartureLetterComponent) propertyDepartureLetter?: PropertyDepartureLetterComponent;
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private dialog = inject(MatDialog);
@@ -61,10 +66,6 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   private contactService = inject(ContactService);
   private utilityService = inject(UtilityService);
   private dashboardNavigation = inject(DashboardNavigationService);
-
-  @ViewChild('propertySection') propertySection?: PropertyComponent;
-  @ViewChild(PropertyWelcomeLetterComponent) propertyWelcomeLetter?: PropertyWelcomeLetterComponent;
-  @ViewChild(PropertyDepartureLetterComponent) propertyDepartureLetter?: PropertyDepartureLetterComponent;
 
   hasManagementAccess = false;
 
@@ -78,7 +79,7 @@ export class PropertyShellComponent implements OnInit, AfterViewInit, OnDestroy,
   organizationId = '';
   offices: OfficeResponse[] = [];
   showOfficeDropdown = false;
-  private initialOfficeScopeApplied = false;
+  initialOfficeScopeApplied = false;
 
   titleBarPropertyOfficeId: number | null = null;
   titleBarReservationId: string | null = null;

@@ -62,12 +62,10 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   selectedTabIndex = 0;
   canViewCommissions = false;
   canViewAllCommissions = false;
-  isPageReady = false;
 
   user: JwtUser | null = null;
   profilePictureUrl: string | null = null;
@@ -90,6 +88,9 @@ export class DashboardShellComponent implements OnInit, OnDestroy {
   showMonthlyCommissionAmount = false;
   showCommissionBreakdown = false;
   hasManagementAccess = false;
+
+  isPageReady = false;
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Shell
   ngOnInit(): void {

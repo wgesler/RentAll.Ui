@@ -25,14 +25,13 @@ import { OrganizationService } from '../services/organization.service';
 })
 
 export class OrganizationListComponent implements OnInit, OnDestroy {
-  organizationService = inject(OrganizationService);
-  toastr = inject(ToastrService);
-  router = inject(Router);
+  private organizationService = inject(OrganizationService);
+  private toastr = inject(ToastrService);
+  private router = inject(Router);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
-  isServiceError: boolean = false;
   showInactive: boolean = false;
   allOrganizations: OrganizationListDisplay[] = [];
   organizationsDisplay: OrganizationListDisplay[] = [];
@@ -50,9 +49,10 @@ export class OrganizationListComponent implements OnInit, OnDestroy {
     isActive: { displayAs: 'IsActive', maxWidth: '15ch', isCheckbox: true, wrap: false, alignment: 'center' }
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
-  destroy$ = new Subject<void>();
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
+  destroy$ = new Subject<void>();
 
   //#region Organization-List
   ngOnInit(): void {

@@ -5,17 +5,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { finalize, take } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
-
-export interface PasswordCheckDialogData {
-  title?: string;
-  message?: string;
-  hint?: string;
-  confirmLabel?: string;
-}
-
-export interface PasswordCheckDialogResult {
-  password: string;
-}
+import { PasswordCheckDialogData, PasswordCheckDialogResult } from '../../models/dialog.model';
 
 @Component({
   standalone: true,
@@ -25,14 +15,14 @@ export interface PasswordCheckDialogResult {
   styleUrl: './password-check-dialog.component.scss'
 })
 export class PasswordCheckDialogComponent {
-  data = inject<PasswordCheckDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<PasswordCheckDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<PasswordCheckDialogComponent, PasswordCheckDialogResult | undefined>>(MatDialogRef);
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
 
   isSubmitting = false;
 
-  readonly form = this.fb.group({
+  form = this.fb.group({
     password: ['', Validators.required]
   });
 

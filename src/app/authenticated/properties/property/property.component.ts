@@ -40,23 +40,24 @@ import { NoticeStatusType, getNoticeStatusTypes, getReservationNotices } from '.
 import { CheckinTimes, CheckoutTimes, PropertyLeaseType, PropertyStatus, PropertyStyle, PropertyType, TrashDays, getBedSizeTypes, getCheckInTimes, getCheckOutTimes, getPropertyLeaseTypes, getPropertyStatuses, getPropertyStyles, getPropertyTypes } from '../models/property-enums';
 import { PropertyInformationRequest, PropertyInformationResponse } from '../models/property-information.model';
 import { PropertyTitleBarContext } from '../models/property-title-bar-context.model';
-import { PropertyRequest, PropertyResponse } from '../models/property.model';
-import { PropertyCodeDialogComponent, PropertyCodeDialogResult } from '../property-code-dialog/property-code-dialog.component';
+import { PropertyCodeDialogResult, PropertyRequest, PropertyResponse } from '../models/property.model';
+import { PropertyCodeDialogComponent } from '../property-code-dialog/property-code-dialog.component';
 import { PropertyAgreementComponent } from '../property-agreement/property-agreement.component';
 import { PropertyInformationService } from '../services/property-information.service';
 import { PropertyService } from '../services/property.service';
 import { WelcomeLetterReloadService } from '../services/welcome-letter-reload.service';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { NewContactDialogOptions, NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 import { PartnerService } from '../../partners/services/partner.service';
 import { OwnersService } from '../../owners/services/owners.service';
 import { UserGroups } from '../../users/models/user-enums';
 import {
-  OwnerAuthorization,
   isOwnerAuthorizedAdmin,
   isOwnerUnauthorized
 } from '../../owners/models/owner-authorization.model';
+import { OwnerAuthorization } from '../../owners/models/owner-enums';
 
 @Component({
     selector: 'app-property',
@@ -77,7 +78,6 @@ import {
 })
 
 export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy, CanComponentDeactivate {
-  private cdr = inject(ChangeDetectorRef);
   @Input() disableOwnerModeLayout = false;
   @Input() shellPropertyId: string | null = null;
   @Input() shellPropertyCode: string | null = null;
@@ -95,9 +95,20 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   @Output() reservationsRefreshRequested = new EventEmitter<void>();
   @Output() titleBarPropertyCodeInvalid = new EventEmitter<void>();
   @Output() ownerShellContextChanged = new EventEmitter<void>();
-  propertyService = inject(PropertyService);
+  @ViewChild(PropertyAgreementComponent) propertyAgreementSection?: PropertyAgreementComponent;
+  @ViewChild('descriptionEditor') set descriptionEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.descriptionEditor = value;
+    this.syncDescriptionEditorFromForm();
+  }
+  @ViewChild('amenitiesEditor') set amenitiesEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.amenitiesEditor = value;
+    this.syncAmenitiesEditorFromForm();
+  }
+
+  private cdr = inject(ChangeDetectorRef);
+  private propertyService = inject(PropertyService);
   private router = inject(Router);
-  fb = inject(FormBuilder);
+  private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private commonService = inject(CommonService);
@@ -124,9 +135,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   private partnerService = inject(PartnerService);
   private documentHtmlService = inject(DocumentHtmlService);
 
-  readonly EntityType = EntityType;
-  readonly propertyCodeDefaultPrompt = 'Enter Code';
-  readonly propertyLeaseTypeOptions = getPropertyLeaseTypes();
+  EntityType = EntityType;
+  propertyCodeDefaultPrompt = 'Enter Code';
+  propertyLeaseTypeOptions = getPropertyLeaseTypes();
 
   isAdmin = false;
   isInAccounting = false;
@@ -134,19 +145,9 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   isPartnerOrganization = false;
   isPartnerAdmin = false;
   externalPartnerPropertyFromRoute = false;
-  isServiceError: boolean = false;
   organizationId = '';
   form: FormGroup;
-  @ViewChild(PropertyAgreementComponent) propertyAgreementSection?: PropertyAgreementComponent;
-  @ViewChild('descriptionEditor') set descriptionEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.descriptionEditor = value;
-    this.syncDescriptionEditorFromForm();
-  }
   descriptionEditor?: ElementRef<HTMLDivElement>;
-  @ViewChild('amenitiesEditor') set amenitiesEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.amenitiesEditor = value;
-    this.syncAmenitiesEditorFromForm();
-  }
   amenitiesEditor?: ElementRef<HTMLDivElement>;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
@@ -172,7 +173,7 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   agents: AgentResponse[] = [];
   agentFieldLabel = 'Agent';
   selectAgentLabel = 'Select Agent';
-  readonly noneAgentOptionValue = '__none_agent__';
+  noneAgentOptionValue = '__none_agent__';
   vendorContacts: ContactResponse[] = [];
   trashDays: { value: number, label: string }[] = [];
   propertyStyles: { value: number, label: string }[] = [];
@@ -201,8 +202,17 @@ export class PropertyComponent implements OnInit, OnChanges, AfterViewInit, OnDe
   formPropertyContactCopyFrom: string | null = null;
   formPropertyContactEntityTypeId: number | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['regions', 'areas', 'buildings']));
+  propertyCodeEntryValidator = (control: AbstractControl): ValidationErrors | null => {
+    const value = String(control.value ?? '').trim();
+    if (!value) return null;
+    return value.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase()
+      ? { defaultCode: true }
+      : null;
+  };
+
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['regions', 'areas', 'buildings']));
   destroy$ = new Subject<void>();
 
   get isOwnerMode(): boolean {
@@ -1455,14 +1465,6 @@ notifyOwnerShellContextChangedIfEmbedded(): void {
       }
     };
   }
-
-  propertyCodeEntryValidator = (control: AbstractControl): ValidationErrors | null => {
-    const value = String(control.value ?? '').trim();
-    if (!value) return null;
-    return value.toLowerCase() === this.propertyCodeDefaultPrompt.toLowerCase()
-      ? { defaultCode: true }
-      : null;
-  };
 
   showBedDropdownError(bedNumber: number): boolean {
     if (!this.form) {

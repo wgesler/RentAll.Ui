@@ -8,19 +8,9 @@ import { MaterialModule } from '../../../../material.module';
 import { AuthService } from '../../../../services/auth.service';
 import { MappingService } from '../../../../services/mapping.service';
 import { EntityType } from '../../../contacts/models/contact-enum';
-import { ContactRequest, ContactResponse } from '../../../contacts/models/contact.model';
+import { ContactRequest, ContactResponse, PropertyContactEditRow } from '../../../contacts/models/contact.model';
 import { ContactService } from '../../../contacts/services/contact.service';
 import { runMobileLineListSave, shouldShowMobileLineFieldError } from '../../mobile-maintenance-detail/mobile-maintenance-line-list-validation';
-
-interface PropertyContactEditRow {
-  rowId: number;
-  contactId?: string;
-  contactCode: string;
-  companyName: string;
-  contactName: string;
-  phone: string;
-  email: string;
-}
 
 @Component({
   standalone: true,
@@ -39,15 +29,16 @@ export class MobilePropertyContactListComponent implements OnInit, OnChanges, On
   private authService = inject(AuthService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   rows: PropertyContactEditRow[] = [];
-  private originalRowsById = new Map<string, PropertyContactEditRow>();
-  private loadedContactsById = new Map<string, ContactResponse>();
-  private rowCounter = 0;
+  originalRowsById = new Map<string, PropertyContactEditRow>();
+  loadedContactsById = new Map<string, ContactResponse>();
+  rowCounter = 0;
   isLoading = false;
   isSaving = false;
   saveValidationAttempted = false;
+
+  destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.loadContacts();

@@ -1,3 +1,5 @@
+import { OfficeResponse } from '../../organizations/models/office.model';
+
 export interface CostCodesRequest {
   costCodeId?: number;
   organizationId: string;
@@ -29,4 +31,8 @@ export interface CostCodesListDisplay {
   isActive: boolean;
   chartOfAccountDisplay?: string;
   rowColor?: string; // Hidden column for row coloring
+}
+
+export interface CostCodeCopyOfficesDialogData {
+  offices: OfficeResponse[];
 }

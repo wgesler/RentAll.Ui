@@ -24,7 +24,8 @@ import { TerminologyService } from '../../organizations/services/terminology.ser
 import { AccountingOfficeResponse } from '../../organizations/models/accounting-office.model';
 import { PropertyResponse } from '../../properties/models/property.model';
 import { PropertyAgreementResponse } from '../../properties/models/property-agreement.model';
-import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { CommonService } from '../../../services/common.service';
 import { OwnerAgreementInformationResponse, replaceOwnerAgreementInformationSections } from '../models/owner-agreement-information.model';
 import { OrganizationResponse } from '../../organizations/models/organization.model';
@@ -36,10 +37,8 @@ import { OwnerDocuSignSignerService } from '../services/owner-docusign-signer.se
 import { OwnerDocuSignSignersDialogService } from '../services/owner-docusign-signers-dialog.service';
 import { OwnerIncludedOwnersService } from '../services/owner-included-owners.service';
 import { OwnerFormViewModeService } from '../services/owner-form-view-mode.service';
-import {
-  OwnerAuthorization,
-  isOwnerAuthorizedAdmin
-} from '../models/owner-authorization.model';
+import { isOwnerAuthorizedAdmin } from '../models/owner-authorization.model';
+import { OwnerAuthorization } from '../models/owner-enums';
 
 @Component({
   standalone: true,
@@ -49,8 +48,6 @@ import {
   styleUrl: './owner-agreement-form.component.scss'
 })
 export class OwnerAgreementFormComponent extends BaseDocumentComponent implements OnInit, OnChanges, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() token: string | null = null;
   @Input() ownerAuthorization: OwnerAuthorization = OwnerAuthorization.UnauthorizedOwner;
   @Input() ownerLeadId: number | null = null;
@@ -69,6 +66,10 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   /** When true (owner-shell Agreement tab selected), open document preview in view mode — mirrors lease shell behavior. */
   @Input() openInViewOnTabSelect = false;
   @Input() hideEditButtonInViewMode = false;
+  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
+
+  private cdr = inject(ChangeDetectorRef);
   private fb = inject(FormBuilder);
   private commonService = inject(CommonService);
   private formatterService = inject(FormatterService);
@@ -86,12 +87,12 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   private ownerDocuSignSignersDialogService = inject(OwnerDocuSignSignersDialogService);
   private ownerFormViewModeService = inject(OwnerFormViewModeService);
   private http = inject(HttpClient);
+
   override toastr: ToastrService;
 
   form: FormGroup = this.buildForm();
   // Local/dev: load templates straight from local assets for fast iteration (mirrors lease.component).
   debuggingHtml = environment.local || environment.dev;
-  isPageReady = false;
   isSaving = false;
   isDownloading = false;
   iframeKey = 0;
@@ -113,8 +114,6 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   directDepositCheckImageDataUrl: string | null = null;
   pendingDirectDepositCheckImageDataUrl: string | null = null;
   directDepositCheckImageBlobUrl: string | null = null;
-  @ViewChild('previewIframe') previewIframe?: ElementRef<HTMLIFrameElement>;
-  @ViewChild('editIframe') editIframe?: ElementRef<HTMLIFrameElement>;
   organizationId = '';
   organization: OrganizationResponse | null;
   selectedOffice: OfficeResponse | null = null;
@@ -125,11 +124,11 @@ export class OwnerAgreementFormComponent extends BaseDocumentComponent implement
   allContacts: ContactResponse[] = [];
   leadOwner: LeadOwnerResponse | null = null;
   agreementInformation: OwnerAgreementInformationResponse | null = null;
+  OwnerAuthorization = OwnerAuthorization;
 
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organization', 'leadOwner', 'property', 'propertyAgreement', 'agreementInfo']));
   destroy$ = new Subject<void>();
-
-  readonly OwnerAuthorization = OwnerAuthorization;
 
   constructor() {
     super();

@@ -2,11 +2,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../../material.module';
-import { OfficeResponse } from '../../../organizations/models/office.model';
-
-export interface CostCodeCopyOfficesDialogData {
-  offices: OfficeResponse[];
-}
+import { CostCodeCopyOfficesDialogData } from '../../models/cost-codes.model';
 
 @Component({
   standalone: true,
@@ -16,7 +12,7 @@ export interface CostCodeCopyOfficesDialogData {
   styleUrl: './cost-code-copy-offices-dialog.component.scss'
 })
 export class CostCodeCopyOfficesDialogComponent {
-  data = inject<CostCodeCopyOfficesDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<CostCodeCopyOfficesDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<CostCodeCopyOfficesDialogComponent, number[] | undefined>>(MatDialogRef);
 
   selectedOfficeIds: number[] = [];

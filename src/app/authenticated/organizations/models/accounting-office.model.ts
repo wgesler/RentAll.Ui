@@ -219,3 +219,32 @@ export interface ResyncAccountingOfficeClosedPeriodResult {
   closedDateId?: number | null;
   errors: string[];
 }
+
+export type ClosedPeriodSnapshot = {
+  existingMonth: number;
+  existingYear: number;
+  nextMonth: number;
+  nextYear: number;
+};
+
+export interface CheckLayoutEditorDialogData {
+  officeId: number;
+  bank: BankAccountResponse;
+  /** Already-loaded stock from Accounting Office (same PDF shown in the Check Printing thumbnail). */
+  checkStockFileDetails?: FileDetails | null;
+  checkStockPreviewDataUrl?: string | null;
+  checkStockPdfThumbnailUrl?: string | null;
+}
+
+export interface LayoutField {
+  className: string;
+  label: string;
+  sampleText: string;
+  topIn: number;
+  leftIn: number;
+  widthIn: number;
+  fontSizePx: number;
+  textAlign: string;
+  fontWeight: string;
+  editable: boolean;
+}

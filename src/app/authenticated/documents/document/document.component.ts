@@ -11,7 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { PdfThumbnailService } from '../../../services/pdf-thumbnail.service';
 import { UtilityService } from '../../../services/utility.service';
 import { hasInspectorRole } from '../../shared/access/role-access';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { OfficeResponse } from '../../organizations/models/office.model';
@@ -39,9 +39,9 @@ import { DocumentService } from '../services/document.service';
 })
 export class DocumentComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
-  documentService = inject(DocumentService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+  private documentService = inject(DocumentService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
@@ -51,7 +51,6 @@ export class DocumentComponent implements OnInit, OnDestroy {
   private utilityService = inject(UtilityService);
   private pdfThumbnailService = inject(PdfThumbnailService);
 
-  isServiceError: boolean = false;
   documentId: string;
   document: DocumentResponse;
   form: FormGroup;
@@ -70,8 +69,9 @@ export class DocumentComponent implements OnInit, OnDestroy {
 
   documentTypes: { value: DocumentType, label: string }[] = getDocumentTypes();
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
 
   //#region Documents

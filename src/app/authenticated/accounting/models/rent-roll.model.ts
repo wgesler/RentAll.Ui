@@ -71,3 +71,68 @@ export interface RentRollCreateBillRequest {
   description: string;
   amount: number;
 }
+
+export interface RentRollEditLineDialogData {
+  propertyId?: string | null;
+  propertyCode: string;
+  allowPropertySelection?: boolean;
+  officeId: number | null;
+  vendorId: string | null;
+  vendorName: string;
+  bankCardId: number | null;
+  terms: string;
+  chartOfAccountId: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  depositAmount: number;
+  oneTimeAmount: number;
+  monthlyAmount: number;
+  dailyAmount: number;
+  isRent: boolean;
+  notes: string;
+}
+
+export interface RentRollEditLineDialogResult {
+  officeId: number | null;
+  propertyId: string | null;
+  vendorId: string | null;
+  vendorName: string;
+  bankCardId: number | null;
+  terms: string;
+  chartOfAccountId: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  deposit: number | null;
+  oneTime: number | null;
+  monthly: number | null;
+  daily: number | null;
+  isRent: boolean;
+  notes: string | null;
+}
+
+export interface RentRollLinkBillDialogData {
+  officeId: number | null;
+  propertyId: string;
+  propertyCode: string;
+  vendorId: string | null;
+  vendorName: string;
+  agreementLineId: string;
+  billDate: string | null;
+  searchDateRange: { startDate: string | null; endDate: string | null };
+}
+
+export interface RentRollLinkBillOption {
+  receiptId: string;
+  receiptCode: string;
+  receiptDate: string | null;
+  vendorName: string;
+  description: string;
+  amountDisplay: string;
+  linkStatus: string;
+  selectable: boolean;
+  vendorMatches: boolean;
+}
+
+export interface RentRollLinkBillDialogResult {
+  receiptId: string;
+}

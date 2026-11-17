@@ -71,6 +71,7 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   @Output() shellLocationSync = new EventEmitter<{ officeId: number | null; propertyId: string | null }>();
   @Output() receiptSelect = new EventEmitter<ReceiptSelection>();
   @Output() previewEvent = new EventEmitter<WorkOrderPreviewSelection>();
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private propertyService = inject(PropertyService);
@@ -85,16 +86,16 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   private reservationService = inject(ReservationService);
   private receiptService = inject(ReceiptService);
   private workOrderAmountService = inject(WorkOrderAmountService);
-  utilityService = inject(UtilityService);
+  protected utilityService = inject(UtilityService);
   private formatter = inject(FormatterService);
   private mappingService = inject(MappingService);
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
   private journalEntryService = inject(JournalEntryService);
-  
-  readonly parseInt = parseInt;
-  readonly noReceiptOptionValue = 0;
-  readonly inventoryItemOptionValue = -1;
+
+  parseInt = parseInt;
+  noReceiptOptionValue = 0;
+  inventoryItemOptionValue = -1;
 
   fb: FormBuilder;
   form: FormGroup;
@@ -116,10 +117,6 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   associatedWorkOrderReceiptIds = new Set<string>();
   accountingOffice: AccountingOfficeResponse | null = null;
   generatedWorkOrderCode: string | null = null;
-
-  get workOrderCodeDisplay(): string {
-    return this.form?.get('workOrderCode')?.value || '';
-  }
   nextWorkOrderNo: number | null = null;
   propertyReservations: ReservationListResponse[] = [];
   propertyAgreement: PropertyAgreementResponse | null = null;
@@ -134,12 +131,16 @@ export class WorkOrderComponent implements OnInit, OnChanges, OnDestroy {
   activePropertyReceiptsLoadId = 0;
   lastLoadedReceiptPropertyId: string | null | undefined = undefined;
   selectedGlobalOfficeId: number | null = null;
+  isWorkOrderContentReady = false;
 
   isPageReady = false;
-  isWorkOrderContentReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();
-  
+
+  get workOrderCodeDisplay(): string {
+    return this.form?.get('workOrderCode')?.value || '';
+  }
+
   constructor() {
     const fb = inject(FormBuilder);
     const authService = inject(AuthService);

@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { SelectionModel } from '@angular/cdk/collections';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { MatDialog } from '@angular/material/dialog';
 import {BehaviorSubject, Subject, catchError, concatMap, finalize, from, map, of, skip, switchMap, take, takeUntil, toArray} from 'rxjs';
@@ -45,12 +45,12 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() officeIdChange = new EventEmitter<number | null>(); // Emit office changes to parent
   @Output() addCostCodeEvent = new EventEmitter<void>();
   @Output() editCostCodeEvent = new EventEmitter<{ costCodeId: number, officeId: number | null }>();
-  costCodesService = inject(CostCodesService);
-  chartOfAccountsService = inject(ChartOfAccountsService);
-  toastr = inject(ToastrService);
-  router = inject(Router);
-  route = inject(ActivatedRoute);
-  mappingService = inject(MappingService);
+
+  private costCodesService = inject(CostCodesService);
+  private chartOfAccountsService = inject(ChartOfAccountsService);
+  private toastr = inject(ToastrService);
+  private router = inject(Router);
+  private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
   private utilityService = inject(UtilityService);
   private authService = inject(AuthService);
@@ -59,7 +59,6 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
    
-  isServiceError: boolean = false;
   showInactive: boolean = false;
   allCostCodes: CostCodesResponse[] = [];
   cachedCostCodes: CostCodesResponse[] = [];
@@ -93,6 +92,7 @@ export class CostCodesListComponent implements OnInit, OnDestroy, OnChanges {
     rowColor: { displayAs: '', sort: false, wrap: false } // Hidden column for row coloring
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set());
   destroy$ = new Subject<void>();

@@ -30,14 +30,15 @@ export class BuildingListComponent implements OnInit, OnChanges, OnDestroy {
 
   @Input() officeId: number | null = null;
   @Output() buildingSelected = new EventEmitter<string | number | null>();
-  buildingService = inject(BuildingService);
-  toastr = inject(ToastrService);
-  mappingService = inject(MappingService);
+
+  private buildingService = inject(BuildingService);
+  private toastr = inject(ToastrService);
+  private mappingService = inject(MappingService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
-  isServiceError: boolean = false;
+
   showInactive: boolean = false;
   allBuildings: BuildingListDisplay[] = [];
   buildingsDisplay: BuildingListDisplay[] = [];
@@ -55,6 +56,7 @@ export class BuildingListComponent implements OnInit, OnChanges, OnDestroy {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['buildings', 'officeScope']));
   destroy$ = new Subject<void>();

@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject, ChangeDetectorRef } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
@@ -41,24 +40,23 @@ export class BillingComponent implements OnInit, OnDestroy {
   @Input() organizationIdInput: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() previewEvent = new EventEmitter<InvoiceResponse>();
+
   private cdr = inject(ChangeDetectorRef);
-  invoiceService = inject(InvoiceService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
-  route = inject(ActivatedRoute);
-  toastr = inject(ToastrService);
-  authService = inject(AuthService);
-  mappingService = inject(MappingService);
-  costCodesService = inject(CostCodesService);
-  formatter = inject(FormatterService);
-  utilityService = inject(UtilityService);
-  dialog = inject(MatDialog);
-  organizationService = inject(OrganizationService);
+  private invoiceService = inject(InvoiceService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private toastr = inject(ToastrService);
+  private authService = inject(AuthService);
+  private mappingService = inject(MappingService);
+  private costCodesService = inject(CostCodesService);
+  private formatter = inject(FormatterService);
+  private utilityService = inject(UtilityService);
+  private organizationService = inject(OrganizationService);
   private journalEntryService = inject(JournalEntryService);
   private terminologyService = inject(TerminologyService);
   private globalSelectionService = inject(GlobalSelectionService);
 
-  isServiceError: boolean = false;
   invoiceId: string;
   invoice: InvoiceResponse;
   form: FormGroup;
@@ -83,8 +81,9 @@ export class BillingComponent implements OnInit, OnDestroy {
   originalLedgerLines: LedgerLineListDisplay[] = []; // Store original state for comparison
   originalNotes: string | null = null; // Store original notes for comparison
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['organizations']));
   destroy$ = new Subject<void>();
 
   //#region Invoice

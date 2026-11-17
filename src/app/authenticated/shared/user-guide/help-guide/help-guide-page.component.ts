@@ -31,6 +31,12 @@ import { normalizeUserGuideHtmlForSave, stripEditorImageChrome, USER_GUIDE_IMAGE
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HelpGuidePageComponent implements OnInit, OnDestroy {
+  @ViewChild('pageEditor') set pageEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
+    this.pageEditor = value;
+    this.syncPageEditor();
+  }
+  @ViewChild('pageImageInput') pageImageInput?: ElementRef<HTMLInputElement>;
+
   private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
   private commonService = inject(CommonService);
@@ -41,12 +47,6 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
 
-  @ViewChild('pageEditor') set pageEditorRef(value: ElementRef<HTMLDivElement> | undefined) {
-    this.pageEditor = value;
-    this.syncPageEditor();
-  }
-
-  @ViewChild('pageImageInput') pageImageInput?: ElementRef<HTMLInputElement>;
   pageEditor?: ElementRef<HTMLDivElement>;
   tocTree: UserGuideTocNode[] = [];
   expandedTocIds = new Set<string>();
@@ -60,9 +60,10 @@ export class HelpGuidePageComponent implements OnInit, OnDestroy {
   isSaving = false;
   isUploadingImage = false;
   imageResizeCleanup: (() => void) | null = null;
-  readonly minGuideImageWidthPx = 120;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['userGuide']));
+  minGuideImageWidthPx = 120;
+
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['userGuide']));
   destroy$ = new Subject<void>();
 
   //#region Help Guide

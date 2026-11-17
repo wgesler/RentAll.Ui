@@ -37,7 +37,7 @@ import { EmailType } from '../../email/models/email.enum';
 import { EmailHtmlResponse } from '../../email/models/email-html.model';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { EmailHtmlService } from '../../email/services/email-html.service';
-import { DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { UserResponse } from '../../users/models/user.model';
 import { UserService } from '../../users/services/user.service';
 import { ReceiptDisplayList, ReceiptResponse, ReceiptSelection, ReceiptSplitDetailLineDisplay, Split, buildBillSplitLineDescription, isReceiptCompanyPropertyId, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
@@ -47,8 +47,9 @@ import { ReceiptDraftService } from '../services/receipt-draft.service';
 import { UserReceiptDraftNoticeService } from '../services/user-receipt-draft-notice.service';
 import { buildCardNameLookup, isDraftAssignedToUser } from '../services/user-receipt-draft-match.util';
 import { WorkOrderService } from '../services/work-order.service';
-import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
-import { ThreeWayToggleComponent, ThreeWayToggleValue } from '../../shared/three-way-toggle/three-way-toggle.component';
+import { WorkOrderSelection } from '../models/work-order.model';
+import { ThreeWayToggleComponent } from '../../shared/three-way-toggle/three-way-toggle.component';
+import { ThreeWayToggleValue } from '../../shared/models/three-way-toggle.model';
 
 @Component({
   standalone: true,
@@ -75,6 +76,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   @Output() journalEntriesChanged = new EventEmitter<void>();
   @Output() creditReportClick = new EventEmitter<FileDetails>();
   @Output() createReport = new EventEmitter<string[]>();
+  @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
+  @ViewChild('receiptSplitsTemplate') receiptSplitsTemplate?: TemplateRef<unknown>;
+  @ViewChild('creditReportFileInput') creditReportFileInput?: ElementRef<HTMLInputElement>;
+
   private receiptService = inject(ReceiptService);
   private receiptDraftService = inject(ReceiptDraftService);
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
@@ -97,16 +102,8 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   private emailHtmlService = inject(EmailHtmlService);
   private cdr = inject(ChangeDetectorRef);
 
-  @ViewChild(DataTableComponent) billsDataTable?: DataTableComponent;
-  @ViewChild('receiptSplitsTemplate') receiptSplitsTemplate?: TemplateRef<unknown>;
-  @ViewChild('creditReportFileInput') creditReportFileInput?: ElementRef<HTMLInputElement>;
-
-  isPageReady = false;
-  isServiceError: boolean = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipts']));
-  destroy$ = new Subject<void>();
   accountingOffices: AccountingOfficeResponse[] = [];
-  readonly activeFilterLabels = ['Active', 'Inactive', 'Both'] as const;
+  activeFilterLabels = ['Active', 'Inactive', 'Both'] as const;
   activeFilterIndex: ThreeWayToggleValue = 0;
   showDrafts = false;
   selectedCardOwner = '';
@@ -162,8 +159,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
   receiptsLoadId = 0;
   lastReceiptSearchKey: string | null = null;
   receiptSearchInFlightKey: string | null = null;
+  cachedReceiptDisplayedColumns: ColumnSet | null = null;
+  cachedReceiptDisplayedColumnsKey = '';
 
-  readonly maintenanceReceiptDisplayedColumns: ColumnSet = {
+  maintenanceReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     receipt: { displayAs: 'Receipt', wrap: false, sort: false, maxWidth: '12ch', alignment: 'center' },
     receiptDate: { displayAs: 'Receipt Date', wrap: false, maxWidth: '20ch', fixedWidth: true, alignment: 'center', headerAlignment: 'center', editableType: 'date', suppressRowClick: true },
@@ -180,7 +179,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     isUtility: { displayAs: 'IsUtility', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '12ch' }
   };
 
-  readonly draftReceiptDisplayedColumns: ColumnSet = {
+  draftReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Draft', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
@@ -193,7 +192,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     cardOwner: { displayAs: 'Card Owner', wrap: true, maxWidth: '30ch' }
   };
 
-  readonly accountingReceiptDisplayedColumns: ColumnSet = {
+  accountingReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
@@ -212,7 +211,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
-  readonly receiptSplitDetailDisplayedColumns: ColumnSet = {
+  receiptSplitDetailDisplayedColumns: ColumnSet = {
     lineNo: { displayAs: 'No', maxWidth: '5ch', wrap: false, alignment: 'left' },
     lineDate: { displayAs: 'Date', maxWidth: '15ch', wrap: false, alignment: 'center' },
     receiptType: { displayAs: 'Type', maxWidth: '12ch', wrap: false },
@@ -222,7 +221,7 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     amount: { displayAs: 'Amount', maxWidth: '12ch', wrap: false, alignment: 'right' }
   };
 
-  readonly accountingNonBillReceiptDisplayedColumns: ColumnSet = {
+  accountingNonBillReceiptDisplayedColumns: ColumnSet = {
     receiptCode: { displayAs: 'Code', maxWidth: '15ch', sortType: 'natural', wrap: false },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch' },
     workOrderDisplay: { displayAs: 'Work Order', wrap: true, maxWidth: '20ch' },
@@ -241,8 +240,10 @@ export class ReceiptsListComponent implements OnInit, OnChanges, OnDestroy {
     isActive: { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: false, wrap: false, alignment: 'center', maxWidth: '10ch' }
   };
 
-  private cachedReceiptDisplayedColumns: ColumnSet | null = null;
-  private cachedReceiptDisplayedColumnsKey = '';
+  isServiceError: boolean = false;
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipts']));
+  destroy$ = new Subject<void>();
 
   get receiptDisplayedColumns(): ColumnSet {
     const cacheKey = [

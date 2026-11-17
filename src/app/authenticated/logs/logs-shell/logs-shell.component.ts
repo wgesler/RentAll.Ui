@@ -6,7 +6,7 @@ import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 import { AccountingErrorLogComponent } from '../accounting-error-log/accounting-error-log.component';
 import { AccountingErrorLogListComponent } from '../accounting-error-log-list/accounting-error-log-list.component';

@@ -8,41 +8,12 @@ import { DocumentType } from '../../documents/models/document.enum';
 import { EmailType } from '../../email/models/email.enum';
 import { EmailCreateDraftService } from '../../email/services/email-create-draft.service';
 import { inlineIssuePhotoSources } from '../../email/utils/inline-email-issue-photos';
-import { BaseDocumentComponent, DocumentConfig, EmailConfig } from '../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../shared/base-document.component';
+import { DocumentConfig, EmailConfig } from '../../shared/models/base-document.model';
 import { TicketStateType } from '../../tickets/models/ticket-enum';
 import { TicketRequest } from '../../tickets/models/ticket-models';
 import { TicketService } from '../../tickets/services/ticket.service';
-
-export type ChecklistIssueEntry = {
-  sectionTitle: string;
-  setLabel?: string;
-  lineText: string;
-  issueText: string;
-  photoSrc?: string | null;
-};
-
-type ChecklistIssueEntryView = ChecklistIssueEntry & { _rid: number };
-
-type ChecklistIssueGroup = {
-  sectionTitle: string;
-  setLabel?: string;
-  issues: ChecklistIssueEntryView[];
-};
-
-export type ChecklistIssuesDialogData = {
-  issues: ChecklistIssueEntry[];
-  propertyCode?: string | null;
-  dateText?: string | null;
-  organizationId?: string | null;
-  officeId?: number | null;
-  officeName?: string | null;
-  propertyId?: string | null;
-  reservationId?: string | null;
-  fromEmail?: string | null;
-  fromName?: string | null;
-  toEmail?: string | null;
-  toName?: string | null;
-};
+import { ChecklistIssueEntryView, ChecklistIssueGroup, ChecklistIssuesDialogData } from '../models/inspection.model';
 
 @Component({
   standalone: true,
@@ -266,7 +237,7 @@ export type ChecklistIssuesDialogData = {
   `]
 })
 export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
-  data = inject<ChecklistIssuesDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<ChecklistIssuesDialogData>(MAT_DIALOG_DATA);
   private ticketService = inject(TicketService);
   private router = inject(Router);
   private emailCreateDraftService = inject(EmailCreateDraftService);
@@ -276,8 +247,8 @@ export class DialogChecklistIssuesComponent extends BaseDocumentComponent {
   isPreparingEmail = false;
   isCreatingTicket = false;
   displayIssues: ChecklistIssueEntryView[] = [];
-  private initialDisplayIssues: ChecklistIssueEntryView[] = [];
-  private nextIssueRid = 0;
+  initialDisplayIssues: ChecklistIssueEntryView[] = [];
+  nextIssueRid = 0;
 
   get hasRemovedIssues(): boolean {
     return this.displayIssues.length < this.initialDisplayIssues.length;

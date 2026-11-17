@@ -84,3 +84,11 @@ export interface PropertyInformationFormData {
   emergencyPhone: string | null;
   additionalNotes: string | null;
 }
+
+export type HtmlEditorControlName =
+  | 'departureInstructions'
+  | 'departureCleaning'
+  | 'departureMail'
+  | 'departureFees';
+
+export type HtmlEditorFormat = 'bold' | 'italic' | 'underline' | 'paragraph' | 'unorderedList';

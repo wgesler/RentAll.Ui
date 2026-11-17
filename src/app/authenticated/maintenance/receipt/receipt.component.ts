@@ -32,9 +32,10 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { BankCardResponse } from '../../organizations/models/bank.model';
 import { WorkOrderService } from '../services/work-order.service';
-import { WorkOrderSelection } from '../work-order-list/work-order-list.component';
+import { WorkOrderSelection } from '../models/work-order.model';
 import { MappingService } from '../../../services/mapping.service';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { ReceiptReadingOverlayComponent } from '../../shared/receipt-reading-overlay/receipt-reading-overlay.component';
 import { isWordDocumentFile, ReceiptWordFileDialogComponent } from './receipt-word-file-dialog.component';
 
@@ -66,6 +67,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   @Output() saveValidationAttempted = new EventEmitter<void>();
   @Output() propertySelectionRequiredChange = new EventEmitter<boolean>();
   @Output() workOrderSelect = new EventEmitter<WorkOrderSelection>();
+
   private newContactDialogService = inject(NewContactDialogService);
   private propertyService = inject(PropertyService);
   private officeService = inject(OfficeService);
@@ -76,7 +78,7 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private pdfThumbnailService = inject(PdfThumbnailService);
   private mappingService = inject(MappingService);
-  formatter = inject(FormatterService);
+  protected formatter = inject(FormatterService);
   private toastr = inject(ToastrService);
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
@@ -91,7 +93,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   isAddMode: boolean = false;
   isSubmitting: boolean = false;
   pendingSaveAndNew = false;
-  isPageReady = false;
   isReceiptContentReady = false;
 
   organizationId: string = '';
@@ -126,14 +127,14 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   bankCardOptions: SearchableSelectOption<number>[] = [];
   showAllOrganizationBankCards = false;
   addModeBankCardPreferenceApplied = false;
-  private lastAppliedShellOfficeId: number | null | undefined;
-  private pendingAutoSaveAttempt = false;
-  readonly moreBankCardsOptionValue = -1;
+  lastAppliedShellOfficeId: number | null | undefined;
+  pendingAutoSaveAttempt = false;
+  moreBankCardsOptionValue = -1;
   expenseAccountOptions: SearchableSelectOption<number>[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
 
-  readonly accountingCompanyPropertyId = RECEIPT_COMPANY_PROPERTY_ID;
-  readonly comparePropertyIdOption = (left: string | null | undefined, right: string | null | undefined): boolean =>
+  accountingCompanyPropertyId = RECEIPT_COMPANY_PROPERTY_ID;
+  comparePropertyIdOption = (left: string | null | undefined, right: string | null | undefined): boolean =>
     (left || '').trim().toLowerCase() === (right || '').trim().toLowerCase();
   lastPropertyIdsValue: string[] = [];
   manualSplitAccountIndexes = new Set<number>();
@@ -141,6 +142,20 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   activeAgreementLineId: number | null = null;
   activeAgreementLineNotes: string | null = null;
 
+  requireNonEmptyArray = (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value;
+    if (!Array.isArray(value) || value.filter(entry => entry != null && String(entry).trim().length > 0).length === 0) {
+      return { required: true };
+    }
+    return null;
+  };
+
+  requireNonEmptyVendorId = (control: AbstractControl): ValidationErrors | null => {
+    const value = (control.value || '').toString().trim();
+    return value ? null : { required: true };
+  };
+
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['receipt']));
   destroy$ = new Subject<void>();
 
@@ -684,21 +699,6 @@ export class ReceiptComponent implements OnInit, OnChanges, OnDestroy {
   canChooseReceiptFile(): boolean {
     return true;
   }
-  //#endregion
-
-  //#region Form Validators
-  readonly requireNonEmptyArray = (control: AbstractControl): ValidationErrors | null => {
-    const value = control.value;
-    if (!Array.isArray(value) || value.filter(entry => entry != null && String(entry).trim().length > 0).length === 0) {
-      return { required: true };
-    }
-    return null;
-  };
-
-  readonly requireNonEmptyVendorId = (control: AbstractControl): ValidationErrors | null => {
-    const value = (control.value || '').toString().trim();
-    return value ? null : { required: true };
-  };
   //#endregion
 
   //#region Build Form

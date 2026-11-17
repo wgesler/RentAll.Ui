@@ -2,11 +2,7 @@ import { Component, ElementRef, ViewChild, inject } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MaterialModule } from '../../../material.module';
-
-export type DialogIssueItemResult = {
-  issueText: string;
-  photoFile: File | null;
-};
+import { DialogIssueItemResult } from '../models/inspection.model';
 
 @Component({
   standalone: true,
@@ -75,9 +71,10 @@ export type DialogIssueItemResult = {
   `
 })
 export class DialogIssueItemComponent {
-  dialogRef = inject<MatDialogRef<DialogIssueItemComponent, DialogIssueItemResult | null>>(MatDialogRef);
-
   @ViewChild('photoInput') photoInput?: ElementRef<HTMLInputElement>;
+
+  private dialogRef = inject<MatDialogRef<DialogIssueItemComponent, DialogIssueItemResult | null>>(MatDialogRef);
+
   issueControl = new FormControl<string>('', [Validators.required]);
   photoFile: File | null = null;
   selectedPhotoName = '';

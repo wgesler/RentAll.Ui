@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -27,28 +26,26 @@ import { OfficeService } from '../services/office.service';
 })
 
 export class AgentComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() agentId: string | number | null = null;
   @Input() officeId: number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
-  agentService = inject(AgentService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
+
+  private cdr = inject(ChangeDetectorRef);
+  private agentService = inject(AgentService);
+  private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private terminologyService = inject(TerminologyService);
-  agentCodeLabel = 'Agent Code';
-  agentCodeRequiredText = 'Agent Code is required';
   private officeService = inject(OfficeService);
   private globalSelectionService = inject(GlobalSelectionService);
   private formatterService = inject(FormatterService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
-  @ViewChild('firstInput') firstInputRef: ElementRef<HTMLInputElement>;
-  
-  isServiceError: boolean = false;
+
+  agentCodeLabel = 'Agent Code';
+  agentCodeRequiredText = 'Agent Code is required';
   routeAgentId: string | null = null;
   agent: AgentResponse;
   form: FormGroup;
@@ -58,8 +55,9 @@ export class AgentComponent implements OnInit, OnDestroy, OnChanges {
   offices: OfficeResponse[] = [];
   availableOffices: { value: number, name: string }[] = [];
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agent']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['agent']));
   destroy$ = new Subject<void>();
 
   //#region Agent

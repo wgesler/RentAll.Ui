@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Observable, map } from 'rxjs';
-import { PasswordCheckDialogComponent, PasswordCheckDialogData, PasswordCheckDialogResult } from './password-check-dialog.component';
+import { PasswordCheckDialogComponent } from './password-check-dialog.component';
+import { PasswordCheckDialogData, PasswordCheckDialogResult } from '../../models/dialog.model';
 
 @Injectable({
   providedIn: 'root'

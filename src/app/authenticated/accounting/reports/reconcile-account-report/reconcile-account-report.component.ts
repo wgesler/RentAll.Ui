@@ -13,7 +13,8 @@ import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
 import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig } from '../../../shared/models/base-document.model';
 import { ChartOfAccountResponse } from '../../models/chart-of-accounts.model';
 import { JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
 import { ReconcileAccountReportContext, ReconcileAccountReportResult, ReconcileAccountReportRow, ReconcileAccountReportView } from '../../models/reconcile-account-report.model';
@@ -42,7 +43,7 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   @Input() refreshTrigger = 0;
   @Output() viewChange = new EventEmitter<ReconcileAccountReportView>();
 
-  formatter = inject(FormatterService);
+  private formatter = inject(FormatterService);
   private generalLedgerService = inject(GeneralLedgerService);
   private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
@@ -52,13 +53,13 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   private reportHtmlBuilder = inject(ReportHtmlBuilderService);
   private documentReloadService = inject(DocumentReloadService);
   private cdr = inject(ChangeDetectorRef);
+
   override toastr: ToastrService;
 
-  readonly reportDataLoadKey = 'reportData';
+  reportDataLoadKey = 'reportData';
   reportResult: ReconcileAccountReportResult | null = null;
   previewIframeHtml = '';
   previewIframeStyles = '';
-  isServiceError = false;
   isDownloading = false;
   isSubmitting = false;
   noActivityMessage = 'Select a bank account and statement date to view the reconciliation report.';
@@ -70,10 +71,10 @@ export class ReconcileAccountReportComponent extends BaseDocumentComponent imple
   allLines: JournalEntryLineSearchResponse[] = [];
   beginningBalance = 0;
 
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reportData']));
   destroy$ = new Subject<void>();
- 
 
   //#region Reconcile-Account-Report
   ngOnInit(): void {

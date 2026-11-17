@@ -28,3 +28,12 @@ export interface MaintenanceItemListResponse {
   monthsBetweenService: number;
   notes?: string | null;
 }
+
+export interface MaintenanceItemEditRow {
+  rowId: number;
+  maintenanceItemId?: number;
+  name: string;
+  notes: string;
+  monthsBetweenService: number | null;
+  lastServicedOn: Date | null;
+}

@@ -28,7 +28,8 @@ import { isReceiptCompanyPropertyId, RECEIPT_COMPANY_PROPERTY_ID } from '../auth
 import { MaintenanceListResponse } from '../authenticated/maintenance/models/maintenance.model';
 import { MaintenanceListSearchRequest } from '../authenticated/maintenance/models/maintenance-search.model';
 import { InspectionResponse } from '../authenticated/maintenance/models/inspection.model';
-import { ReceiptDraftRequest, ReceiptDraftResponse, ReceiptDraftSourceFlags } from '../authenticated/maintenance/models/receipt-draft.model';
+import { ReceiptDraftRequest, ReceiptDraftResponse } from '../authenticated/maintenance/models/receipt-draft.model';
+import { ReceiptDraftSourceFlags } from '../authenticated/maintenance/models/maintenance-enums';
 import { ReceiptDisplayList, ReceiptPrefill, ReceiptRequest, ReceiptResponse, ReceiptSplitDetailLineDisplay, Split } from '../authenticated/maintenance/models/receipt.model';
 import { DepositDisplayList, DepositRequest, DepositResponse, DepositSplit } from '../authenticated/accounting/models/deposit.model';
 import { CreatePaymentWithInvoiceAllocationsRequest, OwnerOwedAllocationOption, PaymentBillAllocation, PaymentDisplayList, PaymentLedgerLine, PaymentOwnerAllocation, PaymentResponse, UpdatePaymentBillRequest, UpdatePaymentInvoiceRequest } from '../authenticated/accounting/models/payment.model';

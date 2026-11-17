@@ -8,12 +8,10 @@ import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
 import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
-import { LeaseInformationRequest, LeaseInformationResponse } from '../models/lease-information.model';
+import { LeaseInfoScopeOption, LeaseInformationRequest, LeaseInformationResponse } from '../models/lease-information.model';
 import { LeaseInformationService } from '../services/lease-information.service';
 import { LeaseReloadService } from '../services/lease-reload.service';
 import { TerminologyService } from '../../organizations/services/terminology.service';
-
-type LeaseInfoScopeOption = 'organization' | 'office' | 'property';
 
 @Component({
     standalone: true,
@@ -23,11 +21,11 @@ type LeaseInfoScopeOption = 'organization' | 'office' | 'property';
     styleUrl: './lease-information.component.scss'
 })
 export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() reservationId: string | null = null;
   @Input() officeId: number | null = null;
   @Input() propertyId: string | null = null;
+
+  private cdr = inject(ChangeDetectorRef);
   private fb = inject(FormBuilder);
   private leaseInformationService = inject(LeaseInformationService);
   private authService = inject(AuthService);
@@ -35,13 +33,14 @@ export class LeaseInformationComponent implements OnInit, OnDestroy, OnChanges {
   private leaseReloadService = inject(LeaseReloadService);
   private utilityService = inject(UtilityService);
   private terminologyService = inject(TerminologyService);
+
   securityDepositWaiverLabel = 'Security Deposit Waiver';
   form: FormGroup;
   isSubmitting: boolean = false;
   leaseInformation: LeaseInformationResponse | null = null;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['leaseInformation']));
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['leaseInformation']));
   destroy$ = new Subject<void>();
 
   constructor() {

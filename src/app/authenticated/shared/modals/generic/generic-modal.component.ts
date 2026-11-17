@@ -13,8 +13,8 @@ import { GenericModalData, defaultGenericModalData } from './models/generic-moda
     styleUrl: './generic-modal.component.scss'
 })
 export class GenericModalComponent implements OnInit {
-  dialogRef = inject<MatDialogRef<GenericModalComponent>>(MatDialogRef);
-  data = inject<GenericModalData>(MAT_DIALOG_DATA);
+  protected dialogRef = inject<MatDialogRef<GenericModalComponent>>(MatDialogRef);
+  protected data = inject<GenericModalData>(MAT_DIALOG_DATA);
 
 
   ngOnInit(): void {

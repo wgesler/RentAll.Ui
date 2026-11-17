@@ -20,13 +20,14 @@ import { MaterialModule } from '../../../material.module';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { ReceiptExtractResponse, ReceiptResponse } from '../../maintenance/models/receipt.model';
 import { ReceiptType } from '../../maintenance/models/maintenance-enums';
-import { ReceiptDraftResponse, ReceiptDraftSourceFlags } from '../../maintenance/models/receipt-draft.model';
+import { ReceiptDraftResponse } from '../../maintenance/models/receipt-draft.model';
+import { ReceiptDraftSourceFlags } from '../../maintenance/models/maintenance-enums';
 import { ReceiptDraftService } from '../../maintenance/services/receipt-draft.service';
 import { UserReceiptDraftNoticeService } from '../../maintenance/services/user-receipt-draft-notice.service';
 import { buildReceiptDraftRequestFromForm } from '../../maintenance/services/receipt-draft-form.mapper';
 import { MobileCaptureReceiptDraft, MobileCaptureReceiptDraftService } from '../mobile-capture-receipt-draft.service';
 import { ReceiptComponent } from '../../maintenance/receipt/receipt.component';
-import { WorkOrderSelection } from '../../maintenance/work-order-list/work-order-list.component';
+import { WorkOrderSelection } from '../../maintenance/models/work-order.model';
 import { GlobalSelectionService } from '../../organizations/services/global-selection.service';
 import { FileDetails } from '../../../shared/models/fileDetails';
 import { UtilityService } from '../../../services/utility.service';
@@ -47,8 +48,6 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
   private mobileRouter = inject(Router);
   private mobileRoute = inject(ActivatedRoute);
   private globalSelectionService = inject(GlobalSelectionService);
-  private mobileReturnTicketId: string | null = null;
-  private mobileReturnTicketTab: string | null = null;
   private sanitizer = inject(DomSanitizer);
   private mobileToastr = inject(ToastrService);
   private mobileChromeOverlayService = inject(MobileChromeOverlayService);
@@ -58,14 +57,16 @@ export class MobileReceiptDetailComponent extends ReceiptComponent implements On
   private mobileUtilityService = inject(UtilityService);
   private mobileCdr = inject(ChangeDetectorRef);
 
+  mobileReturnTicketId: string | null = null;
+  mobileReturnTicketTab: string | null = null;
   receiptDraftId: string | null = null;
-  private openedExistingReceiptDraft = false;
+  openedExistingReceiptDraft = false;
   receiptDraft: ReceiptDraftResponse | null = null;
   isSavingDraft = false;
   isLoadingReceiptDraft = false;
   receiptPreviewOpen = false;
   receiptPreviewViewerSrc: SafeResourceUrl | null = null;
-  private receiptPreviewObjectUrl: string | null = null;
+  receiptPreviewObjectUrl: string | null = null;
 
   //#region Mobile-Receipt-Detail
   override ngOnInit(): void {

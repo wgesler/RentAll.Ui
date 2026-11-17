@@ -58,18 +58,25 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
   @Input() compactDialogMode: boolean = false;
   /** Owner tab renders W9, bank, and card as sibling accordions outside Basic Information. */
   @Input() placeExtraAccordionsOutside = false;
-  @Output() extraAccordionsReady = new EventEmitter<TemplateRef<unknown>>();
-  @ViewChild('extraAccordions') extraAccordions?: TemplateRef<unknown>;
-  private extraAccordionsEmitted = false;
   @Input() showDialogCancelButton: boolean = false;
   @Input() prefillContact: Record<string, unknown> | null = null;
   @Input() publicOwnerToken: string | null = null;
   @Input() publicReadOnlyContactCode: string | null = null;
+  @Output() extraAccordionsReady = new EventEmitter<TemplateRef<unknown>>();
   @Output() closed = new EventEmitter<{ saved?: boolean; contactId?: string; entityTypeId?: number }>();
-  contactService = inject(ContactService);
-  contactCardService = inject(ContactCardService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+  @ViewChild('extraAccordions') extraAccordions?: TemplateRef<unknown>;
+  @ViewChild('w9FileInput') w9FileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('insuranceFileInput') insuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('documentFrontFileInput') documentFrontFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('documentBackFileInput') documentBackFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('identificationNumberInput') identificationNumberInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('accountNumberInput') accountNumberInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('contactCardPanInput') contactCardPanInputRef: ElementRef<HTMLInputElement> | null = null;
+
+  private contactService = inject(ContactService);
+  private contactCardService = inject(ContactCardService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private toastr = inject(ToastrService);
   private commonService = inject(CommonService);
@@ -85,7 +92,7 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
   private pdfThumbnailService = inject(PdfThumbnailService);
   private userService = inject(UserService);
   private cdr = inject(ChangeDetectorRef);
-  dialogData? = inject<{
+  private dialogData? = inject<{
     preloadedContact?: ContactResponse;
     entityTypeId?: number;
     compactDialogMode?: boolean;
@@ -94,12 +101,12 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     preselectPropertyOfficeId?: number;
 }>(MAT_DIALOG_DATA, { optional: true });
 
-  readonly ratingStars: number[] = [1, 2, 3, 4, 5];
+  extraAccordionsEmitted = false;
+  ratingStars: number[] = [1, 2, 3, 4, 5];
   EntityType = EntityType;
   OwnerType = OwnerType;
   VendorType = VendorType;
 
-  isServiceError: boolean = false;
   form: FormGroup;
   isAddMode: boolean = false;
   isEmbedded: boolean = true;
@@ -135,7 +142,7 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
   w9Path: string | null = null;
   hasNewW9Upload = false;
   isExtractingW9 = false;
-  private w9ExtractToken = 0;
+  w9ExtractToken = 0;
   insuranceFileName: string | null = null;
   insuranceFileDataUrl: string | null = null;
   insuranceFileContentType: string | null = null;
@@ -158,13 +165,6 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
   w9PdfThumbnailUrl: string | null = null;
   insurancePdfThumbnailUrl: string | null = null;
 
-  @ViewChild('w9FileInput') w9FileInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('insuranceFileInput') insuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('documentFrontFileInput') documentFrontFileInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('documentBackFileInput') documentBackFileInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('identificationNumberInput') identificationNumberInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('accountNumberInput') accountNumberInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('contactCardPanInput') contactCardPanInputRef: ElementRef<HTMLInputElement> | null = null;
   contactCard: ContactCardResponse | null = null;
   cardTypeOptions: { value: number; label: string }[] = getCardTypes();
   isContactCardSaving = false;
@@ -187,8 +187,9 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
   cardNumberTyped = false;
   cardNumberDecryptToken = 0;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['contact']));
   destroy$ = new Subject<void>();
 
   //#region Contacts

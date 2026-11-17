@@ -16,6 +16,7 @@ export class OwnerStatementService {
   private reportService = inject(ReportService);
   private mappingService = inject(MappingService);
   private ownerReportsCacheService = inject(OwnerReportsCacheService);
+
   private readonly ownerPaymentUrl = this.configService.config().apiUrl + 'accounting/owner/payment';
 
   searchOwnerStatementPropertyActivityLines(request: OwnerStatementPropertyActivityLineSearchRequest): Observable<OwnerStatementPropertyActivityLineResponse[]> {

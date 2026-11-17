@@ -34,7 +34,8 @@ import { PropertyService } from '../../../properties/services/property.service';
 import { PropertyHtmlService } from '../../../properties/services/property-html.service';
 import { ReservationResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig, EmailConfig } from '../../../shared/models/base-document.model';
 import { SecurityDepositDetailResponse } from '../../models/security-deposit-report.model';
 import { SecurityDepositService } from '../../services/security-deposit.service';
 import { SecurityDepositReportHtmlBuilderService, SecurityDepositReportPrintContext } from '../../services/security-deposit-report-html-builder.service';
@@ -99,11 +100,11 @@ export class SecurityDepositReportComponent extends BaseDocumentComponent implem
   previewIframeStyles = '';
   safePreviewIframeHtml: SafeHtml = '';
   iframeKey = 0;
-  isServiceError = false;
   isDownloading = false;
   isSubmitting = false;
   debuggingHtml = environment.local || environment.dev;
-  
+
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['detail', 'template', 'organization']));
   destroy$ = new Subject<void>();

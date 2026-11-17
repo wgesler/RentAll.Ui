@@ -23,6 +23,7 @@ export class AccountingErrorLogListComponent implements OnInit, OnChanges, OnDes
   @Input() reloadToken = 0;
   @Output() openAccountingErrorLog = new EventEmitter<AccountingErrorLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);

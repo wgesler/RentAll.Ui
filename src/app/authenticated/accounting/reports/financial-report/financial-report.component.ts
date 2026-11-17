@@ -12,7 +12,8 @@ import { DocumentType } from '../../../documents/models/document.enum';
 import { GenerateDocumentFromHtmlDto } from '../../../documents/models/document.model';
 import { DocumentReloadService } from '../../../documents/services/document-reload.service';
 import { ColumnSet } from '../../../shared/data-table/models/column-data';
-import { BaseDocumentComponent, DocumentConfig, DownloadConfig } from '../../../shared/base-document.component';
+import { BaseDocumentComponent } from '../../../shared/base-document.component';
+import { DocumentConfig, DownloadConfig } from '../../../shared/models/base-document.model';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
 import { DataTableFilterActionsDirective } from '../../../shared/data-table/data-table-filter-actions.directive';
 import { AccountingOfficeResponse } from '../../../organizations/models/accounting-office.model';
@@ -28,7 +29,8 @@ import {
   FinancialReportDrillDownView,
   FinancialReportKind,
   FinancialReportResult,
-  FinancialReportTreeNode
+  FinancialReportTreeNode,
+  FinancialReportVisibleRow
 } from '../../models/financial-report.model';
 import { JournalEntryLineListDisplay, JournalEntryLineSearchResponse } from '../../models/journal-entry.model';
 import { InvoiceResponse } from '../../models/invoice.model';
@@ -42,19 +44,6 @@ import { ReceiptComponent } from '../../../maintenance/receipt/receipt.component
 import { ReceiptResponse } from '../../../maintenance/models/receipt.model';
 import { PropertyResponse } from '../../../properties/models/property.model';
 import { PropertyService } from '../../../properties/services/property.service';
-
-interface FinancialReportVisibleRow {
-  nodeId: string;
-  label: string;
-  columnAmountDisplays: Record<string, string>;
-  depth: number;
-  rowKind: FinancialReportTreeNode['rowKind'];
-  displayKind: 'node' | 'supportingLine';
-  expandable: boolean;
-  expanded: boolean;
-  showDoubleUnderlineBeforeTotal: boolean;
-  supportingLine?: JournalEntryLineListDisplay;
-}
 
 @Component({
   selector: 'app-financial-report',
@@ -76,7 +65,9 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   @Output() journalEntryDetailActiveChange = new EventEmitter<boolean>();
   @Output() journalEntriesChanged = new EventEmitter<void>();
   @Output() shellTitleBarRefresh = new EventEmitter<void>();
-  formatter = inject(FormatterService);
+  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
+
+  private formatter = inject(FormatterService);
   private generalLedgerService = inject(GeneralLedgerService);
   private mappingService = inject(MappingService);
   private officeService = inject(OfficeService);
@@ -89,9 +80,8 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   private reportHtmlBuilder = inject(ReportHtmlBuilderService);
   private documentReloadService = inject(DocumentReloadService);
   private cdr = inject(ChangeDetectorRef);
-  override toastr: ToastrService;
-  @ViewChild('drillDownInvoiceEditor') drillDownInvoiceEditor?: InvoiceComponent;
 
+  override toastr: ToastrService;
   reportResult: FinancialReportResult | null = null;
   visibleRows: FinancialReportVisibleRow[] = [];
   previewIframeHtml = '';
@@ -125,7 +115,6 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   expandedNodeIds = new Set<string>();
   expandedSupportingLineNodeIds = new Set<string>();
   nestedExpansionPhases = new Map<string, number>();
-  isServiceError = false;
   noActivityMessage = 'No activity for the selected filters and date range.';
   companyName = '';
   organizationId = '';
@@ -133,11 +122,12 @@ export class FinancialReportComponent extends BaseDocumentComponent implements O
   accountingOffices: AccountingOfficeResponse[] = [];
   chartOfAccounts: ChartOfAccountResponse[] = [];
   allLines: JournalEntryLineSearchResponse[] = [];
+  reportDataLoadKey = 'reportData';
 
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['reportData']));
   destroy$ = new Subject<void>();
-  private readonly reportDataLoadKey = 'reportData';
 
   //#region Financial-Report
   ngOnInit(): void {

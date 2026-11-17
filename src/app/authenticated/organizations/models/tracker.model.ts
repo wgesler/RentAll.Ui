@@ -106,3 +106,11 @@ export interface TrackerSelectionEvent {
   officeId: number | null;
   tracker: TrackerDefinitionListDisplay | null;
 }
+
+export interface TrackerOptionEditorRow {
+  trackerDefinitionOptionId?: string;
+  label: string;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+}

@@ -22,6 +22,7 @@ export class PropertyUploadLogListComponent implements OnInit, OnChanges, OnDest
   @Input() reloadToken = 0;
   @Output() openPropertyUploadLog = new EventEmitter<PropertyUploadLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);

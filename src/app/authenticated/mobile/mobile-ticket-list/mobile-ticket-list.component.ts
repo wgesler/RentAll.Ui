@@ -23,6 +23,7 @@ import { MobileTicketListRow } from './mobile-ticket-list.model';
 export class MobileTicketListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() filterMode: 'assignedToMe' | 'allOthers' | 'closed' | 'rentAll' | 'review' | 'complete' = 'assignedToMe';
   @Input() tabPath = 'my-tickets';
+
   private router = inject(Router);
   private authService = inject(AuthService);
   private ticketService = inject(TicketService);
@@ -30,16 +31,19 @@ export class MobileTicketListComponent implements OnInit, OnChanges, OnDestroy {
   private utilityService = inject(UtilityService);
   private globalSelectionService = inject(GlobalSelectionService);
   private cdr = inject(ChangeDetectorRef);
+
   allTickets: TicketResponse[] = [];
   ticketsDisplay: MobileTicketListRow[] = [];
   selectedOfficeId: number | null = null;
-  isPageReady = false;
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['tickets']));
-  destroy$ = new Subject<void>();
-  readonly displayedColumns: ColumnSet = {
+
+  displayedColumns: ColumnSet = {
     ticketCode: { displayAs: 'Ticket', maxWidth: '14ch', wrap: false },
     title: { displayAs: 'Title', maxWidth: '100%', wrap: false }
   };
+
+  isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['tickets']));
+  destroy$ = new Subject<void>();
 
   //#region Mobile-Ticket-List
   ngOnChanges(changes: SimpleChanges): void {

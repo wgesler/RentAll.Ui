@@ -42,7 +42,7 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly paymentTypeOptions = PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit);
+  paymentTypeOptions = PaymentTypeLabels.filter(type => type.value !== PaymentType.SecurityDeposit);
 
   selectedPaymentTypeId = PaymentType.Check;
   selectedPaymentChartOfAccountId: number | null = null;
@@ -56,7 +56,7 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
   accountingOffices: AccountingOfficeResponse[] = [];
   allChartOfAccounts: ChartOfAccountResponse[] = [];
 
-  private destroy$ = new Subject<void>();
+  destroy$ = new Subject<void>();
 
   //#region Security Deposit Return Payment Dialog
   ngOnInit(): void {

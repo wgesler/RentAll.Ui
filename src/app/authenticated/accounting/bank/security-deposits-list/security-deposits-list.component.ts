@@ -22,16 +22,10 @@ import { SecurityDepositReturnPaymentDialogComponent } from './security-deposit-
 import { SecurityDepositReturnPaymentSubmit } from './security-deposit-return-payment-dialog.model';
 import { FormatterService } from '../../../../services/formatter-service';
 import { InvoiceSelection } from '../../models/invoice.model';
-import { SecurityDepositReportSelection } from '../../models/security-deposit-report.model';
+import { SecurityDepositJournalSelection, SecurityDepositReportSelection } from '../../models/security-deposit-report.model';
 import { SecurityDepositUndoDocument, SecurityDepositUndoPreviewResponse } from '../../models/security-deposit-undo.model';
 import { GenericModalComponent } from '../../../shared/modals/generic/generic-modal.component';
 import { GenericModalData } from '../../../shared/modals/generic/models/generic-modal-data';
-
-export interface SecurityDepositJournalSelection {
-  reservationId: string;
-  reservationCode: string;
-  officeId: number;
-}
 
 @Component({
   selector: 'app-security-deposits-list',
@@ -56,13 +50,35 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   private authService = inject(AuthService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService);
-  readonly formatter = inject(FormatterService);
+  protected readonly formatter = inject(FormatterService);
   private router = inject(Router);
   private toastr = inject(ToastrService);
   private dialog = inject(MatDialog);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly displayedColumns: ColumnSet = {
+  rowsDisplay: UnreturnedSecurityDepositDisplay[] = [];
+  escrowBalance = 0;
+  escrowAccountLabel = '';
+  showCompleted = false;
+  noDataMessage = 'No security deposits for the selected office access.';
+  loadId = 0;
+
+  showPaymentForm = false;
+  paymentDialogMode: 'return' | 'transfer' = 'return';
+  isSubmittingPayment = false;
+  isUndoing = false;
+  paymentOfficeId: number | null = null;
+  paymentTargetReservationId: string | null = null;
+  paymentTargetReservationCode: string | null = null;
+  paymentInitialAmount = 0;
+  paymentInitialDescription = '';
+
+  summaryPanelWidthPx = 0;
+  summaryPanelMarginLeftPx = 0;
+  summaryResizeObserver?: ResizeObserver;
+  summaryAlignFrameId: number | null = null;
+
+  displayedColumns: ColumnSet = {
     securityDepositAttentionDot: { displayAs: ' ', maxWidth: '4ch', alignment: 'center', wrap: false },
     reservationCode: { displayAs: 'Reservation', wrap: false, maxWidth: '16ch', sortType: 'natural' },
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch', sortType: 'natural' },
@@ -81,31 +97,10 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
     paymentProcessed: { displayAs: 'Complete', isCheckbox: true, checkboxEditable: false, checkboxDisabledField: 'paymentProcessedDisabled', suppressRowClick: true, wrap: false, alignment: 'center', headerAlignment: 'center', maxWidth: '12ch' }
   };
 
-  rowsDisplay: UnreturnedSecurityDepositDisplay[] = [];
-  escrowBalance = 0;
-  escrowAccountLabel = '';
-  isPageReady = false;
   isServiceError = false;
-  showCompleted = false;
-  noDataMessage = 'No security deposits for the selected office access.';
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['securityDeposits']));
   destroy$ = new Subject<void>();
-  private loadId = 0;
-
-  showPaymentForm = false;
-  paymentDialogMode: 'return' | 'transfer' = 'return';
-  isSubmittingPayment = false;
-  isUndoing = false;
-  paymentOfficeId: number | null = null;
-  paymentTargetReservationId: string | null = null;
-  paymentTargetReservationCode: string | null = null;
-  paymentInitialAmount = 0;
-  paymentInitialDescription = '';
-
-  summaryPanelWidthPx = 0;
-  summaryPanelMarginLeftPx = 0;
-  private summaryResizeObserver?: ResizeObserver;
-  private summaryAlignFrameId: number | null = null;
 
   //#region Security Deposits List
   ngOnInit(): void {

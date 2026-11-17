@@ -20,7 +20,7 @@ import { GeneralLedgerService } from '../../services/general-ledger.service';
   styleUrl: './journal-entry-posting-dialog.component.scss'
 })
 export class JournalEntryPostingDialogComponent implements OnInit, OnDestroy {
-  data = inject<JournalEntryPostingDialogData>(MAT_DIALOG_DATA);
+  private data = inject<JournalEntryPostingDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<JournalEntryPostingDialogComponent, JournalEntryPostingDialogResult | undefined>>(MatDialogRef);
   private fb = inject(FormBuilder);
   private generalLedgerService = inject(GeneralLedgerService);
@@ -31,15 +31,14 @@ export class JournalEntryPostingDialogComponent implements OnInit, OnDestroy {
   displayedEntries: JournalEntryPostingDialogEntry[] = [];
   isLoadingEntries = false;
   showDateValidationError = false;
-  destroy$ = new Subject<void>();
 
-  readonly form = this.fb.group({
+  form = this.fb.group({
     action: ['post' as JournalEntryPostingAction, Validators.required],
     startDate: [null as Date | null],
     endDate: [null as Date | null]
   });
 
-  readonly postingActionInstructions: ReadonlyArray<{
+  postingActionInstructions: ReadonlyArray<{
     action: JournalEntryPostingAction;
     label: string;
     text: string;
@@ -60,6 +59,8 @@ export class JournalEntryPostingDialogComponent implements OnInit, OnDestroy {
       text: 'Locks down Journal Entries within certain date ranges and prevents all changes.'
     }
   ];
+
+  destroy$ = new Subject<void>();
 
   //#region Journal Entry Posting Dialog
   ngOnInit(): void {

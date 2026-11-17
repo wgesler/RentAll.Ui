@@ -14,7 +14,7 @@ import { DEFAULT_RECONCILE_VISIBLE_COLUMNS, RECONCILE_COLUMN_HEADERS, RECONCILE_
 export class ReconcileColumnsDialogComponent {
   private dialogRef = inject<MatDialogRef<ReconcileColumnsDialogComponent, ReconcileColumnsDialogResult | undefined>>(MatDialogRef);
 
-  readonly columnOptions = RECONCILE_DIALOG_COLUMN_ORDER.map(key => ({
+  columnOptions = RECONCILE_DIALOG_COLUMN_ORDER.map(key => ({
     key,
     label: RECONCILE_COLUMN_HEADERS[key]
   }));

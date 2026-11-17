@@ -17,7 +17,7 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { ReservationListResponse } from '../../reservations/models/reservation-model';
 import { ReservationService } from '../../reservations/services/reservation.service';
 import { InspectionComponent } from '../inspection/inspection.component';
-import { WorkOrderListComponent, WorkOrderSelection } from '../work-order-list/work-order-list.component';
+import { WorkOrderListComponent } from '../work-order-list/work-order-list.component';
 import { ReceiptsListComponent } from '../receipts-list/receipts-list.component';
 import { ReceiptPrefill, ReceiptResponse, ReceiptSelection, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { CreditReportComponent } from '../../accounting/vendors/credit-report/credit-report.component';
@@ -32,12 +32,12 @@ import { ReceiptDraftComponent } from '../receipt-draft/receipt-draft.component'
 import { WorkOrderComponent } from '../work-order/work-order.component';
 import { WorkOrderCreateComponent } from '../work-order-create/work-order-create.component';
 import { MaintenanceListSearchRequest } from '../models/maintenance-search.model';
-import { WorkOrderPreviewSelection, WorkOrderResponse } from '../models/work-order.model';
+import { WorkOrderPreviewSelection, WorkOrderResponse, WorkOrderSelection } from '../models/work-order.model';
 import { hasAccountingNavAccess, isInspectorOnlyUser } from '../../shared/access/role-access';
 import { MaintenanceComponent } from '../maintenance/maintenance.component';
 import { UnsavedChangesDialogService } from '../../shared/modals/unsaved-changes/unsaved-changes-dialog.service';
 import { UserReceiptDraftNoticeService } from '../services/user-receipt-draft-notice.service';
-import { SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { DashboardNavigationService } from '../../dashboards/services/dashboard-navigation.service';
 import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-select.component';
 
@@ -64,6 +64,8 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
   styleUrl: './maintenance-shell.component.scss'
 })
 export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+  @ViewChild(CreditReportComponent) creditReport?: CreditReportComponent;
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private propertyService = inject(PropertyService);
@@ -82,7 +84,6 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   property: PropertyResponse | null = null;
   routePropertyId: string | null = null;
   isPropertyLoading = false;
-  isServiceError = false;
   selectedTabIndex = 0;
   isHandlingTabGuard = false;
 
@@ -175,11 +176,21 @@ export class MaintenanceShellComponent implements OnInit, OnDestroy, CanComponen
   rentRollCreateQueue = new RentRollCreateBillQueue();
   ignoreNextRentRollBillBackEvent = false;
 
-  @ViewChild(CreditReportComponent) creditReport?: CreditReportComponent;
+  clearPinsEventName = 'rentall-clear-pins';
+  pinnedDateRangeStorageKeyPrefix = 'rentall-maintenance-shell-pinned-dates';
 
-  private readonly clearPinsEventName = 'rentall-clear-pins';
-  private readonly pinnedDateRangeStorageKeyPrefix = 'rentall-maintenance-shell-pinned-dates';
+  onClearPins = (): void => {
+    if (!this.dateRangePinned) {
+      return;
+    }
+    this.dateRangePinned = false;
+    this.clearPinnedDateRangeStorage();
+    this.setDefaultDateRange();
+    this.syncMaintenanceSearchRequests();
+    this.refreshVisibleMaintenanceLists();
+  };
 
+  isServiceError = false;
   destroy$ = new Subject<void>();
 
   constructor() {
@@ -1877,17 +1888,6 @@ resolveOfficeIdsForRequest(): number[] {
     const userKey = this.authService.getUser()?.userId?.trim() || 'anonymous';
     return `${this.pinnedDateRangeStorageKeyPrefix}-${userKey}`;
   }
-
-  onClearPins = (): void => {
-    if (!this.dateRangePinned) {
-      return;
-    }
-    this.dateRangePinned = false;
-    this.clearPinnedDateRangeStorage();
-    this.setDefaultDateRange();
-    this.syncMaintenanceSearchRequests();
-    this.refreshVisibleMaintenanceLists();
-  };
   //#endregion
   //#endregion
 

@@ -5,12 +5,7 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
-
-export interface PropertyCalendarUrlDialogData {
-  propertyCode: string;
-  subscriptionUrl: string | { subscriptionUrl?: string } | null | undefined;
-  calendarLinkResponse?: Record<string, unknown> | null;
-}
+import { PropertyCalendarUrlDialogData } from '../models/property-calendar';
 
 @Component({
   standalone: true,
@@ -20,7 +15,7 @@ export interface PropertyCalendarUrlDialogData {
   styleUrl: './property-calendar-url-dialog.component.scss'
 })
 export class PropertyCalendarUrlDialogComponent {
-  data = inject<PropertyCalendarUrlDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<PropertyCalendarUrlDialogData>(MAT_DIALOG_DATA);
   private clipboard = inject(Clipboard);
   private toastr = inject(ToastrService);
 

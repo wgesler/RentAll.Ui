@@ -31,7 +31,6 @@ export class MobileLeadsPageComponent implements OnInit, OnDestroy {
   private globalSelectionService = inject(GlobalSelectionService);
   private cdr = inject(ChangeDetectorRef);
   private mobileNavAttentionService = inject(MobileNavAttentionService);
-  private destroy$ = new Subject<void>();
 
   tab: MobileNavTab | null = null;
   titleTabs: MobileNavTab[] = [];
@@ -44,6 +43,8 @@ export class MobileLeadsPageComponent implements OnInit, OnDestroy {
     leadTabAttention: {},
     ticketTabAttention: {}
   };
+
+  destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.isOwnerAdmin = this.authService.isOwnerAdmin();

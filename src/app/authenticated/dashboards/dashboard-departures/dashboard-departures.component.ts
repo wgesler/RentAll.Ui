@@ -11,13 +11,7 @@ import { AuthService } from '../../../services/auth.service';
 import { UtilityService } from '../../../services/utility.service';
 import { DashboardCompanyDataService, DashboardCompanyDataSnapshot, emptyDashboardCompanyDataSnapshot } from '../services/dashboard-company-data.service';
 import { DashboardNavigationService } from '../services/dashboard-navigation.service';
-
-type DepartureTurnoverRow = ReservationTurnoverEventDisplay & {
-  expand: string;
-  expanded: boolean;
-  maintenanceRows: MaintenanceListDisplay[];
-  expandClick: (event: Event, item: DepartureTurnoverRow) => void;
-};
+import { DepartureTurnoverRow } from '../models/dashboard-model';
 
 @Component({
   standalone: true,
@@ -34,7 +28,6 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private dashboardNavigation = inject(DashboardNavigationService);
   private cdr = inject(ChangeDetectorRef);
-  private destroy$ = new Subject<void>();
 
   snapshot: DashboardCompanyDataSnapshot = emptyDashboardCompanyDataSnapshot;
   upcomingTurnoverDisplayRows: DepartureTurnoverRow[] = [];
@@ -45,6 +38,8 @@ export class DashboardDeparturesComponent implements OnInit, OnDestroy {
   isAllExpandedDeparted = false;
   loadedTrackerReservationKey = '';
   hasManagementAccess = false;
+
+  destroy$ = new Subject<void>();
 
   //#region Dashboard-Departures
   ngOnInit(): void {

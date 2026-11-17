@@ -41,9 +41,12 @@ export class MobileMaintenanceDetailComponent extends MaintenanceComponent imple
   @ViewChild('itemList') itemList?: MobileMaintenanceItemListComponent;
   @ViewChild('applianceList') applianceList?: MobileMaintenanceApplianceListComponent;
   @ViewChild('utilityList') utilityList?: MobileMaintenanceUtilityListComponent;
+
   private propertyService = inject(PropertyService);
-  private mobileDestroy$ = new Subject<void>();
+
   isMobilePageReady = false;
+
+  mobileDestroy$ = new Subject<void>();
 
   //#region Mobile-Maintenance-Detail
   override ngOnChanges(changes: SimpleChanges): void {

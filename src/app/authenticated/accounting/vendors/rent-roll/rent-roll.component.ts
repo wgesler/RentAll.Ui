@@ -22,9 +22,9 @@ import { PropertyAgreementLineResponse } from '../../../properties/models/proper
 import { PropertyAgreementLineRequest, PropertyAgreementRequest } from '../../../properties/models/property-agreement.model';
 import { PropertyAgreementService } from '../../../properties/services/property-agreement.service';
 import { ManagementFeeType, OwnerPaymentType } from '../../../properties/models/property-enums';
-import { RentRollCreateBillRequest, RentRollPropertyAgreement, RentRollRow, RentRollRowDisplay } from '../../models/rent-roll.model';
-import { RentRollEditLineDialogComponent, RentRollEditLineDialogData, RentRollEditLineDialogResult } from './rent-roll-edit-line-dialog.component';
-import { RentRollLinkBillDialogComponent, RentRollLinkBillDialogData, RentRollLinkBillDialogResult } from './rent-roll-link-bill-dialog.component';
+import { RentRollCreateBillRequest, RentRollEditLineDialogData, RentRollEditLineDialogResult, RentRollLinkBillDialogData, RentRollLinkBillDialogResult, RentRollPropertyAgreement, RentRollRow, RentRollRowDisplay } from '../../models/rent-roll.model';
+import { RentRollEditLineDialogComponent } from './rent-roll-edit-line-dialog.component';
+import { RentRollLinkBillDialogComponent } from './rent-roll-link-bill-dialog.component';
 
 @Component({
   selector: 'app-rent-roll',
@@ -42,6 +42,7 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   @Output() createBill = new EventEmitter<RentRollCreateBillRequest>();
   @Output() createBills = new EventEmitter<RentRollCreateBillRequest[]>();
   @Output() openBill = new EventEmitter<ReceiptSelection>();
+
   private authService = inject(AuthService);
   private propertyAgreementService = inject(PropertyAgreementService);
   private mappingService = inject(MappingService);
@@ -53,11 +54,23 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
+
   isAdmin = false;
   canSkipRentRollLine = false;
   skippedRentRollKeys = new Set<string>();
+  rentRollRows: RentRollRow[] = [];
+  rentRollRowsDisplayAll: RentRollRowDisplay[] = [];
+  rentRollRowsDisplay: RentRollRowDisplay[] = [];
+  selectedRentRollRows: RentRollRowDisplay[] = [];
+  showCreatedBills = false;
+  rentRollTotalAmount = 0;
+  propertyAgreements: RentRollPropertyAgreement[] = [];
+  chartOfAccounts: ChartOfAccountResponse[] = [];
+  existingBillByMatchKey = new Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }>();
+  existingBillByAgreementLinePeriodKey = new Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }>();
+  loadSequence = 0;
 
-  readonly rentRollDisplayedColumns: ColumnSet = {
+  rentRollDisplayedColumns: ColumnSet = {
     propertyCode: { displayAs: 'Property', wrap: false, maxWidth: '16ch', sortType: 'natural' },
     vendorName: { displayAs: 'Vendor', wrap: true, maxWidth: '25ch' },
     chartOfAccountDisplay: { displayAs: 'Chart of Account', wrap: true, maxWidth: '25ch' },
@@ -70,22 +83,11 @@ export class RentRollComponent implements OnInit, OnChanges, OnDestroy {
     dailyAmountDisplay: { displayAs: 'Daily', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' },
     totalAmountDisplay: { displayAs: 'Total', wrap: false, maxWidth: '14ch', alignment: 'right', headerAlignment: 'right' }
   };
-  rentRollRows: RentRollRow[] = [];
-  rentRollRowsDisplayAll: RentRollRowDisplay[] = [];
-  rentRollRowsDisplay: RentRollRowDisplay[] = [];
-  selectedRentRollRows: RentRollRowDisplay[] = [];
-  showCreatedBills = false;
-  rentRollTotalAmount = 0;
+
   isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rentRoll']));
   destroy$ = new Subject<void>();
-  propertyAgreements: RentRollPropertyAgreement[] = [];
-  chartOfAccounts: ChartOfAccountResponse[] = [];
-  existingBillByMatchKey = new Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }>();
-  existingBillByAgreementLinePeriodKey = new Map<string, { billDate: string | null; dueDate: string | null; receiptId: string | null; officeId: number | null; propertyId: string | null }>();
-
-  loadSequence = 0;
 
   //#region Rent Roll
   ngOnInit(): void {

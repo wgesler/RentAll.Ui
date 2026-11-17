@@ -13,6 +13,7 @@ import { GeneralErrorLogResponse } from '../models/log.model';
 export class GeneralErrorLogComponent implements OnInit, OnDestroy {
   @Input() row: GeneralErrorLogResponse | null = null;
   @Output() closed = new EventEmitter<void>();
+
   constructor() {}
 
   //#region General-Error-Log

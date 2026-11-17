@@ -55,3 +55,5 @@ export interface LeadPartnerListDisplay extends LeadPartnerResponse {
 }
 
 export type PartnerEditSelection = { partnerId: number; officeId: number | null };
+
+export type PartnerLeadFormClosed = { saved: boolean; partnerId?: number };

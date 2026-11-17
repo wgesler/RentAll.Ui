@@ -16,6 +16,7 @@ import { withMobileEmailCreateRoute } from './mobile-property-letter-email';
 })
 export class MobilePropertyDepartureLetterComponent extends PropertyDepartureLetterComponent implements OnInit {
   @Input() override propertyId: string = '';
+
   private mobileRouter = inject(Router);
 
   override ngOnInit(): void {

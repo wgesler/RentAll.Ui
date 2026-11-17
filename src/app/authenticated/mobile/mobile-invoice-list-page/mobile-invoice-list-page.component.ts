@@ -25,6 +25,7 @@ import { MobileListRow } from '../mobile-list-table/mobile-list.model';
 })
 export class MobileInvoiceListPageComponent implements OnInit, OnChanges, OnDestroy {
   @Input() reservationId = '';
+
   private router = inject(Router);
   private authService = inject(AuthService);
   private invoiceService = inject(InvoiceService);
@@ -35,20 +36,22 @@ export class MobileInvoiceListPageComponent implements OnInit, OnChanges, OnDest
   private formatter = inject(FormatterService);
   private globalSelectionService = inject(GlobalSelectionService);
   private cdr = inject(ChangeDetectorRef);
+
   rows: MobileListRow[] = [];
   columns: ColumnSet = {};
-  private readonly reservationColumns: ColumnSet = {
+  reservationColumns: ColumnSet = {
     property: { displayAs: 'Property', maxWidth: '12ch', wrap: false },
     occupant: { displayAs: 'Occupant', maxWidth: '16ch', wrap: false },
     arrival: { displayAs: 'Arrival', maxWidth: '14ch', wrap: false }
   };
-  private readonly invoiceColumns: ColumnSet = {
+  invoiceColumns: ColumnSet = {
     invoiceCode: { displayAs: 'Invoice Code', maxWidth: '20ch', wrap: false },
     date: { displayAs: 'Date', maxWidth: '12ch', wrap: false },
     amount: { displayAs: 'Amount', maxWidth: '12ch', wrap: false }
   };
-  isPageReady = false;
   selectedOfficeId: number | null = null;
+
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['invoices']));
   destroy$ = new Subject<void>();
 

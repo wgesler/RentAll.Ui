@@ -1,8 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-
-export type ThreeWayToggleValue = 0 | 1 | 2;
-export type ThreeWayToggleLabels = readonly [string, string, string];
+import { ThreeWayToggleLabels, ThreeWayToggleValue } from '../models/three-way-toggle.model';
 
 @Component({
   standalone: true,

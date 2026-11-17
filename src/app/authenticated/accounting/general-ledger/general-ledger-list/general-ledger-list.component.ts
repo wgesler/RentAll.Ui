@@ -34,7 +34,8 @@ import { ChartOfAccountsService } from '../../services/chart-of-accounts.service
 import { CheckHtmlService } from '../../services/check-html.service';
 import { CheckPrintService } from '../../services/check-print.service';
 import { CheckPrintApiService } from '../../services/check-print-api.service';
-import { ConfirmCheckNumberDialogComponent, ConfirmCheckNumberDialogData, ConfirmCheckNumberDialogResult } from '../../bank/confirm-check-number-dialog/confirm-check-number-dialog.component';
+import { ConfirmCheckNumberDialogComponent } from '../../bank/confirm-check-number-dialog/confirm-check-number-dialog.component';
+import { ConfirmCheckNumberDialogData, ConfirmCheckNumberDialogResult } from '../../models/confirm-check-number-dialog.model';
 import { DepositRequest, DepositResponse, DepositSplit } from '../../models/deposit.model';
 import { DepositService } from '../../services/deposit.service';
 import { TransferDepositAllocationItemRequest, TransferDepositAllocationResponse, TransferRequest, TransferResponse, TransferSplit } from '../../models/transfer.model';
@@ -75,9 +76,9 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   @ViewChild('checkPreviewIframe') checkPreviewIframe?: ElementRef<HTMLIFrameElement>;
   @ViewChild('journalEntryLinesTemplate') journalEntryLinesTemplate?: TemplateRef<unknown>;
 
-  generalLedgerService = inject(GeneralLedgerService);
-  mappingService = inject(MappingService);
-  formatter = inject(FormatterService);
+  private generalLedgerService = inject(GeneralLedgerService);
+  private mappingService = inject(MappingService);
+  private formatter = inject(FormatterService);
   private officeService = inject(OfficeService);
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private accountingOfficeService = inject(AccountingOfficeService);
@@ -128,7 +129,6 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   transferAmount = 0;
   transferAmountDisplay = '$0.00';
 
-  isServiceError = false;
   organizationId = '';
   offices: OfficeResponse[] = [];
   accountingOffices: AccountingOfficeResponse[] = [];
@@ -145,6 +145,12 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
   includeAll = false;
   noActivityMessage = 'No general ledger activity for the selected office and date range.';
 
+  detailLineSortColumn: string | null = null;
+  detailLineSortDirection: 'asc' | 'desc' = 'asc';
+
+  journalEntryLinesLoadKey = 'journalEntryLines';
+  journalEntryLinesLoadId = 0;
+  cancelJournalEntryLinesLoad$ = new Subject<void>();
 
   displayedColumns: ColumnSet = {
     no: { displayAs: 'No', maxWidth: '7ch', wrap: false, sort: true, alignment: 'center', headerAlignment: 'center' },
@@ -174,15 +180,10 @@ export class GeneralLedgerListComponent implements OnInit, OnDestroy, OnChanges 
     credit: { displayAs: 'Credit', maxWidth: '16ch', alignment: 'right', headerAlignment: 'right' }
   };
 
-  detailLineSortColumn: string | null = null;
-  detailLineSortDirection: 'asc' | 'desc' = 'asc';
-
+  isServiceError = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['journalEntryLines']));
   destroy$ = new Subject<void>();
-  private readonly journalEntryLinesLoadKey = 'journalEntryLines';
-  private journalEntryLinesLoadId = 0;
-  private cancelJournalEntryLinesLoad$ = new Subject<void>();
 
   //#region General-Ledger-List
   ngOnInit(): void {

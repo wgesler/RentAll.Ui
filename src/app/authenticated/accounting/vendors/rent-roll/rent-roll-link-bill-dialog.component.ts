@@ -7,33 +7,7 @@ import { FormatterService } from '../../../../services/formatter-service';
 import { ReceiptService } from '../../../maintenance/services/receipt.service';
 import { ReceiptResponse, isReceiptCompanyPropertyId } from '../../../maintenance/models/receipt.model';
 import { MaintenanceListSearchRequest } from '../../../maintenance/models/maintenance-search.model';
-
-export interface RentRollLinkBillDialogData {
-  officeId: number | null;
-  propertyId: string;
-  propertyCode: string;
-  vendorId: string | null;
-  vendorName: string;
-  agreementLineId: string;
-  billDate: string | null;
-  searchDateRange: { startDate: string | null; endDate: string | null };
-}
-
-export interface RentRollLinkBillOption {
-  receiptId: string;
-  receiptCode: string;
-  receiptDate: string | null;
-  vendorName: string;
-  description: string;
-  amountDisplay: string;
-  linkStatus: string;
-  selectable: boolean;
-  vendorMatches: boolean;
-}
-
-export interface RentRollLinkBillDialogResult {
-  receiptId: string;
-}
+import { RentRollLinkBillDialogData, RentRollLinkBillDialogResult, RentRollLinkBillOption } from '../../models/rent-roll.model';
 
 @Component({
   standalone: true,
@@ -43,7 +17,7 @@ export interface RentRollLinkBillDialogResult {
   styleUrl: './rent-roll-link-bill-dialog.component.scss'
 })
 export class RentRollLinkBillDialogComponent {
-  data = inject<RentRollLinkBillDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<RentRollLinkBillDialogData>(MAT_DIALOG_DATA);
   private dialogRef = inject<MatDialogRef<RentRollLinkBillDialogComponent, RentRollLinkBillDialogResult | undefined>>(MatDialogRef);
   private receiptService = inject(ReceiptService);
   private formatter = inject(FormatterService);
@@ -52,7 +26,8 @@ export class RentRollLinkBillDialogComponent {
   selectedReceiptId: string | null = null;
   isLoading = true;
   loadError = false;
-  readonly displayedColumns = ['select', 'receiptCode', 'receiptDate', 'vendorName', 'description', 'amountDisplay', 'linkStatus'];
+
+  displayedColumns = ['select', 'receiptCode', 'receiptDate', 'vendorName', 'description', 'amountDisplay', 'linkStatus'];
 
   constructor() {
     this.loadBillOptions();

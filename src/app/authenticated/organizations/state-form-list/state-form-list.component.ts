@@ -25,6 +25,7 @@ import { StateFormService } from '../services/state-form.service';
 })
 export class StateFormListComponent implements OnInit, OnDestroy {
   @Output() stateFormSelected = new EventEmitter<string | number | null>();
+
   private stateFormService = inject(StateFormService);
   private commonService = inject(CommonService);
   private mappingService = inject(MappingService);
@@ -32,12 +33,10 @@ export class StateFormListComponent implements OnInit, OnDestroy {
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  private readonly allStatesCode = 'XX';
+  allStatesCode = 'XX';
 
-  isServiceError: boolean = false;
   allStateForms: StateFormListDisplay[] = [];
   stateFormsDisplay: StateFormListDisplay[] = [];
-  destroy$ = new Subject<void>();
 
   stateFormsDisplayedColumns: ColumnSet = {
     stateCode: { displayAs: 'State', maxWidth: '14ch' },
@@ -46,8 +45,10 @@ export class StateFormListComponent implements OnInit, OnDestroy {
     hasHtml: { displayAs: 'HTML', maxWidth: '12ch' }
   };
 
+  isServiceError: boolean = false;
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['stateForms']));
+  destroy$ = new Subject<void>();
 
   //#region StateForm-List
   ngOnInit(): void {

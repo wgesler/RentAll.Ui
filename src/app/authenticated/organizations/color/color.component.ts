@@ -3,7 +3,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Observable, Subject, filter, finalize, forkJoin, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../enums/common-message.enum';
@@ -23,36 +22,35 @@ import { ColorService } from '../services/color.service';
 })
 
 export class ColorComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
-  colorService = inject(ColorService);
-  router = inject(Router);
-  fb = inject(FormBuilder);
+  @ViewChild('firstInput') firstInputRef: MatSelect;
+
+  private cdr = inject(ChangeDetectorRef);
+  private colorService = inject(ColorService);
+  private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private utilityService = inject(UtilityService);
-  @ViewChild('firstInput') firstInputRef: MatSelect;
-  
-  isServiceError: boolean = false;
+
   color: ColorResponse;
   form: FormGroup;
   isSubmitting: boolean = false;
   isAddMode: boolean = false;
   reservationStatuses = getReservationStatuses();
   noticeDays: number | null = null;
-  readonly checkedInNotice60FallbackColorId = 20;
-  readonly checkedInNotice15FallbackColorId = 21;
-  readonly checkedInNotice14FallbackColorId = 22;
+  checkedInNotice60FallbackColorId = 20;
+  checkedInNotice15FallbackColorId = 21;
+  checkedInNotice14FallbackColorId = 22;
   checkedInNotice14ColorId: number | null = null;
   checkedInNotice15ColorId: number | null = null;
   checkedInNotice60ColorId: number | null = null;
   showCheckedInNoticeVariants = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['color']));
   destroy$ = new Subject<void>();
 
   //#region Color

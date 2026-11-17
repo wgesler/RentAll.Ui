@@ -36,6 +36,7 @@ import { MobileListRow } from '../mobile-list-table/mobile-list.model';
 export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy {
   @Input() sectionPath = '';
   @Input() tabPath = '';
+
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
@@ -53,13 +54,15 @@ export class MobileSectionListComponent implements OnInit, OnChanges, OnDestroy 
   private accountingOfficeService = inject(AccountingOfficeService);
   private userReceiptDraftNoticeService = inject(UserReceiptDraftNoticeService);
   private cdr = inject(ChangeDetectorRef);
+
   rows: MobileListRow[] = [];
   columns: ColumnSet = {};
-  isPageReady = false;
   showFilter = false;
   selectedOfficeId: number | null = null;
   isSuperAdminUser = false;
   showDrafts = false;
+
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['list']));
   destroy$ = new Subject<void>();
 

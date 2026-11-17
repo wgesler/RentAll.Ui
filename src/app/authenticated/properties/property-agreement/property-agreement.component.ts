@@ -22,7 +22,8 @@ import { OfficeResponse } from '../../organizations/models/office.model';
 import { OfficeService } from '../../organizations/services/office.service';
 import { ChartOfAccountsService } from '../../accounting/services/chart-of-accounts.service';
 import { ChartOfAccountResponse } from '../../accounting/models/chart-of-accounts.model';
-import { SearchableSelectComponent, SearchableSelectOption } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../../shared/models/searchable-select.model';
 import { EntityType, TermType, getTermType } from '../../contacts/models/contact-enum';
 import { NewContactDialogService } from '../../shared/contacts/new-contact-dialog.service';
 
@@ -34,8 +35,6 @@ import { NewContactDialogService } from '../../shared/contacts/new-contact-dialo
   styleUrl: './property-agreement.component.scss'
 })
 export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input({ required: true }) propertyId!: string;
   @Input({ required: true }) isAddMode!: boolean;
   @Input({ required: true }) canManageAgreement!: boolean;
@@ -46,6 +45,12 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   @Input() propertyLeaseTypeId: number | null = null;
   @Input() vendorContactId: string | null = null;
   @Input() panelOpen = false;
+  @ViewChild('agreementAccountNumberInput') agreementAccountNumberInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('agreementW9FileInput') agreementW9FileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('agreementInsuranceFileInput') agreementInsuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('agreementDocFileInput') agreementDocFileInputRef: ElementRef<HTMLInputElement> | null = null;
+
+  private cdr = inject(ChangeDetectorRef);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -61,10 +66,9 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   private chartOfAccountsService = inject(ChartOfAccountsService);
   private newContactDialogService = inject(NewContactDialogService);
 
-  readonly ManagementFeeType = ManagementFeeType;
-  readonly OwnerPaymentType = OwnerPaymentType;
-  readonly ownerPaymentTypeOptions = getOwnerPaymentTypes();
-  @ViewChild('agreementAccountNumberInput') agreementAccountNumberInputRef: ElementRef<HTMLInputElement> | null = null;
+  ManagementFeeType = ManagementFeeType;
+  OwnerPaymentType = OwnerPaymentType;
+  ownerPaymentTypeOptions = getOwnerPaymentTypes();
   agreementAccountNumberVisible = false;
   agreementAccountNumberFocused = false;
   agreementAccountNumberTyped = false;
@@ -120,10 +124,6 @@ export class PropertyAgreementComponent implements OnInit, OnChanges, OnDestroy 
   vendorInsuranceFileDetails: FileDetails | null = null;
   vendorInsurancePath: string | null = null;
   vendorInsurancePdfThumbnailUrl: string | null = null;
-
-  @ViewChild('agreementW9FileInput') agreementW9FileInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('agreementInsuranceFileInput') agreementInsuranceFileInputRef: ElementRef<HTMLInputElement> | null = null;
-  @ViewChild('agreementDocFileInput') agreementDocFileInputRef: ElementRef<HTMLInputElement> | null = null;
 
   isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['propertyAgreement']));

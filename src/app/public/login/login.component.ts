@@ -37,14 +37,14 @@ export class LoginComponent implements OnInit, AfterViewInit {
   private organizationFeatureService = inject(OrganizationFeatureService);
   private commonService = inject(CommonService);
 
-  readonly headerLogoUrl = '/assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png';
-  readonly backdropLogoUrl = '/assets/images/login-backdrop-rentall-exchange.png';
+  headerLogoUrl = '/assets/images/RentAll_TwoHouses_NoCardinal_Transparent.png';
+  backdropLogoUrl = '/assets/images/login-backdrop-rentall-exchange.png';
 
   checked = false;
   disabled = false;
   hide = true;
   isSubmitting = false;
-  private lastUserPointerAt = 0;
+  lastUserPointerAt = 0;
   username: string = '';
   password: string = '';
   rememberMe: boolean = false;

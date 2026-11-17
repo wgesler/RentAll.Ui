@@ -14,18 +14,18 @@ import { ImageViewDialogData } from './image-view-dialog-data';
   styleUrl: './image-view-dialog.component.scss'
 })
 export class ImageViewDialogComponent implements OnInit, OnDestroy {
-  data = inject<ImageViewDialogData>(MAT_DIALOG_DATA);
+  protected data = inject<ImageViewDialogData>(MAT_DIALOG_DATA);
   private sanitizer = inject(DomSanitizer);
   private dialogRef = inject<MatDialogRef<ImageViewDialogComponent>>(MatDialogRef);
 
   zoomScale = 1;
-  readonly minZoom = 0.5;
-  readonly maxZoom = 4;
-  readonly zoomStep = 0.25;
+  minZoom = 0.5;
+  maxZoom = 4;
+  zoomStep = 0.25;
   pdfViewerSrc: SafeResourceUrl | null = null;
   gallerySources: string[] = [];
   currentIndex = 0;
-  private pdfObjectUrl: string | null = null;
+  pdfObjectUrl: string | null = null;
 
   ngOnInit(): void {
     this.gallerySources = (this.data?.imageSources || []).filter(source => !!source);

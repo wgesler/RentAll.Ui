@@ -41,6 +41,7 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   @Input() ticketId: string | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private fb = inject(FormBuilder);
@@ -54,22 +55,23 @@ export class AlertComponent implements OnInit, OnChanges, OnDestroy {
   private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
-  readonly defaultFromName = 'The RentAll Exchange';
+  defaultFromName = 'The RentAll Exchange';
 
   currentAlertId = '';
   alert: AlertResponse | null = null;
   form: FormGroup = this.buildForm();
   isLoading = false;
   isSubmitting = false;
-  isServiceError = false;
   isAddMode = false;
   showLinkedSelects = true;
-  readonly alertEmailTypeId = EmailType.Alert;
+  alertEmailTypeId = EmailType.Alert;
 
   frequencyOptions = getFrequencies().filter(option => Number(option.value) > 0);
   offices: OfficeResponse[] = [];
   propertyOptions: { value: string; officeId: number; label: string }[] = [];
   reservationOptions: { value: string; officeId: number; propertyId: string; label: string; arrivalDate?: string | null; departureDate?: string | null }[] = [];
+
+  isServiceError = false;
   destroy$ = new Subject<void>();
 
   //#region Alert

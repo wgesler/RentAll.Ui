@@ -7,7 +7,8 @@ import { FileDetails } from '../../documents/models/document.model';
 import { MaterialModule } from '../../../material.module';
 import { SearchableSelectComponent } from '../../shared/searchable-select/searchable-select.component';
 import { ReceiptReadingOverlayComponent } from '../../shared/receipt-reading-overlay/receipt-reading-overlay.component';
-import { ReceiptDraftResponse, ReceiptDraftSourceFlags } from '../models/receipt-draft.model';
+import { ReceiptDraftResponse } from '../models/receipt-draft.model';
+import { ReceiptDraftSourceFlags } from '../models/maintenance-enums';
 import { ReceiptSelection, resolveFirstRealReceiptPropertyId } from '../models/receipt.model';
 import { ReceiptDraftService } from '../services/receipt-draft.service';
 import { UserReceiptDraftNoticeService } from '../services/user-receipt-draft-notice.service';
@@ -36,8 +37,8 @@ export class ReceiptDraftComponent extends ReceiptComponent implements OnInit, O
   isLoadingDraft = false;
   isPromotingDraft = false;
   isDeletingDraft = false;
-  private openedExistingReceiptDraft = false;
-  private backAfterDraftSave = false;
+  openedExistingReceiptDraft = false;
+  backAfterDraftSave = false;
 
   constructor() {
     super();

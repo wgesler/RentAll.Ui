@@ -24,11 +24,9 @@ import { OfficeService } from '../../organizations/services/office.service';
 import { PropertyCodeResponse } from '../../properties/models/property.model';
 import { getPropertyTypes } from '../../properties/models/property-enums';
 import { PropertyService } from '../../properties/services/property.service';
-import { LeadOwnerRequest, LeadOwnerResponse, LeadOwnerUpdateRequest } from '../models/lead-owner.model';
+import { LeadOwnerRequest, LeadOwnerResponse, LeadOwnerUpdateRequest, OwnerLeadFormClosed } from '../models/lead-owner.model';
 import { LEAD_STATE_SELECT_OPTIONS, LeadStateType } from '../models/lead-enums';
 import { LeadsService } from '../services/leads.service';
-
-export type OwnerLeadFormClosed = { saved: boolean; ownerId?: number };
 
 @Component({
   standalone: true,
@@ -44,6 +42,7 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   @Output() closed = new EventEmitter<OwnerLeadFormClosed>();
   @Output() officeSelectionRequired = new EventEmitter<void>();
   @Output() officeChange = new EventEmitter<number | null>();
+
   private router = inject(Router);
   private ngZone = inject(NgZone);
   private fb = inject(FormBuilder);
@@ -62,8 +61,6 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   form: FormGroup;
-  isServiceError = false;
-  isPageReady = false;
   isAddMode = false;
   isSavingCreate = false;
   lead: LeadOwnerResponse | null = null;
@@ -78,6 +75,8 @@ export class OwnerComponent implements OnInit, OnChanges, OnDestroy {
   selectAgentLabel = 'Select Agent';
   states: string[] = [];
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['owner-lead']));
   destroy$ = new Subject<void>();
 

@@ -22,20 +22,20 @@ import { LeadsService } from '../services/leads.service';
   styleUrl: './leads-reports.component.scss'
 })
 export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() officeId: number | null = null;
   @Input() startDate: Date | null = null;
   @Input() endDate: Date | null = null;
   @Input() offices: OfficeResponse[] = [];
+
+  private cdr = inject(ChangeDetectorRef);
   private leadsService = inject(LeadsService);
   private utilityService = inject(UtilityService);
   private agentService = inject(AgentService);
   private mappingService = inject(MappingService);
   private terminologyService = inject(TerminologyService);
+
   agentBreakdownTitle = 'Agent Breakdown';
 
-  isPageReady = false;
   closedLeadsColumns: ColumnSet = {
     officeName: { displayAs: 'Office', wrap: false, maxWidth: '24ch' },
     statuses: { displayAs: 'Statuses', wrap: false, maxWidth: '44ch' },
@@ -75,7 +75,8 @@ export class LeadsReportsComponent implements OnInit, OnChanges, OnDestroy {
   generalRows: UnifiedLeadRow[] = [];
   partnerRows: UnifiedLeadRow[] = [];
   agentsById = new Map<string, AgentResponse>();
-  
+
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['rental-leads', 'owner-leads', 'general-leads', 'partner-leads', 'agents']));
   destroy$ = new Subject<void>();
 

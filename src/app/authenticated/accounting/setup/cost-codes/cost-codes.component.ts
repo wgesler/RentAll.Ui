@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild, inject, ChangeDetectorRef } from '@angular/core';
 import { MatSelect } from '@angular/material/select';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, filter, finalize, take, takeUntil } from 'rxjs';
 import { CommonMessage, CommonTimeouts } from '../../../../enums/common-message.enum';
@@ -27,28 +27,26 @@ import { CostCodesService } from '../../services/cost-codes.service';
 })
 
 export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
-
   @Input() id: string | number | null = null; // Input to accept id from parent
   @Input() officeId: number | null = null; // Input to accept officeId from parent
   @Input() copyFrom: CostCodesListDisplay | null = null;
   @Input() source: 'accounting' | 'configuration' = 'accounting'; // Track where component came from
   @Output() backEvent = new EventEmitter<void>(); // Emit when back button is clicked
   @Output() savedEvent = new EventEmitter<void>();
-  costCodesService = inject(CostCodesService);
-  router = inject(Router);
+  @ViewChild('firstInput') firstInputRef: MatSelect;
+  @ViewChild('costCodeInput') costCodeInputRef: ElementRef<HTMLInputElement>;
+
+  private cdr = inject(ChangeDetectorRef);
+  private costCodesService = inject(CostCodesService);
   private route = inject(ActivatedRoute);
-  fb = inject(FormBuilder);
+  private fb = inject(FormBuilder);
   private toastr = inject(ToastrService);
   private authService = inject(AuthService);
   private officeService = inject(OfficeService);
   private terminologyService = inject(TerminologyService);
   private mappingService = inject(MappingService);
   private utilityService = inject(UtilityService); // Emit when save is successful
-  @ViewChild('firstInput') firstInputRef: MatSelect;
-  @ViewChild('costCodeInput') costCodeInputRef: ElementRef<HTMLInputElement>;
   
-  isServiceError: boolean = false;
   costCodeId: number | null = null;
   costCode: CostCodesResponse;
   form: FormGroup;
@@ -63,8 +61,9 @@ export class CostCodesComponent implements OnInit, OnDestroy, OnChanges {
   availableOffices: { value: number, name: string }[] = [];
   selectedOffice: OfficeResponse | null = null;
    
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCode']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['costCode']));
   destroy$ = new Subject<void>();
 
   //#region CostCode

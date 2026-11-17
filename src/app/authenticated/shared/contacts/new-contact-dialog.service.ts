@@ -4,7 +4,7 @@ import { Observable, take } from 'rxjs';
 import { ContactComponent } from '../../contacts/contact/contact.component';
 import { EntityType, getEntityType } from '../../contacts/models/contact-enum';
 import { ContactResponse } from '../../contacts/models/contact.model';
-import { SearchableSelectOption } from '../searchable-select/searchable-select.component';
+import { SearchableSelectOption } from '../models/searchable-select.model';
 
 const NEW_OWNER_OPTION_VALUE = '__new_owner__';
 const NEW_VENDOR_OPTION_VALUE = '__new_vendor__';

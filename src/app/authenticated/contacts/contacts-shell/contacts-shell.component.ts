@@ -31,6 +31,8 @@ import { TitleBarSelectComponent } from '../../shared/titlebar-select/titlebar-s
     styleUrls: ['./contacts-shell.component.scss']
 })
 export class ContactsShellComponent implements OnInit, OnDestroy {
+  @ViewChildren(ContactListComponent) contactSections?: QueryList<ContactListComponent>;
+
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private officeService = inject(OfficeService);
@@ -39,8 +41,6 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   private contactService = inject(ContactService);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
-
-  @ViewChildren(ContactListComponent) contactSections?: QueryList<ContactListComponent>;
 
   EntityType = EntityType;
   selectedTabIndex: number = 0;
@@ -54,8 +54,7 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   showOfficeDropdown: boolean = false;
   organizationOptions: { value: string; label: string }[] = [];
   organizationId = '';
-  private initialOfficeScopeApplied = false;
-  destroy$ = new Subject<void>();
+  initialOfficeScopeApplied = false;
 
   /** Embedded contact form: when set, show form in the tab with this index instead of list. */
   showContactForm = false;
@@ -63,6 +62,8 @@ export class ContactsShellComponent implements OnInit, OnDestroy {
   formCopyFrom: string | null = null;
   formEntityTypeId: number | null = null;
   formTabIndex: number | null = null;
+
+  destroy$ = new Subject<void>();
 
   //#region Contacts
   ngOnInit(): void {

@@ -47,17 +47,17 @@ export class PropertyListingComponent implements OnInit, OnChanges, OnDestroy, A
   @ViewChild('photoUploadInput') photoUploadInput?: ElementRef<HTMLInputElement>;
   @ViewChild('descriptionContent') descriptionContent?: ElementRef<HTMLElement>;
 
-  formatter = inject(FormatterService);
-  propertyPhotoService = inject(PropertyPhotoService);
-  propertyService = inject(PropertyService);
-  partnerService = inject(PartnerService);
-  propertyListingShareService = inject(PropertyListingShareService);
-  clipboard = inject(Clipboard);
-  toastr = inject(ToastrService);
-  utilityService = inject(UtilityService);
-  sanitizer = inject(DomSanitizer);
-  dialog = inject(MatDialog);
-  cdr = inject(ChangeDetectorRef);
+  private formatter = inject(FormatterService);
+  private propertyPhotoService = inject(PropertyPhotoService);
+  private propertyService = inject(PropertyService);
+  private partnerService = inject(PartnerService);
+  private propertyListingShareService = inject(PropertyListingShareService);
+  private clipboard = inject(Clipboard);
+  private toastr = inject(ToastrService);
+  private utilityService = inject(UtilityService);
+  private sanitizer = inject(DomSanitizer);
+  private dialog = inject(MatDialog);
+  private cdr = inject(ChangeDetectorRef);
 
   loadedProperty: PropertyResponse | null = null;
   listingPhotos: ListingPhotoItem[] = [];

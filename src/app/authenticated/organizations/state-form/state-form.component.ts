@@ -24,10 +24,11 @@ import { StateFormService } from '../services/state-form.service';
     styleUrl: './state-form.component.scss'
 })
 export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
-  private cdr = inject(ChangeDetectorRef);
   @Input() id: string | number | null = null;
   @Output() backEvent = new EventEmitter<void>();
   @Output() savedEvent = new EventEmitter<void>();
+
+  private cdr = inject(ChangeDetectorRef);
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private toastr = inject(ToastrService);
@@ -36,7 +37,7 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   private utilityService = inject(UtilityService);
   private stateFormService = inject(StateFormService);
 
-  private readonly allStatesCode = 'XX';
+  allStatesCode = 'XX';
 
   form: FormGroup;
   stateCodes: string[] = [];
@@ -48,13 +49,13 @@ export class StateFormComponent implements OnInit, OnDestroy, OnChanges {
   previewContentType: string | null = null;
   stateFormPdfThumbnailUrl: string | null = null;
   isAddMode: boolean = false;
-  isServiceError: boolean = false;
   isUploadingDocument: boolean = false;
   isSubmitting: boolean = false;
   hasNewFileUpload: boolean = false;
 
-  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['stateForm', 'states']));
+  isServiceError: boolean = false;
   isPageReady = false;
+  itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['stateForm', 'states']));
   destroy$ = new Subject<void>();
 
   //#region StateForm

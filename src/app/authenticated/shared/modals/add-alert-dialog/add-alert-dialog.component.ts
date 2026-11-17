@@ -19,30 +19,7 @@ import { PropertyService } from '../../../properties/services/property.service';
 import { Frequency, getFrequencies } from '../../../reservations/models/reservation-enum';
 import { ReservationListResponse } from '../../../reservations/models/reservation-model';
 import { ReservationService } from '../../../reservations/services/reservation.service';
-
-export interface AddAlertDialogData {
-  officeId?: number | null;
-  propertyId?: string | null;
-  reservationId?: string | null;
-  ticketId?: string | null;
-  ticketCode?: string | null;
-  source?: 'property' | 'reservation' | 'maintenance' | 'ticket' | null;
-}
-
-type AlertPropertyOption = {
-  propertyId: string;
-  officeId: number;
-  label: string;
-};
-
-type AlertReservationOption = {
-  reservationId: string;
-  officeId: number;
-  propertyId: string;
-  label: string;
-  arrivalDate?: string | null;
-  departureDate?: string | null;
-};
+import { AddAlertDialogData, AlertPropertyOption, AlertReservationOption } from '../../models/dialog.model';
 
 @Component({
   standalone: true,
@@ -61,18 +38,19 @@ export class AddAlertDialogComponent implements OnInit, OnDestroy {
   private toastr = inject(ToastrService);
   private utilityService = inject(UtilityService);
   private dialogRef = inject<MatDialogRef<AddAlertDialogComponent>>(MatDialogRef);
-  data = inject<AddAlertDialogData>(MAT_DIALOG_DATA);
+  private data = inject<AddAlertDialogData>(MAT_DIALOG_DATA);
 
   form: FormGroup = this.buildForm();
   isSubmitting = false;
   isLoading = true;
-  destroy$ = new Subject<void>();
-  readonly alertEmailTypeId = EmailType.Alert;
+  alertEmailTypeId = EmailType.Alert;
 
   offices: OfficeResponse[] = [];
   propertyOptions: AlertPropertyOption[] = [];
   reservationOptions: AlertReservationOption[] = [];
   frequencyOptions = getFrequencies().filter(option => Number(option.value) > 0);
+
+  destroy$ = new Subject<void>();
 
   get showTicketCodeField(): boolean {
     return this.data?.source === 'ticket';

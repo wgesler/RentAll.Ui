@@ -30,6 +30,7 @@ export class GeneralErrorLogListComponent implements OnInit, OnChanges, OnDestro
   @Input() reloadToken = 0;
   @Output() openGeneralErrorLog = new EventEmitter<GeneralErrorLogResponse>();
   @Output() listActionCompleted = new EventEmitter<void>();
+
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);

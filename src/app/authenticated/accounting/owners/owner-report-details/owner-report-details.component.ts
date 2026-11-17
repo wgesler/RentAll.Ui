@@ -23,17 +23,18 @@ export class OwnerReportDetailsComponent implements OnInit, OnChanges, OnDestroy
   @Input() escrowRequest: EscrowReportJournalEntryLineSearchRequest | null = null;
   @Input() refreshTrigger = 0;
   @Output() lineSelectEvent = new EventEmitter<OwnerReportJournalEntryLineSelection>();
+
   private ownerReportService = inject(OwnerReportService);
   private reportService = inject(ReportService);
   private formatter = inject(FormatterService);
   private utilityService = inject(UtilityService);
   private cdr = inject(ChangeDetectorRef);
 
-  isPageReady = false;
-  isServiceError = false;
   lines: OwnerReportJournalEntryLineResponse[] = [];
   noDataMessage = 'No journal entries matched the selected owner report value.';
 
+  isServiceError = false;
+  isPageReady = false;
   itemsToLoad$ = new BehaviorSubject<Set<string>>(new Set(['ownerReportJournalEntryLines']));
   destroy$ = new Subject<void>();
 

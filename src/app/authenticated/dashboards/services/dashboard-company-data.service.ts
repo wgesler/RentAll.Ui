@@ -165,6 +165,7 @@ export type DashboardCalendarFocus = {
 @Injectable({ providedIn: 'root' })
 export class DashboardCompanyDataService {
   private readonly utilityService = inject(UtilityService);
+
   private readonly snapshotSubject = new BehaviorSubject<DashboardCompanyDataSnapshot>(emptyDashboardCompanyDataSnapshot);
   readonly snapshot$ = this.snapshotSubject.asObservable();
   /** Page-local office filter for the company dashboard (does not write global Working Office). */
