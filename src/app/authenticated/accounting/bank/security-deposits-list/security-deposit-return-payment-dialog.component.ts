@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../../material.module';
@@ -130,7 +130,31 @@ export class SecurityDepositReturnPaymentDialogComponent implements OnInit, OnCh
     this.cancelEvent.emit();
   }
 
+  @HostListener('document:pointerdown', ['$event'])
+  traceDocumentPointerDown(event: PointerEvent): void {
+    if (!this.visible) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    const topElement = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+    console.log('[SdRefundSubmitTrace] pointerdown', {
+      at: new Date().toISOString(),
+      target: target ? `${target.tagName}.${target.className}` : null,
+      topElement: topElement ? `${topElement.tagName}.${topElement.className}` : null,
+      isSubmitting: this.isSubmitting,
+      isPaymentFormValid: this.isPaymentFormValid
+    });
+  }
+
   submit(): void {
+    console.log('[SdRefundSubmitTrace] submit', {
+      at: new Date().toISOString(),
+      reservationId: this.reservationId,
+      chartOfAccountId: this.resolveSelectedPaymentChartOfAccountId(),
+      paymentDate: this.utilityService.toDateOnlyJsonString(this.paymentDate),
+      paymentAmount: this.paymentAmount,
+      paymentTypeId: this.selectedPaymentTypeId
+    });
     const reservationId = String(this.reservationId || '').trim();
     if (!reservationId) {
       return;

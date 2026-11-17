@@ -494,6 +494,7 @@ export class SecurityDepositsListComponent implements OnInit, OnChanges, OnDestr
   }
 
   onPaymentSubmit(payment: SecurityDepositReturnPaymentSubmit): void {
+    console.log('[SdRefundSubmitTrace] parent onPaymentSubmit', { at: new Date().toISOString(), isSubmittingPayment: this.isSubmittingPayment, payment });
     if (this.isSubmittingPayment) {
       return;
     }
