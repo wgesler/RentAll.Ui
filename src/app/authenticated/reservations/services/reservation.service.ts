@@ -275,6 +275,10 @@ export class ReservationService {
     return this.http.post<ReservationPaymentResponse[]>(this.controller + 'payment/apply-rent-change', request);
   }
 
+  createPaymentLink(reservationId: string): Observable<{ paymentUrl: string }> {
+    return this.http.post<{ paymentUrl: string }>(this.controller + reservationId + '/payment-link', {});
+  }
+
   /** Rebuilds Accounting.Billed for active reservations in the selected offices (Missing Invoice report). */
   setBilledIgnore(billedId: number, ignore: boolean): Observable<BilledMatchupResponse> {
     if (billedId <= 0) {

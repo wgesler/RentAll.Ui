@@ -1,0 +1,53 @@
+---
+description: RentAll UI TypeScript cleanup — dead code, class member order, models, enums, and regions
+globs: "**/*.ts"
+alwaysApply: true
+---
+
+# UI cleanup
+
+Apply this to `*.component.ts` and the TypeScript files they own. Do not invent members. Do not reshuffle a region that already holds the right methods.
+
+## 1. Dead code
+
+Remove unused functions, fields, parameters, and imports. A function with no caller is dead, including a public one. Remove tests that only call dead code. Leave framework hooks (`ngOnInit`, route guards, template-used members).
+
+## 2. Decorator block first
+
+`@Input`, `@Output`, `@ViewChild`, `@ViewChildren`, and `@ContentChild` are the first members. Do not mix them with other fields.
+
+## 3. Blank line, then injects
+
+After the last decorator, one blank line, then every `inject()` field. Each inject keeps `private`. One blank line after the inject block. Dependencies are `inject()` fields, not constructor parameters.
+
+## 4. Other fields, no access modifiers
+
+Fields below the injects stay in their existing groups. Strip `public`, `private`, and `protected`. Keep `static` and `override`.
+
+## 5. DisplayedColumns, then the tail
+
+Any `*DisplayedColumns` sit immediately above the tail. The tail is last, and only the members that already exist, in this order: `isServiceError`, `isPageReady`, `itemsToLoad$`, `destroy$`.
+
+## 6. Classes, interfaces, and type aliases live in models
+
+None of these are declared in a component file. Move each into the feature `models/` file it belongs to, export it, and point every importer at that model. Dialog data and result types go there too.
+
+## 7. Enums live in enum files
+
+No enum in a component or in a model file. Put it in the feature enum file (`*-enum.ts` or `*-enums.ts`). `RouterToken` and `RouterUrl` stay in `app.routes.tokens.ts`.
+
+## 8. Every function is inside a region
+
+Methods, getters, and setters each sit in a `//#region` with a matching `//#endregion`. A getter is not left above the first region. Put it in the region that already describes it, usually **Get Methods**. Do not put getters in the main component region.
+
+## 9. Main region first, others after
+
+The component region is the first region (the name of the screen, such as `Payment List`). Every other region comes after it. Names say what is inside (`Data Load Methods`, `Form Response Methods`, `Filter Methods`). Do not rename regions that already read clearly.
+
+## 10. Leave the Utility region
+
+Do not move methods out of **Utility Methods**, and do not fill it with other work. It stays last. It holds `markViewForCheck`, `ngOnDestroy`, `back`, and little else. A new function of that kind goes there. Anything else goes in a real region.
+
+## 11. Functions have no access modifiers
+
+Strip `public`, `private`, and `protected` from methods, getters, and setters. Keep `static`, `override`, `async`, and `abstract`.

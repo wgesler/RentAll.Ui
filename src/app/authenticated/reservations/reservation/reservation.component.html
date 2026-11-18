@@ -672,7 +672,7 @@
                 }
               </div>
 
-              <div class="col-span-4 grid grid-cols-5 form-standard-grid min-w-0">
+              <div class="col-span-4 grid grid-cols-6 form-standard-grid min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Billing Type</mat-label>
                 <mat-select formControlName="billingTypeId" required>
@@ -716,7 +716,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+              <mat-form-field appearance="outline" class="col-span-2 min-w-0">
                 <mat-label>Property Protection Fee</mat-label>
                 <input matInput type="text" formControlName="propertyProtectionFee" placeholder="0.00" (blur)="formatDecimal('propertyProtectionFee')" (input)="onDecimalInput($event, 'propertyProtectionFee')" (focus)="selectAllOnFocus($event)">
               </mat-form-field>
@@ -771,7 +771,7 @@
               </mat-form-field>
               </div>
 
-              <div class="col-span-4 grid grid-cols-5 form-standard-grid billing-pet-fields-row min-w-0">
+              <div class="col-span-4 grid grid-cols-6 form-standard-grid billing-pet-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>Pets</mat-label>
                 <mat-select formControlName="pets" required>
@@ -809,7 +809,7 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="col-span-1 min-w-0">
+              <mat-form-field appearance="outline" class="col-span-2 min-w-0">
                 <mat-label>Pet(s) Description</mat-label>
                 <input matInput type="text" formControlName="petDescription" placeholder="" [required]="form.get('pets')?.value === true">
                 @if (form.get('petDescription')?.invalid && form.get('petDescription')?.touched) {
@@ -818,7 +818,7 @@
               </mat-form-field>
               </div>
 
-              <div class="col-span-4 grid grid-cols-5 form-standard-grid billing-maid-fields-row min-w-0">
+              <div class="col-span-4 grid grid-cols-6 form-standard-grid billing-maid-fields-row min-w-0">
               <mat-form-field appearance="outline" class="col-span-1 min-w-0">
                 <mat-label>MaidService</mat-label>
                 <mat-select formControlName="maidService" required>
@@ -864,7 +864,7 @@
               </mat-form-field>
 
               <app-searchable-select
-                class="col-span-1 min-w-0"
+                class="col-span-2 min-w-0"
                 [renderInFormField]="true"
                 [formFieldLabel]="'Assigned Cleaner'"
                 [value]="form.get('maidUserId')?.value ?? null"

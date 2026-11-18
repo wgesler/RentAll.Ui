@@ -5,7 +5,7 @@ import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, Reac
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
-import { BehaviorSubject, Subject, catchError, concatMap, filter, finalize, firstValueFrom, forkJoin, from, map, of, pairwise, skip, startWith, switchMap, take, takeUntil, tap, toArray } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, filter, finalize, firstValueFrom, forkJoin, from, map, of, pairwise, skip, startWith, switchMap, take, takeUntil, tap, toArray } from 'rxjs';
 import { InvoiceService } from '../../accounting/services/invoice.service';
 import { RouterUrl } from '../../../app.routes';
 import { CanComponentDeactivate } from '../../../guards/can-deactivate-guard';
@@ -999,6 +999,10 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     const useExternalRefNo = office?.useExternalRefNo === true;
     const reservationCode = String(formValue?.['reservationCode'] || this.reservation?.reservationCode || '').trim();
     const reservationId = String(this.reservation?.reservationId || this.reservationId || '').trim();
+    if (!reservationId || reservationId === 'new') {
+      this.toastr.warning('Save the reservation before sending the payment email.', CommonMessage.Error);
+      return;
+    }
     const loadedExternalRefNo = String(this.reservation?.externalRefNo || '').trim();
     const bookingNumber$ = !useExternalRefNo
       ? of(reservationCode)
@@ -1011,11 +1015,24 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     forkJoin({
       emailHtml: this.emailHtmlService.ensureEmailHtmlLoaded(this.organizationId, officeId > 0 ? officeId : null).pipe(take(1)),
       bookingNumber: bookingNumber$
-    }).pipe(take(1)).subscribe(({ emailHtml, bookingNumber }) => {
-      if (useExternalRefNo && !bookingNumber) {
-        this.toastr.warning('This reservation does not have an external reference number.', CommonMessage.Error);
+    }).pipe(
+      take(1),
+      switchMap(({ emailHtml, bookingNumber }) => {
+        if (useExternalRefNo && !bookingNumber) {
+          this.toastr.warning('This reservation does not have an external reference number.', CommonMessage.Error);
+          return EMPTY;
+        }
+        return this.reservationService.createPaymentLink(reservationId).pipe(
+          map(link => ({ emailHtml, bookingNumber, paymentUrl: String(link?.paymentUrl || '').trim() }))
+        );
+      })
+    ).subscribe({
+      next: (result) => {
+      if (!result.paymentUrl) {
+        this.toastr.error('Number did not return a payment link.', CommonMessage.Error);
         return;
       }
+      const { emailHtml, bookingNumber, paymentUrl } = result;
       const toName = String(formValue?.['tenantName'] || '').trim();
       const salutationName = toName.split(/\s+/)[0] || toName;
       const accountingOffice = this.accountingOffices.find(office => office.officeId === officeId);
@@ -1030,7 +1047,9 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         .replace(/\{\{companyName\}\}/g, companyName)
         .replace(/\{\{reservationCode\}\}/g, bookingNumber)
         .replace(/\{\{accountingPhone\}\}/g, accountingPhone)
-        .replace(/\{\{accountingOfficeAddressSingleLine\}\}/g, address);
+        .replace(/\{\{accountingOfficeAddressSingleLine\}\}/g, address)
+        .replace(/\{\{paymentUrl\}\}/g, paymentUrl)
+        .replace(/<p[^>]*>[^<]*\{\{invitationCode\}\}[^<]*<\/p>/gi, '');
       const logoDataUrl = this.paymentEmailLogoDataUrl(office);
       if (logoDataUrl) {
         htmlContent = htmlContent.replace(/\{\{officeLogoBase64\}\}/g, logoDataUrl);
@@ -1065,6 +1084,12 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       };
       this.emailCreateDraftService.setDraft({ emailConfig, documentConfig, returnUrl: this.router.url });
       void this.router.navigateByUrl(RouterUrl.EmailCreate);
+      },
+      error: (err: HttpErrorResponse) => {
+        const body = err?.error as { message?: string; Message?: string } | string | null;
+        const message = typeof body === 'string' ? body : String(body?.message || body?.Message || 'Number could not create the payment link.');
+        this.toastr.error(message, CommonMessage.Error);
+      }
     });
   }
 

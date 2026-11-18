@@ -661,6 +661,16 @@ mat-form-field.reservation-dropdown {
    Global form field styles: spacing, sizing, fonts, vertical centering.
    Applies to all mat-form-field across the app.
    ========================================================================== */
+/* Every raised action button uses the global height, radius, and horizontal padding. */
+.mat-mdc-raised-button.mat-mdc-button-base {
+  box-sizing: border-box;
+  height: var(--global-action-button-height);
+  min-height: var(--global-action-button-height);
+  max-height: var(--global-action-button-height);
+  border-radius: var(--global-action-button-radius);
+  padding: 0 var(--global-action-button-padding-x);
+}
+
 .mat-mdc-form-field {
   width: 100%;
   margin-right: var(--global-form-field-gap-x) !important;
@@ -2598,8 +2608,10 @@ app-data-table .datatable-search-wrap {
 }
 
 .shell-tabs .property-tab-actions-band .table-filter-actions-group .mat-mdc-raised-button {
-  min-height: 36px;
-  border-radius: 6px;
+  height: var(--global-action-button-height);
+  min-height: var(--global-action-button-height);
+  max-height: var(--global-action-button-height);
+  border-radius: var(--global-action-button-radius);
 }
 
 /* Shared app-data-table top-row styles for tabbed pages */
