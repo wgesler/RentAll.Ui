@@ -4,7 +4,7 @@
     <span class="sendgrid-templates__scope">{{ scopeLabel }}</span>
   </div>
   <p class="sendgrid-templates__hint">
-    These emails are designed in SendGrid. Paste the template's ID (it starts with <code>d-</code>) to use it for {{ scopeLabel }}.
+    These emails are designed in SendGrid. Paste the template's ID (it starts with <code>d-</code>)
   </p>
 
   @if (isLoading) {
@@ -22,18 +22,15 @@
             autocomplete="off"
             spellcheck="false"
             [(ngModel)]="row.templateId"
-            [placeholder]="row.inheritedTemplateId || 'd-…'"
+            placeholder="d-…"
             [disabled]="row.isSaving"
             (keydown.enter)="save(row)" />
-          @if (!row.saved && row.inheritedTemplateId) {
-            <mat-hint>Using the organization template {{ row.inheritedTemplateId }}</mat-hint>
-          }
         </mat-form-field>
         <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0"
           [disabled]="row.isSaving || !isDirty(row)" (click)="save(row)">
           {{ row.isSaving ? 'Saving...' : 'Save' }}
         </button>
-        <button mat-icon-button type="button" color="accent" aria-label="Remove template"
+        <button mat-icon-button type="button" [color]="row.saved ? 'warn' : 'accent'" aria-label="Remove template"
           [disabled]="row.isSaving || (!row.saved && !row.templateId)" (click)="clear(row)">
           <mat-icon>close</mat-icon>
         </button>

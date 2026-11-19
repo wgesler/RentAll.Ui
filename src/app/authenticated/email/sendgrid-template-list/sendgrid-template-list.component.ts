@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnChanges, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { Subject, finalize, forkJoin, take, takeUntil } from 'rxjs';
@@ -11,8 +11,7 @@ import { SendGridTemplateService } from '../services/sendgrid-template.service';
 const SYSTEM_ORGANIZATION_ID = '99999999-9999-9999-9999-999999999999';
 
 /**
- * Settings > Email: the SendGrid template ID each SendGrid-sent email uses. Uses the same scope as the
- * email template list: the selected office when there is more than one office, otherwise the organization.
+ * Settings > Email: the SendGrid template ID each SendGrid-sent email uses, for the whole organization.
  */
 @Component({
   standalone: true,
@@ -30,20 +29,19 @@ export class SendGridTemplateListComponent implements OnChanges, OnDestroy {
 
   private sendGridTemplateService = inject(SendGridTemplateService);
   private toastr = inject(ToastrService);
+  // The app only redraws marked views, so HTTP results must mark this one.
+  private cdr = inject(ChangeDetectorRef);
 
   rows: SendGridTemplateRow[] = [];
   isLoading = false;
   private destroy$ = new Subject<void>();
   private loadToken = 0;
 
-  get scopeOfficeId(): number | null {
-    return this.officeCount > 1 && this.officeId != null && this.officeId > 0 ? this.officeId : null;
-  }
+  // SendGrid templates apply to every office in the organization.
+  readonly scopeOfficeId: number | null = null;
 
   get scopeLabel(): string {
-    return this.scopeOfficeId != null && this.officeName
-      ? `${this.organizationName}: ${this.officeName}`
-      : this.organizationName;
+    return this.organizationName;
   }
 
   get isSystemOrganization(): boolean {
@@ -83,7 +81,7 @@ export class SendGridTemplateListComponent implements OnChanges, OnDestroy {
       officeId: this.scopeOfficeId,
       emailName: row.emailName,
       templateId
-    }).pipe(take(1), finalize(() => { row.isSaving = false; }), takeUntil(this.destroy$)).subscribe({
+    }).pipe(take(1), finalize(() => { row.isSaving = false; this.cdr.markForCheck(); }), takeUntil(this.destroy$)).subscribe({
       next: saved => {
         row.saved = saved;
         row.templateId = saved.templateId;
@@ -105,7 +103,7 @@ export class SendGridTemplateListComponent implements OnChanges, OnDestroy {
 
     row.isSaving = true;
     this.sendGridTemplateService.deleteTemplate(row.saved.emailTemplateId, this.organizationId)
-      .pipe(take(1), finalize(() => { row.isSaving = false; }), takeUntil(this.destroy$)).subscribe({
+      .pipe(take(1), finalize(() => { row.isSaving = false; this.cdr.markForCheck(); }), takeUntil(this.destroy$)).subscribe({
         next: () => {
           row.saved = null;
           row.templateId = '';
@@ -130,6 +128,7 @@ export class SendGridTemplateListComponent implements OnChanges, OnDestroy {
     ]).pipe(take(1), finalize(() => {
       if (token === this.loadToken) {
         this.isLoading = false;
+        this.cdr.markForCheck();
       }
     }), takeUntil(this.destroy$)).subscribe({
       next: ([names, templates]) => {

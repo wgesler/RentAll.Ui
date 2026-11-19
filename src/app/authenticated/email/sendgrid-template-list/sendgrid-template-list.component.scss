@@ -27,7 +27,9 @@
 
 .sendgrid-templates__row {
   display: grid;
-  grid-template-columns: minmax(10rem, 14rem) minmax(16rem, 1fr) auto auto;
+  // A SendGrid ID is d- plus 32 characters; 59ch fits it with room to spare.
+  grid-template-columns: minmax(10rem, 14rem) minmax(0, 59ch) auto auto;
+  justify-content: start;
   align-items: center;
   gap: var(--global-form-field-gap-x, 0.75rem);
   margin-bottom: 0.5rem;
