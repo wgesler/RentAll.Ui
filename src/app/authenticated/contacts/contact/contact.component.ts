@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, OnChanges, OnDestroy, OnInit, AfterViewChecked, Input, Output, EventEmitter, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatTooltip } from '@angular/material/tooltip';
 import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
@@ -2651,8 +2652,19 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     return `${'*'.repeat(12)}${lastFour}`;
   }
 
-  toggleCardNumberVisibility(): void {
+  /** Saved card whose number is held by Number: there is nothing here to decrypt or show. */
+  get isContactCardExternallyStored(): boolean {
+    return !!this.contactCard?.isExternallyStored && (this.contactCard.contactCardId || 0) > 0;
+  }
+
+  toggleCardNumberVisibility(tooltip?: MatTooltip): void {
     if (!this.canViewContactCardOnFile || !this.contactCard || this.isContactCardPanDecrypting) {
+      return;
+    }
+
+    if (this.isContactCardExternallyStored) {
+      tooltip?.show();
+      setTimeout(() => tooltip?.hide(), 2000);
       return;
     }
 
@@ -2673,6 +2685,11 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     const input = event.target as HTMLInputElement;
     const digits = this.getContactCardNumberDigits();
     const isDraft = !this.contactCard || (this.contactCard.contactCardId || 0) <= 0;
+    if (this.isContactCardExternallyStored && digits.length < 13) {
+      // Number holds the full number; leave the field empty so a new card can be typed over it.
+      input.value = '';
+      return;
+    }
     if (isDraft || digits.length >= 13) {
       input.value = isDraft ? (this.contactCard?.cardNumber || '') : digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
       return;

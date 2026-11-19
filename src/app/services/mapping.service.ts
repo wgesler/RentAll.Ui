@@ -381,7 +381,10 @@ export class MappingService {
       displayName: card.displayName,
       cardNumber: card.cardNumber,
       rawCardNumber: card.rawCardNumber,
-      lastFour: card.lastFour
+      lastFour: card.lastFour,
+      expirationDate: String((raw as Record<string, unknown>)['expirationDate'] ?? '').trim() || null,
+      hasNumberConsent: (raw as Record<string, unknown>)['hasNumberConsent'] === true,
+      isExternallyStored: (raw as Record<string, unknown>)['isExternallyStored'] === true
     };
   }
 
@@ -1450,7 +1453,6 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       missingReceipts: emailHtml?.missingReceipts ?? '',
       billReport: emailHtml?.billReport ?? '',
       billing: emailHtml?.billing ?? '',
-      paymentInformationRequest: emailHtml?.paymentInformationRequest ?? '',
       letterSubject: emailHtml?.letterSubject ?? '',
       departureSubject: emailHtml?.departureSubject ?? '',
       leaseSubject: emailHtml?.leaseSubject ?? '',
@@ -1459,7 +1461,6 @@ mapOptionalPostingStatusId(raw: Record<string, unknown>, base?: number | null): 
       scheduleSubject: emailHtml?.scheduleSubject ?? '',
       missingReceiptsSubject: emailHtml?.missingReceiptsSubject ?? '',
       billReportSubject: emailHtml?.billReportSubject ?? '',
-      paymentInformationRequestSubject: emailHtml?.paymentInformationRequestSubject ?? '',
       createdOn: emailHtml?.createdOn ?? '',
       modifiedOn: emailHtml?.modifiedOn
     };

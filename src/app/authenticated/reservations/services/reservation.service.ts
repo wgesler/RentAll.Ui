@@ -279,6 +279,10 @@ export class ReservationService {
     return this.http.post<{ paymentUrl: string }>(this.controller + reservationId + '/payment-link', {});
   }
 
+  sendPaymentRequestEmail(reservationId: string): Observable<{ paymentUrl: string }> {
+    return this.http.post<{ paymentUrl: string }>(this.controller + reservationId + '/payment-request-email', {});
+  }
+
   /** Rebuilds Accounting.Billed for active reservations in the selected offices (Missing Invoice report). */
   setBilledIgnore(billedId: number, ignore: boolean): Observable<BilledMatchupResponse> {
     if (billedId <= 0) {

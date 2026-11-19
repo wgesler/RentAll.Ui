@@ -139,6 +139,11 @@ export interface ContactCardResponse {
   cardNumber: string;
   rawCardNumber?: string;
   lastFour: string;
+  /** MM/YY, as the payment processor reports it. */
+  expirationDate?: string | null;
+  hasNumberConsent?: boolean;
+  /** The full number is held by the payment processor (Number); there is nothing to decrypt. */
+  isExternallyStored?: boolean;
 }
 
 export interface ContactCardPanResponse {

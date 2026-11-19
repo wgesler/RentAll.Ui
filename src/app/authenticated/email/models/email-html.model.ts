@@ -13,7 +13,6 @@ export interface EmailHtmlResponse {
   missingReceipts: string;
   billReport: string;
   billing: string;
-  paymentInformationRequest: string;
   letterSubject: string;
   departureSubject: string;
   leaseSubject: string;
@@ -22,7 +21,6 @@ export interface EmailHtmlResponse {
   scheduleSubject: string;
   missingReceiptsSubject: string;
   billReportSubject: string;
-  paymentInformationRequestSubject: string;
   createdOn: string;
   modifiedOn?: string;
 }

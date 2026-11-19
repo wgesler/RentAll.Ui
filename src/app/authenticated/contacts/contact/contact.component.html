@@ -937,7 +937,7 @@
                       </mat-expansion-panel-header>
                       @if (contactCard) {
                         <div class="flex items-center gap-1">
-                          <div class="grid flex-1 grid-cols-1 md:grid-cols-4 gap-4">
+                          <div class="grid flex-1 grid-cols-1 md:grid-cols-5 gap-4">
                           <mat-form-field appearance="outline">
                             <mat-label>Type</mat-label>
                             <mat-select [(ngModel)]="contactCard.cardTypeId" [ngModelOptions]="{standalone: true}" (ngModelChange)="onContactCardFieldChange()">
@@ -965,12 +965,22 @@
                               (focus)="onCardNumberFocus($event)"
                               (blur)="onCardNumberBlur($event)"
                               (input)="onContactCardNumberInput($event)" />
-                            <button mat-icon-button matSuffix type="button" tabindex="-1" (click)="toggleCardNumberVisibility()" [attr.aria-label]="cardNumberVisible ? 'Hide card number' : 'Show card number'">
+                            <button mat-icon-button matSuffix type="button" tabindex="-1"
+                              #cardNumberTooltip="matTooltip"
+                              matTooltip="Externally Stored"
+                              matTooltipPosition="above"
+                              [matTooltipDisabled]="!isContactCardExternallyStored"
+                              (click)="toggleCardNumberVisibility(cardNumberTooltip)"
+                              [attr.aria-label]="isContactCardExternallyStored ? 'Card number is externally stored' : (cardNumberVisible ? 'Hide card number' : 'Show card number')">
                               <mat-icon>{{ cardNumberVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
                             </button>
                             @if (isContactCardPanDecrypting) {
                               <mat-hint>Decrypting</mat-hint>
                             }
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Expires</mat-label>
+                            <input matInput [value]="contactCard.expirationDate || ''" placeholder="MM/YY" readonly tabindex="-1" />
                           </mat-form-field>
                         </div>
                         <button mat-icon-button type="button" color="accent" (mousedown)="prepareClearContactCard()" (click)="removeContactCard()" aria-label="Clear card on file">

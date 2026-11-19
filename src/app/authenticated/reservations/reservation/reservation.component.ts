@@ -981,113 +981,22 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
   }
 
   sendPaymentEmail(): void {
-    const formValue = this.form?.getRawValue() as Record<string, unknown> | undefined;
-    const toEmail = String(formValue?.['contactEmail'] || this.selectedContact?.email || '').trim();
-    if (!toEmail) {
-      this.toastr.warning('The tenant does not have an email address.', CommonMessage.Error);
-      return;
-    }
-    const currentUser = this.authService.getUser();
-    const fromName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim();
-    const fromEmail = String(currentUser?.email || '').trim();
-    if (!fromName || !fromEmail) {
-      this.toastr.warning('Current user email sender information is not available.', CommonMessage.Error);
-      return;
-    }
-    const officeId = Number(this.selectedOffice?.officeId ?? formValue?.['officeId'] ?? 0);
-    const office = this.offices.find(item => item.officeId === officeId) ?? this.selectedOffice;
-    const useExternalRefNo = office?.useExternalRefNo === true;
-    const reservationCode = String(formValue?.['reservationCode'] || this.reservation?.reservationCode || '').trim();
     const reservationId = String(this.reservation?.reservationId || this.reservationId || '').trim();
     if (!reservationId || reservationId === 'new') {
       this.toastr.warning('Save the reservation before sending the payment email.', CommonMessage.Error);
       return;
     }
-    const loadedExternalRefNo = String(this.reservation?.externalRefNo || '').trim();
-    const bookingNumber$ = !useExternalRefNo
-      ? of(reservationCode)
-      : loadedExternalRefNo
-        ? of(loadedExternalRefNo)
-        : this.reservationService.getReservationList().pipe(
-            take(1),
-            map(rows => String((rows || []).find(row => row.reservationId === reservationId)?.externalRefNo || '').trim())
-          );
-    forkJoin({
-      emailHtml: this.emailHtmlService.ensureEmailHtmlLoaded(this.organizationId, officeId > 0 ? officeId : null).pipe(take(1)),
-      bookingNumber: bookingNumber$
-    }).pipe(
-      take(1),
-      switchMap(({ emailHtml, bookingNumber }) => {
-        if (useExternalRefNo && !bookingNumber) {
-          this.toastr.warning('This reservation does not have an external reference number.', CommonMessage.Error);
-          return EMPTY;
-        }
-        return this.reservationService.createPaymentLink(reservationId).pipe(
-          map(link => ({ emailHtml, bookingNumber, paymentUrl: String(link?.paymentUrl || '').trim() }))
-        );
-      })
-    ).subscribe({
-      next: (result) => {
-      if (!result.paymentUrl) {
-        this.toastr.error('Number did not return a payment link.', CommonMessage.Error);
-        return;
-      }
-      const { emailHtml, bookingNumber, paymentUrl } = result;
-      const toName = String(formValue?.['tenantName'] || '').trim();
-      const salutationName = toName.split(/\s+/)[0] || toName;
-      const accountingOffice = this.accountingOffices.find(office => office.officeId === officeId);
-      const accountingPhone = this.formatterService.phoneNumber(accountingOffice?.phone) || '';
-      const companyName = this.organization?.name || '';
-      const address = [accountingOffice?.address1, accountingOffice?.address2, accountingOffice?.suite, [accountingOffice?.city, accountingOffice?.state].filter(Boolean).join(', '), accountingOffice?.zip]
-        .map(part => String(part || '').trim())
-        .filter(part => part.length > 0)
-        .join(' ');
-      let htmlContent = String(emailHtml?.paymentInformationRequest || '')
-        .replace(/\{\{salutationName\}\}/g, salutationName)
-        .replace(/\{\{companyName\}\}/g, companyName)
-        .replace(/\{\{reservationCode\}\}/g, bookingNumber)
-        .replace(/\{\{accountingPhone\}\}/g, accountingPhone)
-        .replace(/\{\{accountingOfficeAddressSingleLine\}\}/g, address)
-        .replace(/\{\{paymentUrl\}\}/g, paymentUrl)
-        .replace(/<p[^>]*>[^<]*\{\{invitationCode\}\}[^<]*<\/p>/gi, '');
-      const logoDataUrl = this.paymentEmailLogoDataUrl(office);
-      if (logoDataUrl) {
-        htmlContent = htmlContent.replace(/\{\{officeLogoBase64\}\}/g, logoDataUrl);
-      } else {
-        htmlContent = htmlContent.replace(/<img[^>]*\{\{officeLogoBase64\}\}[^>]*>/gi, '');
-      }
-      const subject = String(emailHtml?.paymentInformationRequestSubject || 'Your Payment Details Are Needed')
-        .replace(/\{\{companyName\}\}/g, companyName)
-        .replace(/\{\{reservationCode\}\}/g, bookingNumber);
-      const emailConfig: EmailConfig = {
-        subject,
-        toEmail,
-        toName: toName || toEmail,
-        fromEmail,
-        fromName,
-        documentType: DocumentType.Other,
-        emailType: EmailType.PaymentRequest,
-        plainTextContent: '',
-        htmlContent,
-        includeDocumentAttachment: false,
-        fileDetails: null
-      };
-      const documentConfig: DocumentConfig = {
-        previewIframeHtml: htmlContent,
-        previewIframeStyles: '',
-        organizationId: this.organizationId,
-        selectedOfficeId: officeId > 0 ? officeId : null,
-        selectedOfficeName: this.selectedOffice?.name || '',
-        selectedReservationId: this.reservation?.reservationId || this.reservationId || null,
-        propertyId: this.selectedProperty?.propertyId || null,
-        isDownloading: false
-      };
-      this.emailCreateDraftService.setDraft({ emailConfig, documentConfig, returnUrl: this.router.url });
-      void this.router.navigateByUrl(RouterUrl.EmailCreate);
-      },
+    const toEmail = String(this.form?.get('contactEmail')?.value || this.selectedContact?.email || '').trim();
+    if (!toEmail) {
+      this.toastr.warning('The tenant does not have an email address.', CommonMessage.Error);
+      return;
+    }
+
+    this.reservationService.sendPaymentRequestEmail(reservationId).pipe(take(1)).subscribe({
+      next: () => this.toastr.success('Payment request email sent.', CommonMessage.Success),
       error: (err: HttpErrorResponse) => {
         const body = err?.error as { message?: string; Message?: string } | string | null;
-        const message = typeof body === 'string' ? body : String(body?.message || body?.Message || 'Number could not create the payment link.');
+        const message = typeof body === 'string' ? body : String(body?.message || body?.Message || 'Payment request email could not be sent.');
         this.toastr.error(message, CommonMessage.Error);
       }
     });
