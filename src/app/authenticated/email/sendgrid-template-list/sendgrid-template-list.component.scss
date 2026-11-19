@@ -1,0 +1,42 @@
+.sendgrid-templates {
+  margin-top: 1.5rem;
+  padding-bottom: 1rem;
+}
+
+.sendgrid-templates__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.sendgrid-templates__title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.sendgrid-templates__scope {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.sendgrid-templates__hint {
+  margin: 0.25rem 0 0.75rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.sendgrid-templates__row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) minmax(16rem, 1fr) auto auto;
+  align-items: center;
+  gap: var(--global-form-field-gap-x, 0.75rem);
+  margin-bottom: 0.5rem;
+}
+
+.sendgrid-templates__name {
+  font-weight: 500;
+}
+
+.sendgrid-templates__field {
+  width: 100%;
+}

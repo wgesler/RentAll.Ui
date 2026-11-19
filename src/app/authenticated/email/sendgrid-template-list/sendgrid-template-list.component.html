@@ -1,0 +1,45 @@
+<div class="sendgrid-templates px-4">
+  <div class="sendgrid-templates__header">
+    <span class="sendgrid-templates__title">SendGrid Templates</span>
+    <span class="sendgrid-templates__scope">{{ scopeLabel }}</span>
+  </div>
+  <p class="sendgrid-templates__hint">
+    These emails are designed in SendGrid. Paste the template's ID (it starts with <code>d-</code>) to use it for {{ scopeLabel }}.
+  </p>
+
+  @if (isLoading) {
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  } @else if (isSystemOrganization) {
+    <p class="sendgrid-templates__hint">SendGrid templates cannot be set on the system default.</p>
+  } @else {
+    @for (row of rows; track row.emailName) {
+      <div class="sendgrid-templates__row">
+        <span class="sendgrid-templates__name">{{ row.displayName }}</span>
+        <mat-form-field appearance="outline" class="sendgrid-templates__field form-hide-error-text">
+          <mat-label>Template ID</mat-label>
+          <input
+            matInput
+            autocomplete="off"
+            spellcheck="false"
+            [(ngModel)]="row.templateId"
+            [placeholder]="row.inheritedTemplateId || 'd-…'"
+            [disabled]="row.isSaving"
+            (keydown.enter)="save(row)" />
+          @if (!row.saved && row.inheritedTemplateId) {
+            <mat-hint>Using the organization template {{ row.inheritedTemplateId }}</mat-hint>
+          }
+        </mat-form-field>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0"
+          [disabled]="row.isSaving || !isDirty(row)" (click)="save(row)">
+          {{ row.isSaving ? 'Saving...' : 'Save' }}
+        </button>
+        <button mat-icon-button type="button" color="accent" aria-label="Remove template"
+          [disabled]="row.isSaving || (!row.saved && !row.templateId)" (click)="clear(row)">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    } @empty {
+      <p class="sendgrid-templates__hint">No emails use SendGrid templates.</p>
+    }
+  }
+</div>

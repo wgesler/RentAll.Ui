@@ -113,6 +113,8 @@ export interface ReservationResponse {
   unitTenantCode?: string | null;
   garageCode?: string | null;
   currentInvoiceNo: number;
+  /** Number saved a card for this reservation. */
+  hasNumberCardOnFile?: boolean;
   billingMethodId: number;
   prorateTypeId: number;
   billingTypeId: number;
@@ -169,6 +171,17 @@ export interface ReservationResponse {
   createdBy?: string | null;
   modifiedOn?: string | null;
   modifiedBy?: string | null; 
+}
+
+export interface ChargeCardOnFileResponse {
+  approved: boolean;
+  transactionId: number;
+  requestedAmount: number;
+  approvedAmount: number;
+  isPartialApproval: boolean;
+  paymentId?: string | null;
+  paymentCode?: string | null;
+  message?: string | null;
 }
 
 export interface ReservationLoadedContext {

@@ -42,6 +42,7 @@ import { TrackerListComponent } from '../tracker-list/tracker-list.component';
 import { StateFormListComponent } from '../state-form-list/state-form-list.component';
 import { StateFormComponent } from '../state-form/state-form.component';
 import { EmailTemplateListComponent } from '../../email/email-template-list/email-template-list.component';
+import { SendGridTemplateListComponent } from '../../email/sendgrid-template-list/sendgrid-template-list.component';
 
 @Component({
     standalone: true,
@@ -72,7 +73,8 @@ import { EmailTemplateListComponent } from '../../email/email-template-list/emai
     TrackerListComponent,
     StateFormListComponent,
     StateFormComponent,
-    EmailTemplateListComponent
+    EmailTemplateListComponent,
+    SendGridTemplateListComponent
 ],
     templateUrl: './configuration.component.html',
     styleUrls: ['./configuration.component.scss']

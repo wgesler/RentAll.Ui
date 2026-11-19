@@ -1,0 +1,33 @@
+<div class="charge-card-dialog-wrap">
+  <div class="charge-card-dialog-header">
+    <span class="charge-card-dialog-title">
+      <mat-icon class="flex-shrink-0">credit_card</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">Charge Card on File</span>
+    </span>
+  </div>
+
+  <mat-dialog-content class="charge-card-dialog-content">
+    <p class="charge-card-dialog__intro">
+      Charge the card Number saved for reservation {{ data.reservationCode }}. The approved amount is applied to its unpaid invoices, oldest first.
+    </p>
+
+    <form [formGroup]="form" class="charge-card-dialog__form form-hide-error-text" (ngSubmit)="onConfirm()">
+      <mat-form-field appearance="outline" class="charge-card-dialog__field">
+        <mat-label>Amount</mat-label>
+        <span matTextPrefix>$&nbsp;</span>
+        <input matInput type="number" min="0.01" step="0.01" formControlName="amount" inputmode="decimal">
+        @if (form.get('amount')?.invalid && form.get('amount')?.touched) {
+          <mat-error>Enter an amount greater than zero</mat-error>
+        }
+      </mat-form-field>
+    </form>
+
+    <div class="charge-card-dialog-actions">
+      <span></span>
+      <div class="charge-card-dialog-actions-right">
+        <button mat-raised-button type="button" color="accent" class="text-nowrap flex-shrink-0" (click)="onCancel()">Cancel</button>
+        <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" (click)="onConfirm()">Charge</button>
+      </div>
+    </div>
+  </mat-dialog-content>
+</div>

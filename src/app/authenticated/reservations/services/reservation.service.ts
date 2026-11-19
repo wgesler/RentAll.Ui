@@ -7,6 +7,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import {
+  ChargeCardOnFileResponse,
   ReservationCodeResponse,
   ReservationListResponse,
   ReservationActiveStateResponse,
@@ -281,6 +282,10 @@ export class ReservationService {
 
   sendPaymentRequestEmail(reservationId: string): Observable<{ paymentUrl: string }> {
     return this.http.post<{ paymentUrl: string }>(this.controller + reservationId + '/payment-request-email', {});
+  }
+
+  chargeCardOnFile(reservationId: string, amount: number): Observable<ChargeCardOnFileResponse> {
+    return this.http.post<ChargeCardOnFileResponse>(this.controller + reservationId + '/charge-card-on-file', { amount });
   }
 
   /** Rebuilds Accounting.Billed for active reservations in the selected offices (Missing Invoice report). */

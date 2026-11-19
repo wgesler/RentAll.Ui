@@ -301,6 +301,13 @@
                   [officeName]="settingsOfficeName"
                   [officeCount]="offices.length">
                 </app-email-template-list>
+                <app-sendgrid-template-list
+                  [organizationId]="effectiveOrganizationId"
+                  [organizationName]="settingsOrganizationName"
+                  [officeId]="selectedCostCodesOfficeId"
+                  [officeName]="settingsOfficeName"
+                  [officeCount]="offices.length">
+                </app-sendgrid-template-list>
               </div>
             </mat-expansion-panel>
           }

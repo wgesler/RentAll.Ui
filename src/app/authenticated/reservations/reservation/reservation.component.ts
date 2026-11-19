@@ -3,6 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChildren, inject, ChangeDetectorRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
+import { ChargeCardDialogComponent, ChargeCardDialogData, ChargeCardDialogResult } from '../charge-card-dialog/charge-card-dialog.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, filter, finalize, firstValueFrom, forkJoin, from, map, of, pairwise, skip, startWith, switchMap, take, takeUntil, tap, toArray } from 'rxjs';
@@ -999,6 +1000,54 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         const message = typeof body === 'string' ? body : String(body?.message || body?.Message || 'Payment request email could not be sent.');
         this.toastr.error(message, CommonMessage.Error);
       }
+    });
+  }
+
+  isChargingCard = false;
+
+  /** Number office, and Number has saved a card for this reservation. */
+  showChargeCardOnFile(): boolean {
+    return this.showSendPaymentEmail() && !!this.reservation?.hasNumberCardOnFile;
+  }
+
+  chargeCardOnFile(): void {
+    const reservationId = String(this.reservation?.reservationId || this.reservationId || '').trim();
+    if (!reservationId || reservationId === 'new' || this.isChargingCard) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open<ChargeCardDialogComponent, ChargeCardDialogData, ChargeCardDialogResult | undefined>(ChargeCardDialogComponent, {
+      data: { reservationCode: this.reservation?.reservationCode || '', suggestedAmount: 0 },
+      autoFocus: 'first-tabbable'
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (!result || !(result.amount > 0)) {
+        return;
+      }
+      this.isChargingCard = true;
+      this.reservationService.chargeCardOnFile(reservationId, result.amount).pipe(take(1), finalize(() => {
+        this.isChargingCard = false;
+      })).subscribe({
+        next: (response) => {
+          const approved = Number(response?.approvedAmount || 0).toFixed(2);
+          if (!response?.paymentId) {
+            // Charged, but the payment wasn't recorded: staff must record it by hand.
+            this.toastr.warning(response?.message || `Card charged $${approved}, but the payment was not recorded.`, CommonMessage.Error, { timeOut: 0, extendedTimeOut: 0 });
+            return;
+          }
+          if (response.isPartialApproval) {
+            this.toastr.warning(`Partial approval: $${approved} of $${Number(response.requestedAmount).toFixed(2)} was charged and applied.`, CommonMessage.Success, { timeOut: 0, extendedTimeOut: 0 });
+            return;
+          }
+          this.toastr.success(`Card charged $${approved} and applied to invoices.`, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
+        },
+        error: (err: HttpErrorResponse) => {
+          const body = err?.error as { message?: string; Message?: string } | string | null;
+          const message = typeof body === 'string' ? body : String(body?.message || body?.Message || 'The card could not be charged.');
+          this.toastr.error(message, CommonMessage.Error);
+        }
+      });
     });
   }
 
