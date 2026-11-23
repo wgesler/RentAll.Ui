@@ -927,7 +927,8 @@
                           </mat-form-field>
                           <mat-form-field appearance="outline">
                             <mat-label>Routing Number</mat-label>
-                            <input matInput formControlName="routingNumber" maxlength="250" (blur)="onBankInformationBlur()" />
+                            <input matInput formControlName="routingNumber" maxlength="9" inputmode="numeric" (blur)="onBankInformationBlur()" />
+                            <mat-error>Enter a valid 9-digit routing number</mat-error>
                           </mat-form-field>
                           <mat-form-field appearance="outline">
                             <mat-label>Account Number</mat-label>

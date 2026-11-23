@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, OnChanges, OnDestroy, OnInit, AfterViewChecked, Input, Output, EventEmitter, SimpleChanges, TemplateRef, ViewChild, inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatTooltip } from '@angular/material/tooltip';
-import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, Subject, filter, finalize, forkJoin, of, skip, switchMap, take, takeUntil } from 'rxjs';
@@ -704,7 +704,7 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       notes: new FormControl(''),
       markup: new FormControl('0%'),
       bankName: new FormControl(''),
-      routingNumber: new FormControl(''),
+      routingNumber: new FormControl('', [(control: AbstractControl): ValidationErrors | null => !control.value || this.utilityService.isValidRoutingNumber(control.value) ? null : { routingNumber: true }]),
       accountNumber: new FormControl(''),
       bankAccountTypeId: new FormControl<number | null>(null),
       nameOnAccount: new FormControl(''),
@@ -2294,7 +2294,7 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     const accountDigits = accountNumber.replace(/[\s-]/g, '');
     const hasClearAccount = accountDigits.length >= 4 && /^[0-9]+$/.test(accountDigits);
     const hasStoredAccount = !!this.accountNumberLastFour;
-    if (!bankName || !routingNumber || (!hasClearAccount && !hasStoredAccount)) {
+    if (!bankName || !routingNumber || (!hasClearAccount && !hasStoredAccount) || this.form.get('routingNumber')?.invalid) {
       return;
     }
 

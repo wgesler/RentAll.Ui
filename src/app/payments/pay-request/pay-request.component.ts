@@ -7,6 +7,7 @@ import { ActivatedRoute } from '@angular/router';
 import { take } from 'rxjs';
 import { BankAccountType, getBankAccountTypes } from '../../authenticated/organizations/models/bank-account-type-enum';
 import { MaterialModule } from '../../material.module';
+import { UtilityService } from '../../services/utility.service';
 import { PayMethodChoice, PayRequestAchRequest, PayRequestAchResponse, PayRequestResponse, PayResponseMessage, PayResponseMessageType, PayResponseResponse } from '../models/pay-request.model';
 import { PayRequestService } from '../services/pay-request.service';
 
@@ -30,6 +31,7 @@ export class PayRequestComponent implements OnInit, OnDestroy {
   private payRequestService = inject(PayRequestService);
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
+  private utilityService = inject(UtilityService);
 
   token = '';
   isLoading = true;
@@ -110,15 +112,8 @@ export class PayRequestComponent implements OnInit, OnDestroy {
     return (value || '').replace(/\D/g, '');
   }
 
-  /** US routing numbers carry a check digit: 3*(d1+d4+d7) + 7*(d2+d5+d8) + (d3+d6+d9) is a multiple of 10. */
   get routingValid(): boolean {
-    const d = this.digits(this.ach.routingNumber);
-    if (d.length !== 9) {
-      return false;
-    }
-    const n = (i: number) => Number(d[i]);
-    const sum = 3 * (n(0) + n(3) + n(6)) + 7 * (n(1) + n(4) + n(7)) + (n(2) + n(5) + n(8));
-    return sum > 0 && sum % 10 === 0;
+    return this.utilityService.isValidRoutingNumber(this.ach.routingNumber);
   }
 
   get routingError(): string {
