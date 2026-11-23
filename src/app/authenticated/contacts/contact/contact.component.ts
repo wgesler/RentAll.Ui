@@ -2068,8 +2068,6 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       documentBack: savedContact.documentBack ?? originalRequest.documentBack ?? null,
       documentBackFileDetails: savedContact.documentBackFileDetails ?? originalRequest.documentBackFileDetails ?? null,
       markup: savedContact.markup ?? originalRequest.markup,
-      contactBankId: savedContact.contactBankId ?? null,
-      contactBank: savedContact.contactBank ?? null,
       contactCardId: savedContact.contactCardId ?? originalRequest.contactCardId ?? null,
       paymentTermsId: savedContact.paymentTermsId ?? originalRequest.paymentTermsId ?? null,
       prorateTypeId: savedContact.prorateTypeId ?? originalRequest.prorateTypeId ?? null,
