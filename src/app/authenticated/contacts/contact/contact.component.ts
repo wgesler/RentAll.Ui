@@ -24,7 +24,7 @@ import { PropertyListResponse } from '../../properties/models/property.model';
 import { EntityType, getContactTypes, getEntityType, OwnerType, getOwnerTypes, VendorType, getVendorTypes, getTermTypes, getFederalTaxTypes, getOwnerDocumentTypes, getOwnerIdTypes, getPropertyManagerTypes } from '../models/contact-enum';
 import { getInvoiceMethods } from '../../accounting/models/accounting-enum';
 import { getProrateTypes } from '../../reservations/models/reservation-enum';
-import { ContactCardRequest, ContactCardResponse, ContactRequest, ContactResponse, W9ExtractResponse } from '../models/contact.model';
+import { ContactBankRequest, ContactCardRequest, ContactCardResponse, ContactRequest, ContactResponse, W9ExtractResponse } from '../models/contact.model';
 import { FileDetails } from '../../documents/models/document.model';
 import { ContactService } from '../services/contact.service';
 import { ContactCardService } from '../services/contact-card.service';
@@ -550,21 +550,7 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       documentFrontFileDetails: this.hasNewDocumentFrontUpload ? (this.documentFrontFileDetails ?? null) : undefined,
       documentBack: this.hasNewDocumentBackUpload ? undefined : this.documentBackPath,
       documentBackFileDetails: this.hasNewDocumentBackUpload ? (this.documentBackFileDetails ?? null) : undefined,
-      bankName: this.canViewBankInformation
-        ? ((formValue.bankName || '').trim() || null)
-        : (this.contact?.bankName ?? null),
-      routingNumber: this.canViewBankInformation
-        ? ((formValue.routingNumber || '').trim() || null)
-        : (this.contact?.routingNumber ?? null),
-      accountNumber: this.canViewBankInformation
-        ? ((formValue.accountNumber || '').trim() || null)
-        : (this.contact?.accountNumber ?? null),
-      bankAccountTypeId: this.canViewBankInformation
-        ? (formValue.bankAccountTypeId ?? null)
-        : (this.contact?.bankAccountTypeId ?? null),
-      nameOnAccount: this.canViewBankInformation
-        ? ((formValue.nameOnAccount || '').trim() || null)
-        : (this.contact?.nameOnAccount ?? null),
+      contactBank: this.canViewBankInformation ? this.buildContactBankRequest() : undefined,
       contactCardId: (this.contact?.contactCardId || 0) > 0
         ? this.contact?.contactCardId
         : ((this.contactCard?.contactCardId || 0) > 0 ? this.contactCard?.contactCardId : null),
@@ -819,7 +805,7 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       const patchOfficeId = Number.isFinite(rawContactOfficeId) && rawContactOfficeId > 0
         ? rawContactOfficeId
         : (normalizedOfficeAccess[0] ?? null);
-      this.accountNumberLastFour = this.contact.accountNumberLastFour || '';
+      this.accountNumberLastFour = this.contact.contactBank?.lastFour || '';
       const rawCodes = (this.contact.properties ?? []) as string[] | string;
       const propertyCodesArray = Array.isArray(rawCodes) ? rawCodes : (typeof rawCodes === 'string' && rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c) : []);
 
@@ -854,11 +840,11 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
         email: this.utilityService.getDisplayContactEmail(this.contact.email),
         notes: this.contact.notes || '',
         markup: this.formatterService.formatPercentageValue(this.contact.markup, 0),
-        bankName: this.contact.bankName ?? '',
-        routingNumber: this.contact.routingNumber ?? '',
-        accountNumber: this.contact.accountNumber ?? '',
-        bankAccountTypeId: this.contact.bankAccountTypeId ?? null,
-        nameOnAccount: this.contact.nameOnAccount ?? '',
+        bankName: this.contact.contactBank?.bankName ?? '',
+        routingNumber: this.contact.contactBank?.routingNumber ?? '',
+        accountNumber: '',
+        bankAccountTypeId: this.contact.contactBank?.bankAccountTypeId || null,
+        nameOnAccount: this.contact.contactBank?.nameOnAccount ?? '',
         rating: this.contact.rating ?? 0,
         isInternational: this.contact.isInternational || false,
         isOwnerReady: this.contact.isOwnerReady || false,
@@ -2082,11 +2068,8 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       documentBack: savedContact.documentBack ?? originalRequest.documentBack ?? null,
       documentBackFileDetails: savedContact.documentBackFileDetails ?? originalRequest.documentBackFileDetails ?? null,
       markup: savedContact.markup ?? originalRequest.markup,
-      bankName: savedContact.bankName ?? originalRequest.bankName,
-      routingNumber: savedContact.routingNumber ?? originalRequest.routingNumber,
-      accountNumber: savedContact.accountNumber ?? originalRequest.accountNumber,
-      bankAccountTypeId: savedContact.bankAccountTypeId ?? originalRequest.bankAccountTypeId ?? null,
-      nameOnAccount: savedContact.nameOnAccount ?? originalRequest.nameOnAccount ?? null,
+      contactBankId: savedContact.contactBankId ?? null,
+      contactBank: savedContact.contactBank ?? null,
       contactCardId: savedContact.contactCardId ?? originalRequest.contactCardId ?? null,
       paymentTermsId: savedContact.paymentTermsId ?? originalRequest.paymentTermsId ?? null,
       prorateTypeId: savedContact.prorateTypeId ?? originalRequest.prorateTypeId ?? null,
@@ -2184,7 +2167,9 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       bankAccountTypeId: this.form?.get('bankAccountTypeId')?.value ?? null,
       nameOnAccount: this.form?.get('nameOnAccount')?.value ?? '',
       accountNumberLastFour: this.accountNumberLastFour,
-      revealedAccountNumber: this.revealedAccountNumber
+      revealedAccountNumber: this.revealedAccountNumber,
+      contactBankId: this.contact?.contactBankId ?? null,
+      contactBank: this.contact?.contactBank ?? null
     };
     this.form?.patchValue({
       bankName: '',
@@ -2198,12 +2183,8 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     this.accountNumberLastFour = '';
     this.revealedAccountNumber = '';
     if (this.contact) {
-      this.contact.bankName = null;
-      this.contact.routingNumber = null;
-      this.contact.accountNumber = null;
-      this.contact.accountNumberLastFour = null;
-      this.contact.bankAccountTypeId = null;
-      this.contact.nameOnAccount = null;
+      this.contact.contactBankId = null;
+      this.contact.contactBank = null;
     }
     this.markViewForCheck();
     this.syncAccountNumberInput();
@@ -2224,12 +2205,8 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
         this.accountNumberLastFour = previous.accountNumberLastFour;
         this.revealedAccountNumber = previous.revealedAccountNumber;
         if (this.contact) {
-          this.contact.bankName = previous.bankName || null;
-          this.contact.routingNumber = previous.routingNumber || null;
-          this.contact.accountNumber = previous.accountNumber || null;
-          this.contact.accountNumberLastFour = previous.accountNumberLastFour || null;
-          this.contact.bankAccountTypeId = previous.bankAccountTypeId;
-          this.contact.nameOnAccount = previous.nameOnAccount || null;
+          this.contact.contactBankId = previous.contactBankId;
+          this.contact.contactBank = previous.contactBank;
         }
         this.toastr.error('Failed to clear bank information.', CommonMessage.Error);
         this.syncAccountNumberInput();
@@ -2294,6 +2271,18 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     this.saveBankInformationIfComplete(false);
   }
 
+  buildContactBankRequest(): ContactBankRequest {
+    const formValue = this.form.getRawValue();
+    return {
+      contactBankId: this.contact?.contactBankId ?? null,
+      bankAccountTypeId: formValue.bankAccountTypeId ?? 0,
+      nameOnAccount: (formValue.nameOnAccount || '').trim() || null,
+      bankName: (formValue.bankName || '').trim() || null,
+      routingNumber: (formValue.routingNumber || '').trim() || null,
+      accountNumber: (formValue.accountNumber || '').trim() || null
+    };
+  }
+
   saveBankInformationIfComplete(accountWasTyped: boolean): void {
     if (this.isAddMode || this.isPublicOwnerTokenMode() || this.isSavingBankInformation || !this.contact || !this.form) {
       return;
@@ -2311,10 +2300,11 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
       return;
     }
 
-    const bankChanged = bankName !== (this.contact.bankName || '').trim()
-      || routingNumber !== (this.contact.routingNumber || '').trim()
-      || bankAccountTypeId !== (this.contact.bankAccountTypeId ?? null)
-      || nameOnAccount !== (this.contact.nameOnAccount || '').trim();
+    const savedBank = this.contact.contactBank;
+    const bankChanged = bankName !== (savedBank?.bankName || '').trim()
+      || routingNumber !== (savedBank?.routingNumber || '').trim()
+      || bankAccountTypeId !== (savedBank?.bankAccountTypeId || null)
+      || nameOnAccount !== (savedBank?.nameOnAccount || '').trim();
     const accountChanged = hasClearAccount && (
       !hasStoredAccount
       || !accountDigits.endsWith(this.accountNumberLastFour)
@@ -2326,11 +2316,14 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
 
     this.isSavingBankInformation = true;
     const request = this.mappingService.mapContactResponseToUpdateRequest(this.contact, {
-      bankName,
-      routingNumber,
-      bankAccountTypeId,
-      nameOnAccount: nameOnAccount || null,
-      accountNumber: hasClearAccount ? accountNumber : null
+      contactBank: {
+        contactBankId: savedBank?.contactBankId ?? null,
+        bankAccountTypeId: bankAccountTypeId ?? 0,
+        nameOnAccount: nameOnAccount || null,
+        bankName,
+        routingNumber,
+        accountNumber: hasClearAccount ? accountNumber : null
+      }
     });
     this.contactService.updateContact(request).pipe(take(1), finalize(() => {
       this.isSavingBankInformation = false;
@@ -2338,21 +2331,13 @@ export class ContactComponent implements OnInit, OnChanges, AfterViewChecked, On
     })).subscribe({
       next: (savedContact) => {
         this.contact = { ...this.contact!, ...savedContact };
+        this.accountNumberLastFour = savedContact.contactBank?.lastFour || (hasClearAccount ? accountDigits.slice(-4) : this.accountNumberLastFour);
         if (hasClearAccount) {
-          this.accountNumberLastFour = savedContact.accountNumberLastFour || accountDigits.slice(-4);
           this.accountNumberVisible = false;
           this.accountNumberFocused = false;
           this.form?.get('accountNumber')?.setValue('', { emitEvent: false });
-          this.contact.accountNumber = null;
-          this.contact.accountNumberLastFour = this.accountNumberLastFour;
           this.syncAccountNumberInput();
-        } else if (savedContact.accountNumberLastFour) {
-          this.accountNumberLastFour = savedContact.accountNumberLastFour;
         }
-        this.contact.bankName = bankName;
-        this.contact.routingNumber = routingNumber;
-        this.contact.bankAccountTypeId = bankAccountTypeId;
-        this.contact.nameOnAccount = nameOnAccount || null;
         this.toastr.success('Bank information updated successfully', CommonMessage.Success, { timeOut: CommonTimeouts.Success });
       },
       error: () => {

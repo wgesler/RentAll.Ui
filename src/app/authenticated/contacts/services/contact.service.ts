@@ -143,12 +143,6 @@ export class ContactService {
     });
   }
 
-  encryptAccountNumber(contactId: string, accountNumber?: string | null): Observable<{ converted: boolean; accountNumberLastFour?: string | null }> {
-    return this.http.post<{ converted: boolean; accountNumberLastFour?: string | null }>(`${this.controller}${contactId}/account-number/encrypt`, {
-      accountNumber: accountNumber ?? null
-    });
-  }
-
   clearBankInformation(contactId: string): Observable<void> {
     return this.http.delete<void>(`${this.controller}${contactId}/bank-information`);
   }

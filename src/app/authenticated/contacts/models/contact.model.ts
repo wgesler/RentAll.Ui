@@ -49,12 +49,8 @@ export interface ContactRequest {
   documentBackFileDetails?: FileDetails | null;
   w9Path?: string | null;
   w9FileDetails?: FileDetails | null;
-  bankName?: string | null;
-  routingNumber?: string | null;
-  accountNumber?: string | null;
-  bankAccountTypeId?: number | null;
-  nameOnAccount?: string | null;
   contactCardId?: number | null;
+  contactBank?: ContactBankRequest | null;
   addAsUser?: number | null;
   isOwnerReady?: boolean;
   ownerLeadId?: number | null;
@@ -112,18 +108,35 @@ export interface ContactResponse {
   documentBackFileDetails?: FileDetails | null;
   w9Path?: string | null;
   w9FileDetails?: FileDetails | null;
-  bankName?: string | null;
-  routingNumber?: string | null;
-  accountNumber?: string | null;
-  accountNumberLastFour?: string | null;
-  bankAccountTypeId?: number | null;
-  nameOnAccount?: string | null;
   contactCardId?: number | null;
   contactCard?: ContactCardResponse | null;
+  contactBankId?: number | null;
+  contactBank?: ContactBankResponse | null;
   addAsUser?: number | null;
   isOwnerReady?: boolean;
   ownerLeadId?: number | null;
   isActive: boolean;
+}
+
+export interface ContactBankRequest {
+  contactBankId?: number | null;
+  bankAccountTypeId: number;
+  nameOnAccount?: string | null;
+  bankName?: string | null;
+  routingNumber?: string | null;
+  /** Blank or masked keeps the stored account number. */
+  accountNumber?: string | null;
+}
+
+export interface ContactBankResponse {
+  contactBankId: number;
+  bankAccountTypeId: number;
+  nameOnAccount?: string | null;
+  bankName?: string | null;
+  routingNumber?: string | null;
+  lastFour?: string | null;
+  hasNumberConsent?: boolean;
+  authorizedOn?: string | null;
 }
 
 export interface ContactCardRequest {

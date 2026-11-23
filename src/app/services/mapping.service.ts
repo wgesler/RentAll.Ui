@@ -396,6 +396,7 @@ export class MappingService {
     const requestBase = { ...contact };
     delete (requestBase as Partial<ContactResponse>).fullName;
     delete (requestBase as Partial<ContactResponse>).officeName;
+    delete (requestBase as Partial<ContactResponse>).contactBank;
     const officeAccess = this.normalizeOfficeAccessNumbers(contact.officeAccess);
     const resolvedOfficeAccess = officeAccess.length > 0
       ? officeAccess
@@ -414,12 +415,8 @@ export class MappingService {
       vendorTypeId: contact.vendorTypeId ?? 0,
       properties: contact.properties ?? [],
       paymentTermsId: contact.paymentTermsId ?? null,
-      bankName: contact.bankName ?? null,
-      routingNumber: contact.routingNumber ?? null,
-      accountNumber: contact.accountNumber ?? null,
-      bankAccountTypeId: contact.bankAccountTypeId ?? null,
-      nameOnAccount: contact.nameOnAccount ?? null,
       contactCardId: contact.contactCardId ?? null,
+      contactBank: undefined,
       markup: contact.markup ?? null,
       isActive,
       ...overrides
