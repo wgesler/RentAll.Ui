@@ -1,6 +1,6 @@
 import { HttpBackend, HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay } from 'rxjs';
 import { ConfigService } from '../../services/config.service';
 import { PayRequestAchRequest, PayRequestAchResponse, PayRequestFormResponse, PayRequestResponse, PayResponseResponse } from '../models/pay-request.model';
 
@@ -11,13 +11,25 @@ export class PayRequestService {
   // Bypass the auth interceptors: these calls are anonymous.
   private rawHttp = new HttpClient(inject(HttpBackend));
   private readonly controller = this.configService.config().apiUrl + 'reservation/external/';
+  // One Number card form per payment link per page: every caller shares the same request and its result.
+  private readonly cardForms = new Map<string, Observable<PayRequestFormResponse>>();
 
   getPayRequest(token: string): Observable<PayRequestResponse> {
     return this.rawHttp.get<PayRequestResponse>(this.controller + 'pay-request/' + encodeURIComponent(token));
   }
 
   createCardForm(token: string): Observable<PayRequestFormResponse> {
-    return this.rawHttp.post<PayRequestFormResponse>(this.controller + 'pay-request/' + encodeURIComponent(token) + '/card-form', {});
+    let cardForm = this.cardForms.get(token);
+    if (!cardForm) {
+      cardForm = this.rawHttp.post<PayRequestFormResponse>(this.controller + 'pay-request/' + encodeURIComponent(token) + '/card-form', {}).pipe(shareReplay(1));
+      this.cardForms.set(token, cardForm);
+    }
+    return cardForm;
+  }
+
+  /** Forget the shared card form so the next createCardForm asks Number for a new one (after an error or Try again). */
+  clearCardForm(token: string): void {
+    this.cardForms.delete(token);
   }
 
   saveAch(token: string, request: PayRequestAchRequest): Observable<PayRequestAchResponse> {

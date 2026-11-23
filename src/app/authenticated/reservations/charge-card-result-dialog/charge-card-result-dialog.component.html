@@ -47,15 +47,15 @@
         <div class="explain warn">{{ response.message }}</div>
       }
 
-      <div class="easypay">
-        <div class="easypay-heading">EasyPay response</div>
+      <div class="number-result">
+        <div class="number-result-heading">EasyPay response</div>
         <table class="details small">
-          <tr><th>Code</th><td>{{ response.easyPayCode }}</td></tr>
-          @if (response.easyPayError) {
-            <tr><th>Error</th><td>{{ response.easyPayError }}</td></tr>
+          <tr><th>Code</th><td>{{ response.numberCode }}</td></tr>
+          @if (response.numberError) {
+            <tr><th>Error</th><td>{{ response.numberError }}</td></tr>
           }
-          @if (response.easyPayResponse) {
-            <tr><th>Message</th><td>{{ response.easyPayResponse }}</td></tr>
+          @if (response.numberResponse) {
+            <tr><th>Message</th><td>{{ response.numberResponse }}</td></tr>
           }
           @if (response.txnCode) {
             <tr><th>Approval code</th><td>{{ response.txnCode }}</td></tr>

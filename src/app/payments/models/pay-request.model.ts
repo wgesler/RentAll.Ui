@@ -13,12 +13,12 @@ export interface PayRequestResponse {
   bankAvailable: boolean;
 }
 
-/** A fresh EasyPay form to show in the iFrame (POST .../pay-request/{token}/card-form). */
+/** A fresh Number form to show in the iFrame (POST .../pay-request/{token}/card-form). */
 export interface PayRequestFormResponse {
   formUrl: string;
 }
 
-/** What happened with EasyPay's result (GET api/reservation/external/pay-response/{token}?TXID=..&CID=..). */
+/** What happened with Number's result (GET api/reservation/external/pay-response/{token}?TXID=..&CID=..). */
 export interface PayResponseResponse {
   saved: boolean;
   consentId: number;
@@ -39,7 +39,7 @@ export interface PayResponseMessage {
   result: PayResponseResponse;
 }
 
-/** The ACH Debit form (POST .../pay-request/{token}/ach, PayRequestAchRequestDto). Numbers go straight to EasyPay. */
+/** The ACH Debit form (POST .../pay-request/{token}/ach, PayRequestAchRequestDto). Numbers go straight to Number. */
 export interface PayRequestAchRequest {
   routingNumber: string;
   accountNumber: string;
@@ -59,6 +59,6 @@ export interface PayRequestAchResponse {
   accountType?: string | null;
   nameOnAccount?: string | null;
   message: string;
-  easyPayCode: number;
-  easyPayMessage?: string | null;
+  numberCode: number;
+  numberMessage?: string | null;
 }

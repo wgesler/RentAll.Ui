@@ -178,14 +178,14 @@ export interface ReservationPaymentLinkResponse {
   paymentUrl: string;
 }
 
-/** Charge the reservation's saved EasyPay card (ChargeCardOnFileRequestDto). */
+/** Charge the reservation's saved Number card (ChargeCardOnFileRequestDto). */
 export interface ChargeCardOnFileRequest {
   amount: number;
 }
 
 /** ChargeCardOnFileResponseDto. */
 export interface ChargeCardOnFileResponse {
-  /** Approved, PartiallyApproved, Declined or Error (EasyPay couldn't process the request). */
+  /** Approved, PartiallyApproved, Declined or Error (Number couldn't process the request). */
   status: string;
   approved: boolean;
   transactionId: number;
@@ -195,9 +195,9 @@ export interface ChargeCardOnFileResponse {
   paymentId?: string | null;
   paymentCode?: string | null;
   cardLabel?: string | null;
-  easyPayCode: number;
-  easyPayError?: string | null;
-  easyPayResponse?: string | null;
+  numberCode: number;
+  numberError?: string | null;
+  numberResponse?: string | null;
   txnCode?: string | null;
   avsResult?: string | null;
   cvvResult?: string | null;

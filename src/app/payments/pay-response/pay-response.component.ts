@@ -8,7 +8,7 @@ import { PayResponseMessage, PayResponseMessageType, PayResponseResponse } from 
 import { PayRequestService } from '../services/pay-request.service';
 
 /**
- * Where EasyPay sends the payer after the form is submitted (payments/pay-response/{token}?TXID=..&CID=..).
+ * Where Number sends the payer after the form is submitted (payments/pay-response/{token}?TXID=..&CID=..).
  * Public. It has the API confirm and save the result, then:
  *  - inside the pay-request page's iFrame (the normal case), posts the result to that page;
  *  - opened on its own, shows the result with a link to the company's website.
@@ -65,7 +65,7 @@ export class PayResponseComponent implements OnInit {
       return;
     }
     const message: PayResponseMessage = { type: PayResponseMessageType, result };
-    // "*": after EasyPay redirects the frame here, the browser may give this frame an opaque origin, and a message
+    // "*": after Number redirects the frame here, the browser may give this frame an opaque origin, and a message
     // addressed to our own origin is then silently dropped. The pay-request page only accepts it from its own frame.
     window.parent.postMessage(message, "*");
   }

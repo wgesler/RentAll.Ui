@@ -90,8 +90,8 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
         this.rows = (rows || []).map(row => ({
           ...row,
           createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-',
-          // Copy button only on EasyPay rows: [EasyPayLog] calls and the webhooks EasyPay sends us.
-          copyHidden: !this.isEasyPayRow(row),
+          // Copy button only on Number rows that carry a request, response or notification body.
+          copyHidden: !this.isNumberRow(row),
           copyTooltip: 'Copy EasyPay request / response'
         }));
         if (emitCallback) {
@@ -107,14 +107,14 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
   //#endregion
 
   //#region Utility Methods
-  /** EasyPay rows: [EasyPayLog] calls we make, and the webhooks EasyPay sends us ([NumberPayment] Step=Raw). */
-  isEasyPayRow(row: ApplicationLogResponse): boolean {
+  /** Number rows with a body to copy: "[EasyPay {Action}Request]", "[EasyPay {Action}Response]" and notifications we receive. */
+  isNumberRow(row: ApplicationLogResponse): boolean {
     const message = row?.message ?? '';
-    return message.startsWith('[EasyPayLog]') || message.startsWith('[NumberPayment] Step=Raw');
+    return message.startsWith('[EasyPay ') && /"(Request|Response|Body)"\s*:/.test(row?.properties ?? '');
   }
 
-  /** Copies an EasyPay row as email-ready text: the call, then the request and response JSON, formatted. */
-  copyEasyPayRow(row: ApplicationLogResponse): void {
+  /** Copies a Number row as email-ready text: the action and direction, then the JSON body, formatted. */
+  copyNumberRow(row: ApplicationLogResponse): void {
     let properties: Record<string, unknown> = {};
     try {
       properties = JSON.parse(row.properties || '{}') as Record<string, unknown>;
@@ -133,13 +133,16 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
       }
     };
 
-    const lines: string[] = [];
-    if (row.message?.startsWith('[EasyPayLog]')) {
-      lines.push(`EasyPay call: ${properties['Method'] ?? ''} ${properties['Url'] ?? ''}`.trim());
-      lines.push(`Status: ${properties['Status'] ?? properties['Error'] ?? ''}   Time: ${row.createdOn}`);
-      lines.push('', 'Request:', pretty(properties['Request']), '', 'Response:', pretty(properties['Response']));
-    } else {
-      lines.push('Received from EasyPay (webhook)', `Time: ${row.createdOn}`, '', 'Body:', pretty(properties['Body']));
+    const label = (row.message ?? '').match(/^\[EasyPay ([^\]]+)\]/)?.[1] ?? 'EasyPay';
+    const lines: string[] = [label, `Time: ${row.createdOn}`];
+    if (properties['Request'] !== undefined) {
+      lines.push(`${properties['Method'] ?? ''} ${properties['Url'] ?? ''}`.trim(), '', 'Request:', pretty(properties['Request']));
+    }
+    if (properties['Response'] !== undefined) {
+      lines.push(`Status: ${properties['Status'] ?? ''}   ElapsedMs: ${properties['ElapsedMs'] ?? ''}`, '', 'Response:', pretty(properties['Response']));
+    }
+    if (properties['Body'] !== undefined) {
+      lines.push('', 'Body:', pretty(properties['Body']));
     }
 
     navigator.clipboard.writeText(lines.join('\n')).then(

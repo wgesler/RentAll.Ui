@@ -1056,7 +1056,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     });
   }
 
-  /** Shows EasyPay's answer (approved, partial, declined or error) in a dialog staff can read, instead of a toast. */
+  /** Shows Number's answer (approved, partial, declined or error) in a dialog staff can read, instead of a toast. */
   openChargeCardResultDialog(data: ChargeCardResultDialogData): void {
     this.dialog.open<ChargeCardResultDialogComponent, ChargeCardResultDialogData>(ChargeCardResultDialogComponent, {
       data,

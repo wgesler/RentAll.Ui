@@ -13,9 +13,9 @@ import { PayRequestService } from '../services/pay-request.service';
 
 /**
  * The page the payment email links to (payments/pay-request?token=..). Public: the payer has no login.
- * The payer picks card, ACH Debit or both. Card: EasyPay's own form in an iFrame (card numbers never touch RentAll);
- * when it's submitted, EasyPay sends the iFrame to our pay-response page, which saves the result and posts it back here.
- * ACH Debit: our own form; the API passes the bank numbers straight to EasyPay (ACH/Combo, no debit) and keeps only
+ * The payer picks card, ACH Debit or both. Card: Number's own form in an iFrame (card numbers never touch RentAll);
+ * when it's submitted, Number sends the iFrame to our pay-response page, which saves the result and posts it back here.
+ * ACH Debit: our own form; the API passes the bank numbers straight to Number (ACH/Combo, no debit) and keeps only
  * the consent ID and last four digits.
  */
 @Component({
@@ -44,9 +44,9 @@ export class PayRequestComponent implements OnInit, OnDestroy {
   cardFormError = '';
   cardResult: PayResponseResponse | null = null;
   cardAuthorized = false;
-  @ViewChild('easypayFrame') easypayFrame?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('numberFrame') numberFrame?: ElementRef<HTMLIFrameElement>;
 
-  // ACH Debit form. The numbers are sent once to the API (then EasyPay) and never stored on this page.
+  // ACH Debit form. The numbers are sent once to the API (then Number) and never stored on this page.
   ach: PayRequestAchRequest = { routingNumber: '', accountNumber: '', confirmAccountNumber: '', accountType: BankAccountType.PersonalChecking, nameOnAccount: '', bankName: '', authorized: false };
   readonly achAccountTypes = getBankAccountTypes();
   isSavingAch = false;
@@ -206,7 +206,7 @@ export class PayRequestComponent implements OnInit, OnDestroy {
     this.loadCardFormIfNeeded();
   }
 
-  /** Asks the API for a fresh EasyPay card form; each open gets a new one, so old emails keep working. */
+  /** Asks the API for a fresh Number card form; each open gets a new one, so old emails keep working. */
   loadCardFormIfNeeded(): void {
     if (!this.showCardStep || this.cardFormUrl || this.isLoadingCardForm || this.cardResult?.saved) {
       return;
@@ -220,6 +220,7 @@ export class PayRequestComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       },
       error: (err: HttpErrorResponse) => {
+        this.payRequestService.clearCardForm(this.token);
         this.isLoadingCardForm = false;
         this.cardFormError = this.errorText(err, 'The card form could not be loaded. Please try again.');
         this.cdr.markForCheck();
@@ -228,14 +229,15 @@ export class PayRequestComponent implements OnInit, OnDestroy {
   }
 
   retryCardForm(): void {
+    this.payRequestService.clearCardForm(this.token);
     this.cardFormUrl = null;
     this.cardResult = null;
     this.loadCardFormIfNeeded();
   }
 
-  /** The pay-response page in the EasyPay frame reports the saved result here. Only messages from that frame count. */
+  /** The pay-response page in the Number frame reports the saved result here. Only messages from that frame count. */
   handleMessage(event: MessageEvent): void {
-    const fromOurFrame = !!this.easypayFrame && event.source === this.easypayFrame.nativeElement.contentWindow;
+    const fromOurFrame = !!this.numberFrame && event.source === this.numberFrame.nativeElement.contentWindow;
     if (!fromOurFrame && event.origin !== window.location.origin) {
       return;
     }

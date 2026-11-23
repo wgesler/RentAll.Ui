@@ -7,17 +7,17 @@ import { ChargeCardOnFileResponse } from '../models/reservation-model';
 
 export interface ChargeCardResultDialogData {
   reservationCode: string;
-  /** EasyPay's answer, when the charge reached EasyPay. */
+  /** Number's answer, when the charge reached Number. */
   response?: ChargeCardOnFileResponse | null;
-  /** RentAll's reason, when the charge never reached EasyPay (no card on file, no unpaid invoices, network...). */
+  /** RentAll's reason, when the charge never reached Number (no card on file, no unpaid invoices, network...). */
   errorMessage?: string | null;
 }
 
 type ResultKind = 'approved' | 'partial' | 'declined' | 'error';
 
 /**
- * Shows the result of a Charge Card on File, exactly as EasyPay returned it: approved, partially approved,
- * declined or failed, with EasyPay's code and message and what they mean. Used instead of toasts so staff can
+ * Shows the result of a Charge Card on File, exactly as Number returned it: approved, partially approved,
+ * declined or failed, with Number's code and message and what they mean. Used instead of toasts so staff can
  * read and act on the result.
  */
 @Component({

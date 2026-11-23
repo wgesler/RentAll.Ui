@@ -69,7 +69,7 @@
         </section>
 
         <div class="steps">
-        <!-- Hidden, not removed, so EasyPay's form isn't reloaded when the choice changes. -->
+        <!-- Hidden, not removed, so Number's form isn't reloaded when the choice changes. -->
         <section class="section" [hidden]="!showCardStep">
             <h2>
               @if (method === 'both') { <span class="step-no">1</span> }
@@ -94,8 +94,8 @@
                 <button mat-raised-button type="button" color="primary" (click)="retryCardForm()">Try again</button>
               } @else if (cardFormUrl) {
                 <div class="frame-wrap" [class.frame-locked]="!cardAuthorized">
-                  <!-- allow: lets EasyPay's frame return to a localhost pay-response page when testing locally (Chrome blocks public sites from loading local addresses otherwise). -->
-                  <iframe #easypayFrame class="easypay-frame" [src]="cardFormUrl" title="Secure card form" allow="local-network-access"></iframe>
+                  <!-- allow: lets Number's frame return to a localhost pay-response page when testing locally (Chrome blocks public sites from loading local addresses otherwise). -->
+                  <iframe #numberFrame class="number-frame" [src]="cardFormUrl" title="Secure card form" allow="local-network-access"></iframe>
                 </div>
                 <label class="ach-authorize">
                   <input type="checkbox" name="cardAuthorized" [(ngModel)]="cardAuthorized" />

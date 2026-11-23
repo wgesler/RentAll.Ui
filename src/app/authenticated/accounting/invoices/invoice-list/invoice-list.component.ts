@@ -707,7 +707,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  /** Reservations billed by credit card are charged through EasyPay (Number) instead of a manual payment. */
+  /** Reservations billed by credit card are charged through Number instead of a manual payment. */
   isCardBillingReservation(reservationId: string | null | undefined): boolean {
     if (!reservationId) {
       return false;
@@ -747,7 +747,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     });
   }
 
-  /** Shows EasyPay's answer (approved, partial, declined or error) in a dialog staff can read, instead of a toast. */
+  /** Shows Number's answer (approved, partial, declined or error) in a dialog staff can read, instead of a toast. */
   openChargeCardResultDialog(data: ChargeCardResultDialogData): void {
     this.dialog.open<ChargeCardResultDialogComponent, ChargeCardResultDialogData>(ChargeCardResultDialogComponent, {
       data,

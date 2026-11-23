@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { MaterialModule } from '../../../material.module';
 import { ApplicationLogResponse } from '../models/log.model';
 
-/** A JSON body stored in the log row's Properties (e.g. an EasyPay request or response), shown formatted. */
+/** A JSON body stored in the log row's Properties (e.g. an Number request or response), shown formatted. */
 interface LogJsonBlock {
   label: string;
   text: string;
@@ -21,7 +21,7 @@ export class ApplicationLogComponent implements OnInit, OnDestroy {
   @Input() row: ApplicationLogResponse | null = null;
   @Output() closed = new EventEmitter<void>();
 
-  /** Properties that hold whole bodies, each shown in its own copyable block (e.g. [EasyPayLog] Request/Response). */
+  /** Properties that hold whole bodies, each shown in its own copyable block (e.g. a Number request or response). */
   private static readonly BodyProperties: Record<string, string> = {
     Request: 'Request sent to EasyPay',
     Response: 'Response from EasyPay',
@@ -51,10 +51,9 @@ export class ApplicationLogComponent implements OnInit, OnDestroy {
     } catch {
       return [];
     }
-    // "Body" is what EasyPay sent us on a webhook row ([NumberPayment] Step=Raw), but what we sent on a
-    // [NumberPayFormTrace] row.
+    // "Body" is what Number sent us on a notification row ("[EasyPay PaymentNotification..."), otherwise what we sent.
     const message = this.row?.message ?? '';
-    const bodyLabel = message.startsWith('[NumberPayment]') ? 'Body received from EasyPay' : 'Request sent to EasyPay';
+    const bodyLabel = message.startsWith('[EasyPay PaymentNotification') ? 'Body received from EasyPay' : 'Request sent to EasyPay';
     return Object.entries(ApplicationLogComponent.BodyProperties)
       .filter(([key]) => typeof properties[key] === 'string' && (properties[key] as string).trim() !== '')
       .map(([key, label]) => ({ label: key === 'Body' ? bodyLabel : label, text: this.prettyJson(properties[key] as string), copied: false }));
