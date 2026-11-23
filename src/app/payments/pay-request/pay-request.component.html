@@ -1,0 +1,226 @@
+<div class="pay-page">
+  <div class="pay-card">
+    <div class="bar"></div>
+
+    @if (isLoading) {
+      <div class="body center"><p class="muted">Loading your payment request…</p></div>
+    } @else if (errorMessage) {
+      <div class="body center">
+        <h1>Payment request</h1>
+        <p class="error">{{ errorMessage }}</p>
+      </div>
+    } @else if (request) {
+      <header class="brand">
+        @if (request.logoUrl) {
+          <img class="logo" [src]="request.logoUrl" [alt]="request.displayName || request.organizationName" />
+        } @else {
+          <h1>{{ request.displayName || request.organizationName }}</h1>
+        }
+      </header>
+
+      <table class="info-bar">
+        @if (request.tenantName) {
+          <tr><th>Name:</th><td>{{ request.tenantName }}</td></tr>
+        }
+        <tr><th>Reservation:</th><td>{{ request.reservationCode }}</td></tr>
+      </table>
+
+      @if (allSaved) {
+        <div class="success-panel">
+          <mat-icon class="success-icon">verified_user</mat-icon>
+          <h2 class="success-title">
+            {{ cardSaved && achSaved ? 'Your payment methods were saved successfully' : cardSaved ? 'Your card was saved successfully' : 'Your bank account was saved successfully' }}
+          </h2>
+          @if (cardSaved) {
+            <p class="success-card">
+              {{ cardResult?.cardType || 'Card' }} ending {{ cardResult?.lastFour }}
+              @if (cardResult?.expirationDate) { &middot; expires {{ cardResult?.expirationDate }} }
+            </p>
+          }
+          @if (achSaved) {
+            <p class="success-card">
+              {{ achResult?.accountType || 'Bank account' }} ending {{ achResult?.accountLast4 }} &middot; ACH Debit
+            </p>
+          }
+          <p class="success-thanks">
+            Thank you for choosing {{ request.displayName || request.organizationName }}. You may close this page.
+          </p>
+        </div>
+      } @else {
+      <div class="body">
+        <p class="intro">
+          Please add a payment method to keep on file for your reservation. It will be charged monthly per the terms of
+          your rental agreement.
+        </p>
+
+        <section class="section">
+          <h2>Payment method to keep on file</h2>
+          <mat-radio-group class="method-tiles" [(ngModel)]="method" (change)="onMethodChange()">
+            <mat-radio-button class="tile" [class.selected]="method === 'card'" value="card">
+              <span class="tile-text"><mat-icon>credit_card</mat-icon> Credit or Debit Card</span>
+            </mat-radio-button>
+            <mat-radio-button class="tile" [class.selected]="method === 'bank'" value="bank">
+              <span class="tile-text"><mat-icon>account_balance</mat-icon> ACH Debit</span>
+            </mat-radio-button>
+            <mat-radio-button class="tile" [class.selected]="method === 'both'" value="both">
+              <span class="tile-text"><mat-icon>library_add_check</mat-icon> Both</span>
+            </mat-radio-button>
+          </mat-radio-group>
+        </section>
+
+        <div class="steps">
+        <!-- Hidden, not removed, so EasyPay's form isn't reloaded when the choice changes. -->
+        <section class="section" [hidden]="!showCardStep">
+            <h2>
+              @if (method === 'both') { <span class="step-no">1</span> }
+              Card
+            </h2>
+            @if (cardResult?.saved) {
+              <div class="result success">
+                <mat-icon>check_circle</mat-icon>
+                <span>
+                  {{ cardResult?.cardType || 'Card' }} ending {{ cardResult?.lastFour }} saved
+                  @if (cardResult?.expirationDate) { (expires {{ cardResult?.expirationDate }}) }
+                </span>
+              </div>
+            } @else {
+              @if (cardResult && !cardResult.saved) {
+                <div class="result error"><mat-icon>error</mat-icon><span>{{ cardResult.message }}</span></div>
+              }
+              @if (isLoadingCardForm) {
+                <p class="muted">Loading the secure card form…</p>
+              } @else if (cardFormError) {
+                <div class="result error"><mat-icon>error</mat-icon><span>{{ cardFormError }}</span></div>
+                <button mat-raised-button type="button" color="primary" (click)="retryCardForm()">Try again</button>
+              } @else if (cardFormUrl) {
+                <div class="frame-wrap" [class.frame-locked]="!cardAuthorized">
+                  <!-- allow: lets EasyPay's frame return to a localhost pay-response page when testing locally (Chrome blocks public sites from loading local addresses otherwise). -->
+                  <iframe #easypayFrame class="easypay-frame" [src]="cardFormUrl" title="Secure card form" allow="local-network-access"></iframe>
+                </div>
+                <label class="ach-authorize">
+                  <input type="checkbox" name="cardAuthorized" [(ngModel)]="cardAuthorized" />
+                  <span>
+                    I authorize {{ request.displayName || request.organizationName }} to charge the card specified above for
+                    payments due under my rental agreement associated with reservation {{ request.reservationCode }}.
+                  </span>
+                </label>
+              }
+            }
+          </section>
+
+        @if (showBankStep) {
+          <section class="section">
+            <h2>
+              @if (method === 'both') { <span class="step-no">2</span> }
+              ACH Debit
+            </h2>
+            @if (achSaved) {
+              <div class="result success">
+                <mat-icon>check_circle</mat-icon>
+                <span>{{ achResult?.accountType || 'Bank account' }} ending {{ achResult?.accountLast4 }} saved</span>
+              </div>
+            } @else if (!request.bankAvailable) {
+              <p class="muted">ACH Debit is coming soon. Please use a card for now.</p>
+            } @else {
+              <form class="ach-form" autocomplete="off" (ngSubmit)="saveAch()">
+                <div class="ach-row">
+                  <label class="ach-field">
+                    <span>Name on the account</span>
+                    <input type="text" name="nameOnAccount" [(ngModel)]="ach.nameOnAccount" maxlength="100" autocomplete="off" />
+                    @if (achSubmitted && nameError) { <small class="field-error">{{ nameError }}</small> }
+                  </label>
+                  <label class="ach-field">
+                    <span>Account type</span>
+                    <select name="accountType" [(ngModel)]="ach.accountType">
+                      @for (type of achAccountTypes; track type.value) {
+                        <option [ngValue]="type.value">{{ type.label }}</option>
+                      }
+                    </select>
+                  </label>
+                </div>
+
+                <div class="ach-row">
+                  <label class="ach-field">
+                    <span>Bank name</span>
+                    <input type="text" name="bankName" [(ngModel)]="ach.bankName" maxlength="250" autocomplete="off" />
+                    @if (achSubmitted && bankNameError) { <small class="field-error">{{ bankNameError }}</small> }
+                  </label>
+                  <label class="ach-field">
+                    <span>Routing number</span>
+                    <input type="text" name="routingNumber" [(ngModel)]="ach.routingNumber" inputmode="numeric" maxlength="9" autocomplete="off" (input)="onDigitsOnlyInput($event, 'routingNumber')"
+                      placeholder="9 digits" [class.valid]="routingValid" />
+                    @if ((achSubmitted || ach.routingNumber.length >= 9) && routingError) {
+                      <small class="field-error">{{ routingError }}</small>
+                    } @else if (routingValid) {
+                      <small class="field-ok"><mat-icon class="inline-icon">check</mat-icon> Valid routing number</small>
+                    }
+                  </label>
+                </div>
+
+                <div class="ach-row">
+                  <label class="ach-field">
+                    <span>Account number</span>
+                    <span class="ach-input-wrap">
+                      <input type="text" name="accountNumber" [(ngModel)]="ach.accountNumber" inputmode="numeric" maxlength="17" autocomplete="off" [class.ach-masked]="!accountNumberVisible" (input)="onDigitsOnlyInput($event, 'accountNumber')" />
+                      <button type="button" class="ach-visibility-toggle" tabindex="-1" (click)="toggleAccountNumberVisibility()" [attr.aria-label]="accountNumberVisible ? 'Hide account number' : 'Show account number'">
+                        <mat-icon>{{ accountNumberVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
+                      </button>
+                    </span>
+                    @if (achSubmitted && accountError) { <small class="field-error">{{ accountError }}</small> }
+                  </label>
+                  <label class="ach-field">
+                    <span>Confirm account number</span>
+                    <span class="ach-input-wrap">
+                      <input type="text" name="confirmAccountNumber" [(ngModel)]="ach.confirmAccountNumber" inputmode="numeric" maxlength="17" autocomplete="off" [class.ach-masked]="!confirmAccountNumberVisible" (input)="onDigitsOnlyInput($event, 'confirmAccountNumber')" />
+                      <button type="button" class="ach-visibility-toggle" tabindex="-1" (click)="toggleConfirmAccountNumberVisibility()" [attr.aria-label]="confirmAccountNumberVisible ? 'Hide account number' : 'Show account number'">
+                        <mat-icon>{{ confirmAccountNumberVisible ? 'visibility' : 'visibility_off' }}</mat-icon>
+                      </button>
+                    </span>
+                    @if ((achSubmitted || ach.confirmAccountNumber.length >= ach.accountNumber.length) && ach.confirmAccountNumber && confirmError) {
+                      <small class="field-error">{{ confirmError }}</small>
+                    }
+                  </label>
+                </div>
+
+                <label class="ach-authorize">
+                  <input type="checkbox" name="authorized" [(ngModel)]="ach.authorized" />
+                  <span>
+                    I authorize {{ request.displayName || request.organizationName }} to electronically debit the bank account
+                    specified above for payments due under my rental agreement associated with reservation {{ request.reservationCode }}.
+                    This authorization will remain in effect until the rental agreement ends or I revoke it by providing written
+                    notice to {{ request.displayName || request.organizationName }}.
+                  </span>
+                </label>
+
+                @if (achError) {
+                  <div class="result error"><mat-icon>error</mat-icon><span>{{ achError }}</span></div>
+                }
+
+                <button mat-raised-button type="submit" color="primary" [disabled]="isSavingAch">
+                  {{ isSavingAch ? 'Saving…' : 'Save bank account' }}
+                </button>
+              </form>
+            }
+          </section>
+        }
+        </div>
+
+        <p class="secure"><mat-icon class="inline-icon">lock</mat-icon>
+          Card details go directly to our secure payment partner, EasyPay Solutions. Bank details are sent securely to
+          EasyPay. We never store your full card number, and your account number is encrypted.
+        </p>
+      </div>
+
+      <footer class="footer">
+        <div class="footer-name">{{ request.organizationName }} {{ request.officeName }}</div>
+        @if (request.displayName && request.displayName !== request.organizationName) {
+          <div>{{ request.displayName }}</div>
+        }
+        <div class="footer-small">This link expires {{ request.expiresOn | date: 'MMM d, y, h:mm a' }}.</div>
+      </footer>
+      }
+    }
+
+    <div class="bar"></div>
+  </div>
+</div>

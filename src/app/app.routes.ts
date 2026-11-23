@@ -105,6 +105,9 @@ export const routes: Routes = [
 	{ path: '', redirectTo: RouterToken.Login, pathMatch: 'full' },
   { path: RouterToken.Login, loadComponent: () => import('./public/login/login.component').then(m => m.LoginComponent), canActivate: [unAuthRouteGuard] },
   { path: 'listing/:token', loadComponent: () => import('./public/property-listing-public/property-listing-public.component').then(m => m.PropertyListingPublicComponent) },
+  // Public payment pages: the payment email links to pay-request; EasyPay returns to pay-response.
+  { path: 'payments/pay-request', loadComponent: () => import('./payments/pay-request/pay-request.component').then(m => m.PayRequestComponent) },
+  { path: 'payments/pay-response/:token', loadComponent: () => import('./payments/pay-response/pay-response.component').then(m => m.PayResponseComponent) },
   { path: 'owners/:token', loadComponent: () => import('./authenticated/owners/owner-shell/owner-shell.component').then(m => m.OwnerShellComponent) },
   { path: RouterToken.UserGuide, loadComponent: () => import('./authenticated/shared/user-guide/help-guide/help-guide-page.component').then(m => m.HelpGuidePageComponent), canActivate: [authRouteGuard] },
   { path: RouterToken.Mobile, loadComponent: () => import('./authenticated/mobile/mobile-layout/mobile-layout.component').then(m => m.MobileLayoutComponent), children: mobileRoutes, canActivate: [authRouteGuard] },

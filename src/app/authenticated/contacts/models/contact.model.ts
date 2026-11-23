@@ -52,6 +52,8 @@ export interface ContactRequest {
   bankName?: string | null;
   routingNumber?: string | null;
   accountNumber?: string | null;
+  bankAccountTypeId?: number | null;
+  nameOnAccount?: string | null;
   contactCardId?: number | null;
   addAsUser?: number | null;
   isOwnerReady?: boolean;
@@ -114,6 +116,8 @@ export interface ContactResponse {
   routingNumber?: string | null;
   accountNumber?: string | null;
   accountNumberLastFour?: string | null;
+  bankAccountTypeId?: number | null;
+  nameOnAccount?: string | null;
   contactCardId?: number | null;
   contactCard?: ContactCardResponse | null;
   addAsUser?: number | null;

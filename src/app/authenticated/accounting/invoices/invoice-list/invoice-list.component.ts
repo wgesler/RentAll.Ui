@@ -19,7 +19,10 @@ import { OfficeResponse } from '../../../organizations/models/office.model';
 import { OfficeService } from '../../../organizations/services/office.service';
 import { TerminologyService } from '../../../organizations/services/terminology.service';
 import { ReservationListResponse, ReservationResponse } from '../../../reservations/models/reservation-model';
-import { ReservationStatus, ReservationType } from '../../../reservations/models/reservation-enum';
+import { BillingMethod, ReservationStatus, ReservationType } from '../../../reservations/models/reservation-enum';
+import { MatDialog } from '@angular/material/dialog';
+import { ChargeCardDialogComponent, ChargeCardDialogData, ChargeCardDialogResult } from '../../../reservations/charge-card-dialog/charge-card-dialog.component';
+import { ChargeCardResultDialogComponent, ChargeCardResultDialogData } from '../../../reservations/charge-card-result-dialog/charge-card-result-dialog.component';
 import { ReservationService } from '../../../reservations/services/reservation.service';
 import { PropertyService } from '../../../properties/services/property.service';
 import { DataTableComponent } from '../../../shared/data-table/data-table.component';
@@ -76,6 +79,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
   private accountingService = inject(InvoiceService);
   private paymentService = inject(PaymentService);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
   private router = inject(Router);
   private mappingService = inject(MappingService);
   private costCodesService = inject(CostCodesService);
@@ -703,7 +707,59 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  /** Reservations billed by credit card are charged through EasyPay (Number) instead of a manual payment. */
+  isCardBillingReservation(reservationId: string | null | undefined): boolean {
+    if (!reservationId) {
+      return false;
+    }
+    const billingMethodId = Number(this.reservations.find(r => r.reservationId === reservationId)?.billingMethodId);
+    return billingMethodId === BillingMethod.CreditCardVisa
+      || billingMethodId === BillingMethod.CreditCardMc
+      || billingMethodId === BillingMethod.CreditCardAmex
+      || billingMethodId === BillingMethod.CreditCardDiscover;
+  }
+
+  /** EP action: charge the reservation's card on file, starting from this invoice's balance due. */
+  chargeInvoiceCardOnFile(row: InvoiceListDisplayRow): void {
+    const reservationId = String(row?.reservationId || '').trim();
+    if (!reservationId) {
+      return;
+    }
+    const reservation = this.reservations.find(r => r.reservationId === reservationId);
+    const dialogRef = this.dialog.open<ChargeCardDialogComponent, ChargeCardDialogData, ChargeCardDialogResult | undefined>(ChargeCardDialogComponent, {
+      data: { reservationCode: reservation?.reservationCode || '', suggestedAmount: Math.max(0, Number(row.dueAmountValue) || 0) },
+      autoFocus: 'first-tabbable'
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (!result || !(result.amount > 0)) {
+        return;
+      }
+      this.reservationService.chargeCardOnFile(reservationId, result.amount).pipe(take(1)).subscribe({
+        next: (response) => {
+          this.openChargeCardResultDialog({ reservationCode: reservation?.reservationCode || '', response });
+          if (response?.approved) {
+            this.loadInvoicesForCurrentSearchCriteria(true);
+          }
+        },
+        error: (err: HttpErrorResponse) => this.openChargeCardResultDialog(ChargeCardResultDialogComponent.fromHttpError(reservation?.reservationCode || '', err))
+      });
+    });
+  }
+
+  /** Shows EasyPay's answer (approved, partial, declined or error) in a dialog staff can read, instead of a toast. */
+  openChargeCardResultDialog(data: ChargeCardResultDialogData): void {
+    this.dialog.open<ChargeCardResultDialogComponent, ChargeCardResultDialogData>(ChargeCardResultDialogComponent, {
+      data,
+      autoFocus: 'first-tabbable'
+    });
+  }
+
   onPayable(event: InvoiceListDisplayRow): void {
+    if (event?.payableBadge === 'EP') {
+      this.chargeInvoiceCardOnFile(event);
+      return;
+    }
     // Keep top-bar filters unchanged. Open manual apply mode and focus clicked row amount.
     const invoiceOfficeId = Number(event?.officeId ?? 0);
     this.paymentOfficeId = Number.isFinite(invoiceOfficeId) && invoiceOfficeId > 0 ? invoiceOfficeId : null;
@@ -890,6 +946,7 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
       applyAmountValue: applyAmountValue, // Store raw value for calculations
       applyAmountDisplay: this.isManualApplyMode ? (applyAmountValue < 0 ? '-$' + this.formatter.currency(-applyAmountValue) : '$' + this.formatter.currency(applyAmountValue)) : '',
       applyAmountEditable: applyAmountEditable,
+      payableBadge: this.isCardBillingReservation(invoice.reservationId) ? 'EP' : null,
       startDate: this.formatter.formatDateString(invoice.startDate),
       endDate: this.formatter.formatDateString(invoice.endDate),
       period: this.formatter.formatInvoiceListAccountingPeriod(invoice.accountingPeriod),
@@ -1415,12 +1472,10 @@ export class InvoiceListComponent implements OnInit, OnDestroy, OnChanges {
           }
         }
         this.refreshReservationContext();
-        
-        // If a company is selected, re-apply filters now that reservations are loaded
-        // Re-apply filters once reservations load so company matching can evaluate reservation fields.
-        if (this.selectedCompanyContact) {
-          this.applyFilters();
-        }
+
+        // Re-apply filters once reservations load: company matching and the EP (card billing) badge
+        // both read reservation fields.
+        this.applyFilters();
         this.markViewForCheck();
       },
       error: () => {

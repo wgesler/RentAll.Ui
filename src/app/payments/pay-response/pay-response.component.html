@@ -1,0 +1,24 @@
+<div class="pay-response" [class.in-frame]="inFrame">
+  @if (isLoading) {
+    <p class="muted">Confirming your details…</p>
+  } @else if (errorMessage) {
+    <mat-icon class="icon error">error_outline</mat-icon>
+    <p class="error">{{ errorMessage }}</p>
+  } @else if (result) {
+    @if (result.saved) {
+      <mat-icon class="icon">verified_user</mat-icon>
+      <h1>Your card was saved successfully</h1>
+      <p class="card">
+        {{ result.cardType || 'Card' }} ending {{ result.lastFour }}
+        @if (result.expirationDate) { &middot; expires {{ result.expirationDate }} }
+      </p>
+      <p class="muted">Thank you. You may close this page.</p>
+    } @else {
+      <mat-icon class="icon error">error_outline</mat-icon>
+      <p class="error">{{ result.message }}</p>
+    }
+    @if (!inFrame && result.website) {
+      <p><a [href]="result.website">Continue to our website</a></p>
+    }
+  }
+</div>

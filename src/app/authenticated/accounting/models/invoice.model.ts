@@ -289,6 +289,8 @@ export interface InvoiceListDisplayRow extends Omit<InvoiceResponse, 'totalAmoun
   paidAmountDisplay: string;
   dueAmount: string;
   dueAmountValue: number;
+  // "EP" when the reservation is billed by credit card: the pay action charges the card through EasyPay.
+  payableBadge?: string | null;
   originalDueAmountValue?: number;
   applyAmount: string;
   applyAmountValue: number;

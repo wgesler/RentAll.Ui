@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { Subject, finalize, forkJoin, take, takeUntil } from 'rxjs';
 import { MaterialModule } from '../../../material.module';
-import { SendGridTemplateResponse, SendGridTemplateRow } from '../models/sendgrid-template.model';
+import { EmailTemplateResponse, SendGridTemplateRow } from '../models/sendgrid-template.model';
 import { SendGridTemplateService } from '../services/sendgrid-template.service';
 
 const SYSTEM_ORGANIZATION_ID = '99999999-9999-9999-9999-999999999999';
@@ -158,7 +158,7 @@ export class SendGridTemplateListComponent implements OnChanges, OnDestroy {
     });
   }
 
-  private find(templates: SendGridTemplateResponse[], emailName: string, officeId: number | null): SendGridTemplateResponse | null {
+  private find(templates: EmailTemplateResponse[], emailName: string, officeId: number | null): EmailTemplateResponse | null {
     return (templates || []).find(template =>
       template.emailName.toLowerCase() === emailName.toLowerCase()
       && (template.officeId ?? null) === officeId) || null;

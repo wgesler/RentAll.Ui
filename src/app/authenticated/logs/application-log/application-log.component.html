@@ -14,6 +14,19 @@
           <pre>{{ row.exception || '-' }}</pre>
         </div>
 
+        @for (block of jsonBlocks; track block.label) {
+          <div class="log-message-block">
+            <div class="json-block-header">
+              <strong>{{ block.label }}</strong>
+              <button mat-stroked-button type="button" (click)="copy(block)">
+                <mat-icon>{{ block.copied ? 'check' : 'content_copy' }}</mat-icon>
+                {{ block.copied ? 'Copied' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="json-block">{{ block.text }}</pre>
+          </div>
+        }
+
         <table class="log-detail-table">
           <tbody>
             @for (item of row | keyvalue; track item.key) {

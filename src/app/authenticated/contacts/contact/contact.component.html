@@ -907,7 +907,20 @@
                         <mat-panel-title class="contact-form-title">Bank Information</mat-panel-title>
                       </mat-expansion-panel-header>
                       <div class="flex items-center gap-1" [formGroup]="form">
-                        <div class="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid flex-1 grid-cols-1 md:grid-cols-5 gap-4">
+                          <mat-form-field appearance="outline">
+                            <mat-label>Name On Account</mat-label>
+                            <input matInput formControlName="nameOnAccount" maxlength="100" (blur)="onBankInformationBlur()" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>Account Type</mat-label>
+                            <mat-select formControlName="bankAccountTypeId" (selectionChange)="onBankInformationBlur()">
+                              <mat-option [value]="null">Select Account Type</mat-option>
+                              @for (bankAccountType of bankAccountTypeOptions; track bankAccountType.value) {
+                                <mat-option [value]="bankAccountType.value">{{ bankAccountType.label }}</mat-option>
+                              }
+                            </mat-select>
+                          </mat-form-field>
                           <mat-form-field appearance="outline">
                             <mat-label>Bank Name</mat-label>
                             <input matInput formControlName="bankName" maxlength="250" (blur)="onBankInformationBlur()" />

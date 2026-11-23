@@ -173,7 +173,20 @@ export interface ReservationResponse {
   modifiedBy?: string | null; 
 }
 
+/** ReservationPaymentLinkResponseDto: the pay-request page link sent in the payment email. */
+export interface ReservationPaymentLinkResponse {
+  paymentUrl: string;
+}
+
+/** Charge the reservation's saved EasyPay card (ChargeCardOnFileRequestDto). */
+export interface ChargeCardOnFileRequest {
+  amount: number;
+}
+
+/** ChargeCardOnFileResponseDto. */
 export interface ChargeCardOnFileResponse {
+  /** Approved, PartiallyApproved, Declined or Error (EasyPay couldn't process the request). */
+  status: string;
   approved: boolean;
   transactionId: number;
   requestedAmount: number;
@@ -181,6 +194,15 @@ export interface ChargeCardOnFileResponse {
   isPartialApproval: boolean;
   paymentId?: string | null;
   paymentCode?: string | null;
+  cardLabel?: string | null;
+  easyPayCode: number;
+  easyPayError?: string | null;
+  easyPayResponse?: string | null;
+  txnCode?: string | null;
+  avsResult?: string | null;
+  cvvResult?: string | null;
+  codeMeaning?: string | null;
+  suggestedAction?: string | null;
   message?: string | null;
 }
 
@@ -210,6 +232,7 @@ export interface ReservationListResponse {
   dailyRate: number;
   billingRate: number;
   billingTypeId: number;
+  billingMethodId: number;
   arrivalDate: CalendarDateString;
   departureDate: CalendarDateString;
   reservationTypeId: number;

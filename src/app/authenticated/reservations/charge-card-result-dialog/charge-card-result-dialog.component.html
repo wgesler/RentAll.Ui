@@ -1,0 +1,79 @@
+<div class="charge-result-wrap">
+  <div class="charge-result-header">
+    <span class="charge-result-title">
+      <mat-icon class="flex-shrink-0">credit_card</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">Charge Card on File</span>
+    </span>
+  </div>
+
+  <mat-dialog-content class="charge-result-content">
+    <div class="status {{ kind }}">
+      <mat-icon class="status-icon">{{ icon }}</mat-icon>
+      <div>
+        <div class="status-title">{{ title }}</div>
+        <div class="status-sub">Reservation <span class="nowrap">{{ data.reservationCode }}</span>
+          @if (response?.cardLabel) { &middot; {{ response?.cardLabel }} }
+        </div>
+      </div>
+    </div>
+
+    @if (response) {
+      <table class="details">
+        <tr><th>Requested</th><td>{{ response.requestedAmount | currency }}</td></tr>
+        <tr><th>Approved</th><td>{{ response.approvedAmount | currency }}</td></tr>
+        @if (kind === 'partial') {
+          <tr><th>Still owed</th><td class="warn">{{ remaining | currency }}</td></tr>
+        }
+        @if (response.paymentCode) {
+          <tr><th>Payment recorded</th><td>{{ response.paymentCode }}</td></tr>
+        }
+        @if (response.transactionId) {
+          <tr><th>EasyPay transaction</th><td>{{ response.transactionId }}</td></tr>
+        }
+      </table>
+
+      @if (response.codeMeaning || response.suggestedAction) {
+        <div class="explain {{ kind }}">
+          @if (response.codeMeaning) {
+            <div><strong>What this means:</strong> {{ response.codeMeaning }}</div>
+          }
+          @if (response.suggestedAction) {
+            <div><strong>What to do:</strong> {{ response.suggestedAction }}</div>
+          }
+        </div>
+      }
+
+      @if (response.message) {
+        <div class="explain warn">{{ response.message }}</div>
+      }
+
+      <div class="easypay">
+        <div class="easypay-heading">EasyPay response</div>
+        <table class="details small">
+          <tr><th>Code</th><td>{{ response.easyPayCode }}</td></tr>
+          @if (response.easyPayError) {
+            <tr><th>Error</th><td>{{ response.easyPayError }}</td></tr>
+          }
+          @if (response.easyPayResponse) {
+            <tr><th>Message</th><td>{{ response.easyPayResponse }}</td></tr>
+          }
+          @if (response.txnCode) {
+            <tr><th>Approval code</th><td>{{ response.txnCode }}</td></tr>
+          }
+          @if (response.avsResult) {
+            <tr><th>Address check (AVS)</th><td>{{ response.avsResult }}</td></tr>
+          }
+          @if (response.cvvResult) {
+            <tr><th>CVV check</th><td>{{ response.cvvResult }}</td></tr>
+          }
+        </table>
+      </div>
+    } @else {
+      <div class="explain error">{{ data.errorMessage }}</div>
+    }
+
+    <div class="charge-result-actions">
+      <button mat-raised-button type="button" color="primary" class="text-nowrap flex-shrink-0" (click)="onClose()">Close</button>
+    </div>
+  </mat-dialog-content>
+</div>

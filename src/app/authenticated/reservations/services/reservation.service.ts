@@ -7,7 +7,9 @@ import { AuthService } from '../../../services/auth.service';
 import { ConfigService } from '../../../services/config.service';
 import { MixedMappingService } from '../../../services/mixed-mapping.service';
 import {
+  ChargeCardOnFileRequest,
   ChargeCardOnFileResponse,
+  ReservationPaymentLinkResponse,
   ReservationCodeResponse,
   ReservationListResponse,
   ReservationActiveStateResponse,
@@ -276,16 +278,17 @@ export class ReservationService {
     return this.http.post<ReservationPaymentResponse[]>(this.controller + 'payment/apply-rent-change', request);
   }
 
-  createPaymentLink(reservationId: string): Observable<{ paymentUrl: string }> {
-    return this.http.post<{ paymentUrl: string }>(this.controller + reservationId + '/payment-link', {});
+  createPaymentLink(reservationId: string): Observable<ReservationPaymentLinkResponse> {
+    return this.http.post<ReservationPaymentLinkResponse>(this.controller + reservationId + '/payment-link', {});
   }
 
-  sendPaymentRequestEmail(reservationId: string): Observable<{ paymentUrl: string }> {
-    return this.http.post<{ paymentUrl: string }>(this.controller + reservationId + '/payment-request-email', {});
+  sendPaymentRequestEmail(reservationId: string): Observable<ReservationPaymentLinkResponse> {
+    return this.http.post<ReservationPaymentLinkResponse>(this.controller + reservationId + '/payment-request-email', {});
   }
 
   chargeCardOnFile(reservationId: string, amount: number): Observable<ChargeCardOnFileResponse> {
-    return this.http.post<ChargeCardOnFileResponse>(this.controller + reservationId + '/charge-card-on-file', { amount });
+    const request: ChargeCardOnFileRequest = { amount };
+    return this.http.post<ChargeCardOnFileResponse>(this.controller + reservationId + '/charge-card-on-file', request);
   }
 
   /** Rebuilds Accounting.Billed for active reservations in the selected offices (Missing Invoice report). */

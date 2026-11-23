@@ -677,6 +677,12 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
   }
 
   getButtonTooltip(buttonName: string, buttonTooltip: string, item: PurposefulAny): string {
+    if (buttonName === 'copy' && item?.copyTooltip) {
+      return String(item.copyTooltip);
+    }
+    if (buttonName === 'payable' && item?.payableBadge === 'EP') {
+      return 'Charge card on file (EasyPay)';
+    }
     if (buttonName === 'view' && item?.canView === false) {
       return 'This document type cannot be previewed';
     }

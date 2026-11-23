@@ -1,5 +1,5 @@
 /** A SendGrid dynamic template ID saved for an email, per organization and optionally per office. */
-export interface SendGridTemplateResponse {
+export interface EmailTemplateResponse {
   emailTemplateId: number;
   organizationId: string;
   officeId: number | null;
@@ -7,12 +7,12 @@ export interface SendGridTemplateResponse {
   templateId: string;
 }
 
-export interface SendGridTemplateNameResponse {
+export interface EmailTemplateNameResponse {
   emailName: string;
   displayName: string;
 }
 
-export interface SendGridTemplateSaveRequest {
+export interface EmailTemplateRequest {
   organizationId: string;
   officeId: number | null;
   emailName: string;
@@ -24,7 +24,7 @@ export interface SendGridTemplateRow {
   emailName: string;
   displayName: string;
   /** The row saved for exactly this scope, if any. */
-  saved: SendGridTemplateResponse | null;
+  saved: EmailTemplateResponse | null;
   /** What is in the input box. */
   templateId: string;
   /** When editing an office: the organization-wide template it falls back to. */

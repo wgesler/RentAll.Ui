@@ -1,0 +1,26 @@
+.pay-response {
+  max-width: 640px;
+  margin: 48px auto;
+  padding: 24px;
+  text-align: center;
+  color: #212121;
+
+  &.in-frame {
+    margin: 0 auto;
+    padding: 32px 16px;
+  }
+
+  .icon {
+    font-size: 80px;
+    width: 80px;
+    height: 80px;
+    color: #3f51b5;
+
+    &.error { color: #c62828; }
+  }
+
+  h1 { font-size: 22px; font-weight: 600; margin: 16px 0 8px; }
+  .card { font-size: 15px; font-weight: 500; margin: 0 0 16px; }
+  .muted { color: #666; }
+  .error { color: #c62828; }
+}

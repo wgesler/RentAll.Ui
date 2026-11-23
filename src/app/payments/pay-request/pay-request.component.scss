@@ -1,0 +1,414 @@
+// Payment request page, styled like the payment email: dark bars, centered logo, grey info bar, grey footer.
+// Colors are variables so a company's own copy only has to change these.
+:host {
+  --pay-bar-color: #212121;
+  --pay-accent-color: #3f51b5;
+  --pay-page-background: #f2f2f2;
+  --pay-panel-background: #eeeeee;
+  --pay-border-color: #e0e0e0;
+  --pay-text-color: #212121;
+  --pay-muted-color: #666666;
+
+  display: block;
+  min-height: 100vh;
+  background: var(--pay-page-background);
+}
+
+.pay-page {
+  padding: 32px 16px;
+}
+
+.pay-card {
+  max-width: 640px;
+  margin: 0 auto;
+  background: #ffffff;
+  color: var(--pay-text-color);
+  border: 1px solid var(--pay-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.bar {
+  height: 8px;
+  background: var(--pay-bar-color);
+}
+
+.brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 28px 24px 20px;
+
+  .logo {
+    max-height: 80px;
+    max-width: 260px;
+    object-fit: contain;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    text-align: center;
+  }
+}
+
+.info-bar {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--pay-panel-background);
+  border-top: 1px solid var(--pay-border-color);
+  border-bottom: 1px solid var(--pay-border-color);
+
+  tr:first-child th,
+  tr:first-child td { padding-top: 14px; }
+  tr:last-child th,
+  tr:last-child td { padding-bottom: 14px; }
+
+  th,
+  td {
+    text-align: left;
+    padding: 3px 0;
+    font-size: 15px;
+  }
+
+  th {
+    width: 1%;
+    white-space: nowrap;
+    padding-left: 32px;
+    padding-right: 12px;
+    font-weight: 500;
+    color: var(--pay-muted-color);
+  }
+
+  td {
+    font-weight: 600;
+    padding-right: 24px;
+  }
+}
+
+.body {
+  padding: 24px 32px 8px;
+
+  &.center {
+    text-align: center;
+    padding: 40px 32px;
+  }
+}
+
+.intro {
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+
+// Keeps the page the same height whichever option is picked (the card step is the tallest single step).
+.steps {
+  min-height: 470px;
+}
+
+.section {
+  border-top: 1px solid var(--pay-border-color);
+  padding: 20px 0;
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--pay-muted-color);
+  }
+}
+
+.step-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pay-accent-color);
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.method-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  .tile {
+    border: 1px solid var(--pay-border-color);
+    border-radius: 8px;
+    padding: 6px 8px;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+
+    &.selected {
+      border-color: var(--pay-accent-color);
+      background: color-mix(in srgb, var(--pay-accent-color) 6%, white);
+    }
+  }
+
+  .tile {
+    flex: 1 1 auto;
+  }
+
+  .tile-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+
+    mat-icon {
+      color: var(--pay-accent-color);
+    }
+  }
+}
+
+.frame-wrap {
+  border: 1px solid var(--pay-border-color);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.easypay-frame {
+  display: block;
+  width: 100%;
+  height: 340px;
+  border: 0;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-weight: 500;
+
+  &.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  &.error {
+    background: #fdecea;
+    color: #c62828;
+  }
+}
+
+.muted { color: var(--pay-muted-color); margin: 0; }
+.error { color: #c62828; }
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pay-muted-color);
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.secure {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  border-top: 1px solid var(--pay-border-color);
+  padding-top: 16px;
+  font-size: 12px;
+  color: var(--pay-muted-color);
+}
+
+.inline-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.footer {
+  padding: 18px 24px;
+  background: var(--pay-panel-background);
+  border-top: 1px solid var(--pay-border-color);
+  text-align: center;
+  font-size: 13px;
+  color: var(--pay-muted-color);
+
+  .footer-name {
+    font-weight: 600;
+    color: var(--pay-text-color);
+  }
+
+  .footer-small {
+    margin-top: 6px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 560px) {
+  .body { padding: 20px 18px 4px; }
+  .method-tiles { flex-direction: column; }
+}
+
+// Shown in place of everything below the info bar once the card is saved.
+.success-panel {
+  padding: 48px 32px 56px;
+  text-align: center;
+
+  .success-icon {
+    font-size: 88px;
+    width: 88px;
+    height: 88px;
+    color: var(--pay-accent-color);
+  }
+
+  .success-title {
+    margin: 16px 0 8px;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--pay-text-color);
+  }
+
+  .success-card {
+    margin: 0 0 20px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--pay-text-color);
+  }
+
+  .success-thanks {
+    margin: 0 auto;
+    max-width: 420px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--pay-muted-color);
+  }
+}
+
+// ACH Debit form.
+.ach-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ach-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ach-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--pay-muted-color);
+
+  input,
+  select {
+    height: 40px;
+    padding: 0 10px;
+    border: 1px solid var(--pay-border-color);
+    border-radius: 6px;
+    font-size: 15px;
+    color: var(--pay-text-color);
+    background: #ffffff;
+
+    &:focus {
+      outline: none;
+      border-color: var(--pay-accent-color);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--pay-accent-color) 20%, transparent);
+    }
+
+    &.valid {
+      border-color: #2e7d32;
+    }
+  }
+}
+
+.frame-wrap + .ach-authorize {
+  margin-top: 16px;
+}
+
+.frame-locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ach-input-wrap {
+  position: relative;
+  display: flex;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding-right: 40px;
+  }
+
+  input.ach-masked {
+    -webkit-text-security: disc;
+  }
+}
+
+.ach-field .ach-visibility-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  align-self: auto;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--pay-muted-color);
+  cursor: pointer;
+}
+
+.field-error {
+  color: #c62828;
+  font-size: 12px;
+}
+
+.field-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #2e7d32;
+  font-size: 12px;
+}
+
+.ach-authorize {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--pay-border-color);
+  border-radius: 8px;
+  background: var(--pay-panel-background);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--pay-text-color);
+
+  input {
+    margin-top: 3px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
+
+.ach-form button {
+  align-self: flex-start;
+}
+
+@media (max-width: 560px) {
+  .ach-row { grid-template-columns: minmax(0, 1fr); }
+}

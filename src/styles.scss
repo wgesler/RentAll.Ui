@@ -2820,3 +2820,36 @@ html.rentall-mobile-layout .mat-mdc-menu-panel.mobile-sidebar-tab-menu {
 html.rentall-mobile-layout .mat-mdc-menu-panel.mobile-sidebar-capture-menu {
   min-width: 200px;
 }
+/* ==========================================================================
+   Button press: replaces Angular Material's own press and focus effects.
+   - While the mouse is held down (:active) a button shows a greyed version of its own color
+     (grey-purple for primary, grey-accent for accent), and pops back the moment it is released.
+   - Material's click ripple is off for buttons.
+   - Material's focus shade is hidden after a mouse click, but still shows for keyboard
+     focus (:focus-visible) so tabbing through the page stays visible.
+   ========================================================================== */
+.mat-mdc-button-base:active:not(:disabled):not([aria-disabled="true"]) {
+  /* Pushed in: slight shrink, an inner shadow along the top edge, and a 40% white wash over the
+     button's own fill (60% its color + 40% white; the wash sits under the text). Change 0.96 for
+     more/less shrink, 0.4 for lighter (higher) or stronger color (lower). */
+  transform: scale(0.96) !important;
+  /* Layers, top first: a thin darker edge (so it reads as pressed, not disabled), the inner top shadow,
+     then the white wash. */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 100vmax rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Icon and text buttons have no fill to grey out, so give them a faint grey while pressed. */
+.mat-mdc-icon-button:active:not(:disabled):not([aria-disabled="true"]),
+.mat-mdc-button:active:not(:disabled):not([aria-disabled="true"]) {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.mat-mdc-button-base .mat-mdc-button-ripple {
+  display: none !important;
+}
+
+.mat-mdc-button-base:focus:not(:focus-visible) .mat-mdc-button-persistent-ripple::before,
+.mat-mdc-button-base:active .mat-mdc-button-persistent-ripple::before {
+  opacity: 0 !important;
+}

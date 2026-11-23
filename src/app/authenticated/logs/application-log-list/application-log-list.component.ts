@@ -9,6 +9,7 @@ import { DataTableFilterActionsDirective } from '../../shared/data-table/data-ta
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ApplicationLogResponse } from '../models/log.model';
 import { LogService } from '../services/log.service';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   standalone: true,
@@ -26,8 +27,9 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
   private logService = inject(LogService);
   private formatter = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);
+  private toastr = inject(ToastrService);
 
-  rows: Array<ApplicationLogResponse & { createdOnDate: string }> = [];
+  rows: Array<ApplicationLogResponse & { createdOnDate: string; copyHidden: boolean; copyTooltip: string }> = [];
   isLoading = false;
   isDeleting = false;
   errorMessage: string | null = null;
@@ -87,7 +89,10 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
       next: (rows: ApplicationLogResponse[]) => {
         this.rows = (rows || []).map(row => ({
           ...row,
-          createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-'
+          createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-',
+          // Copy button only on EasyPay rows: [EasyPayLog] calls and the webhooks EasyPay sends us.
+          copyHidden: !this.isEasyPayRow(row),
+          copyTooltip: 'Copy EasyPay request / response'
         }));
         if (emitCallback) {
           this.listActionCompleted.emit();
@@ -102,6 +107,47 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
   //#endregion
 
   //#region Utility Methods
+  /** EasyPay rows: [EasyPayLog] calls we make, and the webhooks EasyPay sends us ([NumberPayment] Step=Raw). */
+  isEasyPayRow(row: ApplicationLogResponse): boolean {
+    const message = row?.message ?? '';
+    return message.startsWith('[EasyPayLog]') || message.startsWith('[NumberPayment] Step=Raw');
+  }
+
+  /** Copies an EasyPay row as email-ready text: the call, then the request and response JSON, formatted. */
+  copyEasyPayRow(row: ApplicationLogResponse): void {
+    let properties: Record<string, unknown> = {};
+    try {
+      properties = JSON.parse(row.properties || '{}') as Record<string, unknown>;
+    } catch {
+      properties = {};
+    }
+    const pretty = (value: unknown): string => {
+      const text = typeof value === 'string' ? value : '';
+      if (!text) {
+        return '(none)';
+      }
+      try {
+        return JSON.stringify(JSON.parse(text), null, 2);
+      } catch {
+        return text;
+      }
+    };
+
+    const lines: string[] = [];
+    if (row.message?.startsWith('[EasyPayLog]')) {
+      lines.push(`EasyPay call: ${properties['Method'] ?? ''} ${properties['Url'] ?? ''}`.trim());
+      lines.push(`Status: ${properties['Status'] ?? properties['Error'] ?? ''}   Time: ${row.createdOn}`);
+      lines.push('', 'Request:', pretty(properties['Request']), '', 'Response:', pretty(properties['Response']));
+    } else {
+      lines.push('Received from EasyPay (webhook)', `Time: ${row.createdOn}`, '', 'Body:', pretty(properties['Body']));
+    }
+
+    navigator.clipboard.writeText(lines.join('\n')).then(
+      () => this.toastr.success('EasyPay request / response copied.'),
+      () => this.toastr.error('Could not copy to the clipboard.')
+    );
+  }
+
   ngOnDestroy(): void {}
   //#endregion
 }

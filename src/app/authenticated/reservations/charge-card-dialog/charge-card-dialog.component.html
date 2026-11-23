@@ -8,16 +8,16 @@
 
   <mat-dialog-content class="charge-card-dialog-content">
     <p class="charge-card-dialog__intro">
-      Charge the card Number saved for reservation {{ data.reservationCode }}. The approved amount is applied to its unpaid invoices, oldest first.
+      Charge the card Number saved for reservation <span style="white-space: nowrap;">{{ data.reservationCode }}</span>.
     </p>
 
     <form [formGroup]="form" class="charge-card-dialog__form form-hide-error-text" (ngSubmit)="onConfirm()">
       <mat-form-field appearance="outline" class="charge-card-dialog__field">
         <mat-label>Amount</mat-label>
         <span matTextPrefix>$&nbsp;</span>
-        <input matInput type="number" min="0.01" step="0.01" formControlName="amount" inputmode="decimal">
+        <input matInput type="text" formControlName="amount" inputmode="decimal" autocomplete="off" (blur)="formatAmount()">
         @if (form.get('amount')?.invalid && form.get('amount')?.touched) {
-          <mat-error>Enter an amount greater than zero</mat-error>
+          <mat-error>Enter an amount greater than zero, like 1250.00</mat-error>
         }
       </mat-form-field>
     </form>

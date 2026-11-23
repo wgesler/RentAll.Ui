@@ -1,0 +1,112 @@
+// Same frame as the Charge Card on File dialog.
+.charge-result-wrap {
+  background: #fff;
+  font-family: "Poppins", "Helvetica Neue", sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+  min-width: min(100%, 30rem);
+}
+
+.charge-result-header {
+  display: flex;
+  align-items: center;
+  background-color: #cbd5e1;
+  padding: 0 1rem;
+  height: 62px;
+  box-sizing: border-box;
+}
+
+.charge-result-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.charge-result-content {
+  padding: 1rem 1.75rem 1.25rem;
+  max-height: 78vh;
+  overflow: auto;
+}
+
+:host ::ng-deep .charge-result-content.mat-mdc-dialog-content {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: #212121;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+
+  .status-icon { font-size: 36px; width: 36px; height: 36px; }
+  .status-title { font-size: 18px; font-weight: 600; }
+  .status-sub { font-size: 13px; opacity: 0.85; }
+
+  // One soft blue for every outcome; only the icon carries the status color.
+  background: #eaf1fb;
+  color: #1f3b57;
+
+  &.approved .status-icon { color: #2e7d32; }
+  &.partial .status-icon { color: #b26a00; }
+  &.declined .status-icon,
+  &.error .status-icon { color: #c62828; }
+}
+
+.nowrap { white-space: nowrap; }
+
+.details {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+
+  th, td { text-align: left; padding: 4px 0; vertical-align: top; }
+  // Labels only as wide as they need, so each value sits right next to its label.
+  th { width: 1%; white-space: nowrap; padding-right: 24px; font-weight: 500; color: #555; }
+  td { font-weight: 500; }
+  .warn { color: #b26a00; }
+
+  &.small {
+    font-size: 13px;
+    margin-bottom: 0;
+    th { padding-right: 16px; }
+    td { font-weight: 400; word-break: break-word; }
+  }
+}
+
+.explain {
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  font-size: 14px;
+  background: #f3f7fd;
+  color: #1f3b57;
+  border: 1px solid #dbe6f5;
+  div + div { margin-top: 4px; }
+}
+
+.easypay {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 0.75rem;
+
+  .easypay-heading {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 4px;
+  }
+}
+
+.charge-result-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+
+  button { margin: 0 !important; }
+}

@@ -4,6 +4,7 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, On
 import { AbstractControl, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { ChargeCardDialogComponent, ChargeCardDialogData, ChargeCardDialogResult } from '../charge-card-dialog/charge-card-dialog.component';
+import { ChargeCardResultDialogComponent, ChargeCardResultDialogData } from '../charge-card-result-dialog/charge-card-result-dialog.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { BehaviorSubject, EMPTY, Subject, catchError, concatMap, filter, finalize, firstValueFrom, forkJoin, from, map, of, pairwise, skip, startWith, switchMap, take, takeUntil, tap, toArray } from 'rxjs';
@@ -1016,8 +1017,26 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       return;
     }
 
+    // Start the amount at what's still owed on the reservation's active invoices (same as the API's unpaid total).
+    const officeId = Number(this.reservation?.officeId ?? this.form.get('officeId')?.value ?? 0);
+    if (officeId <= 0) {
+      this.openChargeCardDialog(reservationId, 0);
+      return;
+    }
+    this.invoiceService.getInvoicesByReservationId(reservationId, [officeId]).pipe(take(1)).subscribe({
+      next: invoices => {
+        const outstanding = (invoices || [])
+          .filter(invoice => invoice.isActive)
+          .reduce((sum, invoice) => sum + Math.max(0, Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0)), 0);
+        this.openChargeCardDialog(reservationId, Math.round(outstanding * 100) / 100);
+      },
+      error: () => this.openChargeCardDialog(reservationId, 0)
+    });
+  }
+
+  openChargeCardDialog(reservationId: string, suggestedAmount: number): void {
     const dialogRef = this.dialog.open<ChargeCardDialogComponent, ChargeCardDialogData, ChargeCardDialogResult | undefined>(ChargeCardDialogComponent, {
-      data: { reservationCode: this.reservation?.reservationCode || '', suggestedAmount: 0 },
+      data: { reservationCode: this.reservation?.reservationCode || '', suggestedAmount },
       autoFocus: 'first-tabbable'
     });
 
@@ -1026,28 +1045,22 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         return;
       }
       this.isChargingCard = true;
+      this.markViewForCheck();
       this.reservationService.chargeCardOnFile(reservationId, result.amount).pipe(take(1), finalize(() => {
         this.isChargingCard = false;
+        this.markViewForCheck();
       })).subscribe({
-        next: (response) => {
-          const approved = Number(response?.approvedAmount || 0).toFixed(2);
-          if (!response?.paymentId) {
-            // Charged, but the payment wasn't recorded: staff must record it by hand.
-            this.toastr.warning(response?.message || `Card charged $${approved}, but the payment was not recorded.`, CommonMessage.Error, { timeOut: 0, extendedTimeOut: 0 });
-            return;
-          }
-          if (response.isPartialApproval) {
-            this.toastr.warning(`Partial approval: $${approved} of $${Number(response.requestedAmount).toFixed(2)} was charged and applied.`, CommonMessage.Success, { timeOut: 0, extendedTimeOut: 0 });
-            return;
-          }
-          this.toastr.success(`Card charged $${approved} and applied to invoices.`, CommonMessage.Success, { timeOut: CommonTimeouts.Success });
-        },
-        error: (err: HttpErrorResponse) => {
-          const body = err?.error as { message?: string; Message?: string } | string | null;
-          const message = typeof body === 'string' ? body : String(body?.message || body?.Message || 'The card could not be charged.');
-          this.toastr.error(message, CommonMessage.Error);
-        }
+        next: (response) => this.openChargeCardResultDialog({ reservationCode: this.reservation?.reservationCode || '', response }),
+        error: (err: HttpErrorResponse) => this.openChargeCardResultDialog(ChargeCardResultDialogComponent.fromHttpError(this.reservation?.reservationCode || '', err))
       });
+    });
+  }
+
+  /** Shows EasyPay's answer (approved, partial, declined or error) in a dialog staff can read, instead of a toast. */
+  openChargeCardResultDialog(data: ChargeCardResultDialogData): void {
+    this.dialog.open<ChargeCardResultDialogComponent, ChargeCardResultDialogData>(ChargeCardResultDialogComponent, {
+      data,
+      autoFocus: 'first-tabbable'
     });
   }
 
