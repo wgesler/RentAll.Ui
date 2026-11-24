@@ -67,6 +67,15 @@ export class DocumentHtmlService {
         margin: 0 !important;
         padding: 0 !important;
       }
+
+      /* The footer bar never sits alone on a page: it stays with the content just above it (the signatures). */
+      #footer,
+      table#footer {
+        page-break-before: avoid !important;
+        break-before: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
     `;
 
     if (!preserveTemplatePageSetup) {
@@ -179,6 +188,23 @@ export class DocumentHtmlService {
       table#header {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+      }
+
+      /* Lease sections may continue onto the next page (no half-empty pages); a heading stays with its text. */
+      .lease-section {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+      }
+
+      .lease-section h2 {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      /* The templates wrap the footer table in a <p>; the browser leaves that <p> empty above the footer, where
+         it would otherwise allow the footer to be split from the signatures. */
+      p:empty:not(.breakhere) {
+        display: none !important;
       }
       `;
     }

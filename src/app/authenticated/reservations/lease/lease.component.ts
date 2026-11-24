@@ -1705,9 +1705,11 @@ export class LeaseComponent extends BaseDocumentComponent implements OnInit, OnD
     if (!this.hasMeaningfulLeaseSectionContent(content)) {
       return '';
     }
+    // lease-section, not keep-together: a long section (Indemnification, Default, Miscellaneous) may continue on the
+    // next page instead of jumping whole and leaving the page half empty. Its heading stays with its first lines.
     return wrapInParagraph
-      ? `<div class="keep-together"><h2>${title}</h2><p>${content}</p></div>`
-      : `<div class="keep-together"><h2>${title}</h2>${content}<br><br></div>`;
+      ? `<div class="lease-section"><h2>${title}</h2><p>${content}</p></div>`
+      : `<div class="lease-section"><h2>${title}</h2>${content}<br><br></div>`;
   }
 
   hasMeaningfulLeaseSectionContent(content: string | null | undefined): boolean {
