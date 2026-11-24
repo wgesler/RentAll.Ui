@@ -11,6 +11,8 @@ export interface ChargeCardResultDialogData {
   response?: ChargeCardOnFileResponse | null;
   /** RentAll's reason, when the charge never reached Number (no card on file, no unpaid invoices, network...). */
   errorMessage?: string | null;
+  /** ACH Debit of the saved bank account instead of a card charge. */
+  isAch?: boolean;
 }
 
 type ResultKind = 'approved' | 'partial' | 'declined' | 'error';
@@ -39,12 +41,9 @@ export class ChargeCardResultDialogComponent {
     : this.response.status === 'Declined' ? 'declined'
     : 'error';
 
-  readonly title = {
-    approved: 'Charge approved',
-    partial: 'Partially approved',
-    declined: 'Charge declined',
-    error: 'Charge not completed'
-  }[this.kind];
+  readonly title = (this.data.isAch
+    ? { approved: 'Debit accepted', partial: 'Partially accepted', declined: 'Debit declined', error: 'Debit not completed' }
+    : { approved: 'Charge approved', partial: 'Partially approved', declined: 'Charge declined', error: 'Charge not completed' })[this.kind];
 
   readonly icon = {
     approved: 'check_circle',
@@ -58,17 +57,19 @@ export class ChargeCardResultDialogComponent {
   }
 
   /** Builds the dialog data for a failed request (any HTTP error), so every outcome opens the dialog. */
-  static fromHttpError(reservationCode: string, err: HttpErrorResponse): ChargeCardResultDialogData {
+  static fromHttpError(reservationCode: string, err: HttpErrorResponse, isAch = false): ChargeCardResultDialogData {
     const body = err?.error as (Partial<ChargeCardOnFileResponse> & { message?: string; Message?: string }) | string | null;
     if (body && typeof body === 'object' && typeof body.status === 'string') {
-      return { reservationCode, response: body as ChargeCardOnFileResponse };
+      return { reservationCode, response: body as ChargeCardOnFileResponse, isAch };
     }
     const text = typeof body === 'string' && body.trim()
       ? body
       : (body && typeof body === 'object' ? String(body.message || body.Message || '') : '');
     return {
       reservationCode,
-      errorMessage: text || (err?.status === 0 ? 'RentAll could not be reached. Check the connection and try again.' : 'The card could not be charged.')
+      isAch,
+      errorMessage: text || (err?.status === 0 ? 'RentAll could not be reached. Check the connection and try again.'
+        : isAch ? 'The bank account could not be debited.' : 'The card could not be charged.')
     };
   }
 

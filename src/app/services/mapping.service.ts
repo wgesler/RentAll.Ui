@@ -10960,6 +10960,26 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
     const startDateRaw = String(line?.startDate || '').trim() || null;
     const startDate = this.utility.parseDateOnlyStringToDate(startDateRaw) || null;
     const endDate = this.utility.parseDateOnlyStringToDate(line?.endDate) || null;
+
+    // A daily rate is billed by calendar month: the start month on the start date, then the 1st of each month,
+    // each for the days the line covers that month (e.g. 10/15-12/14 bills 10/15-10/31, 11/01-11/30, 12/01-12/14).
+    if (!hasMonthlyAmount && hasDailyAmount) {
+      return this.buildRentRollDailyBillDates(rangeStartDate, rangeEndDate, startDate, endDate)
+        .map(billDate => this.mapRentRollRow(
+          propertyId,
+          propertyCode,
+          officeId,
+          line,
+          billDate,
+          0,
+          dailyAmount,
+          hasDepositAmount ? depositAmount : 0,
+          hasOneTimeAmount ? oneTimeAmount : 0,
+          startDate
+        ))
+        .filter((row): row is RentRollRow => !!row);
+    }
+
     const billDayOfMonth = this.resolveRentRollBillDay(startDateRaw, startDate);
     const occurrences = this.buildRentRollOccurrenceDates(rangeStartDate, rangeEndDate, billDayOfMonth);
 
@@ -11053,7 +11073,6 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
       isRent,
       monthlyAmount,
       dailyAmount,
-      daysInOccurrenceMonth,
       serviceDaysInOccurrenceMonth,
       startDate,
       endDate,
@@ -11078,9 +11097,7 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
     }
 
     if (dailyAmount > 0) {
-      if (!isRent) {
-        return dailyAmount * daysInOccurrenceMonth;
-      }
+      // Billed for the days the line covers in the month (start and end day included), rent or not.
       return dailyAmount * Math.max(serviceDaysInOccurrenceMonth, 0);
     }
 
@@ -11150,6 +11167,26 @@ getApAgingBillPaidAmountForDetail(receipt: ReceiptResponse, asOfDate: string): n
       return Number.isFinite(day) && day >= 1 && day <= 31 ? day : null;
     }
     return null;
+  }
+
+  /**
+   * Bill dates for a daily-rate line: one per calendar month in the range that the line covers. The start month bills
+   * on the start date; every later month bills on the 1st.
+   */
+  buildRentRollDailyBillDates(rangeStartDate: Date, rangeEndDate: Date, startDate: Date | null, endDate: Date | null): Date[] {
+    const dates: Date[] = [];
+    let month = new Date(rangeStartDate.getFullYear(), rangeStartDate.getMonth(), 1);
+    const lastMonth = new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth(), 1);
+    while (month.getTime() <= lastMonth.getTime()) {
+      const monthEnd = this.getMonthEnd(month);
+      const coversMonth = (!startDate || startDate.getTime() <= monthEnd.getTime())
+        && (!endDate || endDate.getTime() >= month.getTime());
+      if (coversMonth) {
+        dates.push(startDate && this.isSameYearMonth(month, startDate) ? new Date(startDate.getTime()) : new Date(month.getTime()));
+      }
+      month = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+    }
+    return dates;
   }
 
   buildRentRollOccurrenceDates(rangeStartDate: Date, rangeEndDate: Date, billDayOfMonth: number): Date[] {

@@ -36,13 +36,14 @@ export class PayRequestService {
     return this.rawHttp.post<PayRequestAchResponse>(this.controller + 'pay-request/' + encodeURIComponent(token) + '/ach', request);
   }
 
-  sendPayResponse(token: string, txId: string | null, consentId: string | null): Observable<PayResponseResponse> {
+  /** Passes on everything Number put on the return URL (TXID and CID are read; the rest is logged), plus the raw URL ending. */
+  sendPayResponse(token: string, query: Record<string, string>, raw: string): Observable<PayResponseResponse> {
     let params = new HttpParams();
-    if (txId) {
-      params = params.set('TXID', txId);
+    for (const [key, value] of Object.entries(query)) {
+      params = params.set(key, value);
     }
-    if (consentId) {
-      params = params.set('CID', consentId);
+    if (raw) {
+      params = params.set('Raw', raw);
     }
     return this.rawHttp.get<PayResponseResponse>(this.controller + 'pay-response/' + encodeURIComponent(token), { params });
   }

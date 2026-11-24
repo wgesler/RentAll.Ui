@@ -34,7 +34,7 @@ export class DatabaseErrorLogListComponent implements OnInit, OnChanges, OnDestr
   columns: ColumnSet = {
     tableName: { displayAs: 'Table Name', maxWidth: '20ch' },
     message: { displayAs: 'Message', maxWidth: '50ch' },
-    createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
+    createdOnDate: { displayAs: 'Created On', maxWidth: '22ch' }
   };
 
   //#region Database-Error-Log-List
@@ -86,7 +86,7 @@ export class DatabaseErrorLogListComponent implements OnInit, OnChanges, OnDestr
       next: (rows: DatabaseErrorLogResponse[]) => {
         this.rows = (rows || []).map(row => ({
           ...row,
-          createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-'
+          createdOnDate: this.formatter.formatDateTimeOffsetAsDateTime(row.createdOn) || '-'
         }));
         if (emitCallback) {
           this.listActionCompleted.emit();

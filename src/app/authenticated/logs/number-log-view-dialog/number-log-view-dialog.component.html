@@ -1,0 +1,22 @@
+<div class="flex flex-row flex-wrap">
+  <div class="flex flex-1 justify-between items-center bg-slate-200 rounded-t-lg p-3">
+    <span class="text-2xl items-center flex gap-2 ml-1">
+      <mat-icon>visibility</mat-icon>
+      {{ data.title }}
+    </span>
+  </div>
+  <mat-dialog-content class="flex-shrink-0 w-full">
+    <pre class="number-log-text">{{ data.text }}</pre>
+  </mat-dialog-content>
+  <mat-divider class="flex-shrink-0 w-full" />
+  <div class="flex flex-1 justify-end gap-3 p-3">
+    <button mat-raised-button color="accent" type="button" (click)="close()">
+      <mat-icon>close</mat-icon>
+      Close
+    </button>
+    <button mat-raised-button cdkFocusInitial color="primary" type="button" (click)="copy()">
+      <mat-icon>file_copy</mat-icon>
+      Copy
+    </button>
+  </div>
+</div>

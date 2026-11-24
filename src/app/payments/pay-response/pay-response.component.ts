@@ -34,7 +34,6 @@ export class PayResponseComponent implements OnInit {
   ngOnInit(): void {
     const token = (this.route.snapshot.paramMap.get('token') || '').trim();
     const query = this.route.snapshot.queryParamMap;
-    const txId = query.get('TXID');
     const consentId = query.get('CID');
 
     if (!token) {
@@ -43,7 +42,13 @@ export class PayResponseComponent implements OnInit {
       return;
     }
 
-    this.payRequestService.sendPayResponse(token, txId, consentId).pipe(take(1)).subscribe({
+    const allQuery: Record<string, string> = {};
+    for (const key of query.keys) {
+      allQuery[key] = query.get(key) ?? '';
+    }
+    // Everything after the path, in case Number returns something that isn't a normal query value.
+    const raw = window.location.search + window.location.hash;
+    this.payRequestService.sendPayResponse(token, allQuery, raw).pipe(take(1)).subscribe({
       next: (result) => {
         this.result = result;
         this.isLoading = false;
@@ -52,7 +57,9 @@ export class PayResponseComponent implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.isLoading = false;
-        this.errorMessage = typeof err?.error === 'string' && err.error.trim() ? err.error : 'Your details could not be confirmed. Please contact us.';
+        // The API answers with text (400) or an ErrorResponseDto { message } (500).
+        const apiMessage = typeof err?.error === 'string' ? err.error : (err?.error as { message?: string } | null)?.message;
+        this.errorMessage = apiMessage?.trim() || 'Your details could not be confirmed. Please contact us.';
         this.notifyParent({ saved: false, consentId: Number(consentId) || 0, message: this.errorMessage });
         this.cdr.markForCheck();
       }

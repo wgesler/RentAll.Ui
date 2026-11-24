@@ -176,10 +176,12 @@
   padding: 12px;
 }
 
+// Fits Number's whole card form (name, zip, email, card number, expiration and CVV, save-card box, Save Card button)
+// without scrolling.
 .number-frame {
   display: block;
   width: 100%;
-  height: 340px;
+  height: 540px;
   border: 0;
 }
 

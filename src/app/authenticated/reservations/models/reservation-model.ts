@@ -115,6 +115,8 @@ export interface ReservationResponse {
   currentInvoiceNo: number;
   /** Number saved a card for this reservation. */
   hasNumberCardOnFile?: boolean;
+  /** The tenant contact has a bank account saved with Number (ACH consent). */
+  hasNumberBankOnFile?: boolean;
   billingMethodId: number;
   prorateTypeId: number;
   billingTypeId: number;

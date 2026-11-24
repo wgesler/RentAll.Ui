@@ -1006,12 +1006,22 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
 
   isChargingCard = false;
 
-  /** Number office, and Number has saved a card for this reservation. */
+  /** Number office, billed by card, and Number has saved a card for this reservation. */
   showChargeCardOnFile(): boolean {
-    return this.showSendPaymentEmail() && !!this.reservation?.hasNumberCardOnFile;
+    return this.showSendPaymentEmail() && !this.isAchBilling() && !!this.reservation?.hasNumberCardOnFile;
   }
 
-  chargeCardOnFile(): void {
+  /** Number office, billed by ACH Debit, and the tenant has a bank account saved with Number. */
+  showChargeBankOnFile(): boolean {
+    return this.showSendPaymentEmail() && this.isAchBilling() && !!this.reservation?.hasNumberBankOnFile;
+  }
+
+  isAchBilling(): boolean {
+    return Number(this.form?.get('billingMethodId')?.value) === BillingMethod.AchDebit;
+  }
+
+  /** Charges the saved card, or debits the saved bank account (ACH Debit), for an amount staff confirm. */
+  chargeCardOnFile(isAch = false): void {
     const reservationId = String(this.reservation?.reservationId || this.reservationId || '').trim();
     if (!reservationId || reservationId === 'new' || this.isChargingCard) {
       return;
@@ -1020,7 +1030,7 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
     // Start the amount at what's still owed on the reservation's active invoices (same as the API's unpaid total).
     const officeId = Number(this.reservation?.officeId ?? this.form.get('officeId')?.value ?? 0);
     if (officeId <= 0) {
-      this.openChargeCardDialog(reservationId, 0);
+      this.openChargeCardDialog(reservationId, 0, isAch);
       return;
     }
     this.invoiceService.getInvoicesByReservationId(reservationId, [officeId]).pipe(take(1)).subscribe({
@@ -1028,15 +1038,15 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
         const outstanding = (invoices || [])
           .filter(invoice => invoice.isActive)
           .reduce((sum, invoice) => sum + Math.max(0, Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0)), 0);
-        this.openChargeCardDialog(reservationId, Math.round(outstanding * 100) / 100);
+        this.openChargeCardDialog(reservationId, Math.round(outstanding * 100) / 100, isAch);
       },
-      error: () => this.openChargeCardDialog(reservationId, 0)
+      error: () => this.openChargeCardDialog(reservationId, 0, isAch)
     });
   }
 
-  openChargeCardDialog(reservationId: string, suggestedAmount: number): void {
+  openChargeCardDialog(reservationId: string, suggestedAmount: number, isAch = false): void {
     const dialogRef = this.dialog.open<ChargeCardDialogComponent, ChargeCardDialogData, ChargeCardDialogResult | undefined>(ChargeCardDialogComponent, {
-      data: { reservationCode: this.reservation?.reservationCode || '', suggestedAmount },
+      data: { reservationCode: this.reservation?.reservationCode || '', suggestedAmount, isAch },
       autoFocus: 'first-tabbable'
     });
 
@@ -1046,12 +1056,15 @@ export class ReservationComponent implements OnInit, OnChanges, OnDestroy, CanCo
       }
       this.isChargingCard = true;
       this.markViewForCheck();
-      this.reservationService.chargeCardOnFile(reservationId, result.amount).pipe(take(1), finalize(() => {
+      const charge$ = isAch
+        ? this.reservationService.chargeBankOnFile(reservationId, result.amount)
+        : this.reservationService.chargeCardOnFile(reservationId, result.amount);
+      charge$.pipe(take(1), finalize(() => {
         this.isChargingCard = false;
         this.markViewForCheck();
       })).subscribe({
-        next: (response) => this.openChargeCardResultDialog({ reservationCode: this.reservation?.reservationCode || '', response }),
-        error: (err: HttpErrorResponse) => this.openChargeCardResultDialog(ChargeCardResultDialogComponent.fromHttpError(this.reservation?.reservationCode || '', err))
+        next: (response) => this.openChargeCardResultDialog({ reservationCode: this.reservation?.reservationCode || '', response, isAch }),
+        error: (err: HttpErrorResponse) => this.openChargeCardResultDialog(ChargeCardResultDialogComponent.fromHttpError(this.reservation?.reservationCode || '', err, isAch))
       });
     });
   }

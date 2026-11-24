@@ -36,7 +36,7 @@ export class PropertyUploadLogListComponent implements OnInit, OnChanges, OnDest
     eventType: { displayAs: 'Event', maxWidth: '12ch' },
     status: { displayAs: 'Status', maxWidth: '10ch' },
     message: { displayAs: 'Message', maxWidth: '60ch' },
-    createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
+    createdOnDate: { displayAs: 'Created On', maxWidth: '22ch' }
   };
 
   //#region Property-Upload-Log-List
@@ -89,7 +89,7 @@ export class PropertyUploadLogListComponent implements OnInit, OnChanges, OnDest
         this.rows = (rows || []).map(row => ({
           ...row,
           propertyCode: row.propertyCode || '-',
-          createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-'
+          createdOnDate: this.formatter.formatDateTimeOffsetAsDateTime(row.createdOn) || '-'
         }));
         if (emitCallback) {
           this.listActionCompleted.emit();

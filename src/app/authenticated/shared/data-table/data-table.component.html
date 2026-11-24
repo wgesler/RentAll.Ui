@@ -206,7 +206,7 @@
                             Fix
                           }
                         </button>
-                      } @else if (!(button.name === 'info' && item?.infoHidden === true) && !(button.name === 'copy' && item?.copyHidden === true) && button.name !== 'fix') {
+                      } @else if (!(button.name === 'info' && item?.infoHidden === true) && !(button.name === 'copy' && item?.copyHidden === true) && !(button.name === 'view' && item?.viewHidden === true) && button.name !== 'fix') {
                         <span [matTooltip]="getButtonTooltip(button.name, button.tooltip, item)"
                           [matTooltipClass]="button.name === 'info' ? infoTooltipClass : ''"
                           [matTooltipPosition]="button.tooltipPosition || 'above'"

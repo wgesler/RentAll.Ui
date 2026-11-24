@@ -8,6 +8,8 @@ export interface ChargeCardDialogData {
   reservationCode: string;
   /** Unpaid invoice balance, offered as the starting amount. */
   suggestedAmount: number;
+  /** ACH Debit of the saved bank account instead of a card charge. */
+  isAch?: boolean;
 }
 
 export interface ChargeCardDialogResult {

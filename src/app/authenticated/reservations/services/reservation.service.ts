@@ -291,6 +291,12 @@ export class ReservationService {
     return this.http.post<ChargeCardOnFileResponse>(this.controller + reservationId + '/charge-card-on-file', request);
   }
 
+  /** ACH Debit: debits the tenant's bank account saved with Number. Same request and response as the card charge. */
+  chargeBankOnFile(reservationId: string, amount: number): Observable<ChargeCardOnFileResponse> {
+    const request: ChargeCardOnFileRequest = { amount };
+    return this.http.post<ChargeCardOnFileResponse>(this.controller + reservationId + '/charge-bank-on-file', request);
+  }
+
   /** Rebuilds Accounting.Billed for active reservations in the selected offices (Missing Invoice report). */
   setBilledIgnore(billedId: number, ignore: boolean): Observable<BilledMatchupResponse> {
     if (billedId <= 0) {

@@ -47,7 +47,7 @@ export class AccountingLogListComponent implements OnInit, OnChanges, OnDestroy 
     secondPeriodDisplay: { displayAs: 'Second', maxWidth: '10ch' },
     secondAmountDisplay: { displayAs: 'Amount', maxWidth: '12ch', alignment: 'left', headerAlignment: 'left' },
     message: { displayAs: 'Message', maxWidth: '40ch' },
-    createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
+    createdOnDate: { displayAs: 'Created On', maxWidth: '22ch' }
   };
 
   //#region Accounting-Log-List
@@ -155,7 +155,7 @@ export class AccountingLogListComponent implements OnInit, OnChanges, OnDestroy 
         ...row,
         propertyCodeDisplay: propertyCodeById.get(propertyId) || '-',
         invoiceCodeDisplay: invoiceCodeById.get(invoiceId) || '-',
-        createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-',
+        createdOnDate: this.formatter.formatDateTimeOffsetAsDateTime(row.createdOn) || '-',
         firstPeriodDisplay: this.formatPeriodAsMonthYear(row.firstPeriod),
         secondPeriodDisplay: this.formatPeriodAsMonthYear(row.secondPeriod),
         originalAmountDisplay: this.formatCurrencyAmount(row.originalAmount),

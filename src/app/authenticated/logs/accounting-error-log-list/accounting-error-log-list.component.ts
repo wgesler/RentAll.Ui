@@ -38,7 +38,7 @@ export class AccountingErrorLogListComponent implements OnInit, OnChanges, OnDes
     accountingPeriodDisplay: { displayAs: 'Period', maxWidth: '12ch' },
     amountDisplay: { displayAs: 'Amount', maxWidth: '12ch', alignment: 'left', headerAlignment: 'left' },
     message: { displayAs: 'Message', maxWidth: '100ch' },
-    createdOnDate: { displayAs: 'Created On', maxWidth: '16ch', alignment: 'center', headerAlignment: 'center' }
+    createdOnDate: { displayAs: 'Created On', maxWidth: '22ch', alignment: 'center', headerAlignment: 'center' }
   };
 
   //#region Accounting-Error-Log-List
@@ -93,7 +93,7 @@ export class AccountingErrorLogListComponent implements OnInit, OnChanges, OnDes
           sourceType: getSourceTypeLabel(row.sourceTypeId, SourceTypeLabels),
           amountDisplay: row.amount === null || row.amount === undefined ? '-' : this.formatter.currencyUsd(Number(row.amount)),
           accountingPeriodDisplay: this.formatPeriodAsMonthYear(row.accountingPeriod),
-          createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-'
+          createdOnDate: this.formatter.formatDateTimeOffsetAsDateTime(row.createdOn) || '-'
         }));
         if (emitCallback) {
           this.listActionCompleted.emit();

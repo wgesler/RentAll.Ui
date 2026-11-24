@@ -196,6 +196,18 @@ export class FormatterService {
         return this.datePipe.transform(fromCalendar, 'MM/dd/yyyy') || '';
     }
 
+    /** `DateTimeOffset` / ISO string → local `MM/dd/yyyy h:mm:ss a` (e.g. 11/23/2026 9:24:15 AM), for log timestamps. */
+    formatDateTimeOffsetAsDateTime(value?: string | null): string {
+        if (!value) {
+            return '';
+        }
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+            return '';
+        }
+        return this.datePipe.transform(date, 'MM/dd/yyyy h:mm:ss a') || '';
+    }
+
     /** Calendar **DATE** (`YYYY-MM-DD`) → `MM/yyyy` for accounting period display. */
     formatAccountingPeriodMonthYear(calendarDate?: string | null): string {
         if (!calendarDate) {

@@ -49,7 +49,7 @@ export class GeneralErrorLogListComponent implements OnInit, OnChanges, OnDestro
     invoiceCodeDisplay: { displayAs: 'Invoice', maxWidth: '20ch' },
     receiptCodeDisplay: { displayAs: 'Receipt', maxWidth: '12ch' },
     message: { displayAs: 'Message', maxWidth: '45ch' },
-    createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
+    createdOnDate: { displayAs: 'Created On', maxWidth: '22ch' }
   };
 
   //#region General-Error-Log-List
@@ -144,7 +144,7 @@ export class GeneralErrorLogListComponent implements OnInit, OnChanges, OnDestro
         propertyCodeDisplay: propertyCodeById.get(propertyId) || '-',
         invoiceCodeDisplay: invoiceCodeById.get(invoiceId) || '-',
         receiptCodeDisplay: receiptCodeById.get(receiptId) || '-',
-        createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-'
+        createdOnDate: this.formatter.formatDateTimeOffsetAsDateTime(row.createdOn) || '-'
       };
     });
     if (emitCallback) {

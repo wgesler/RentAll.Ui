@@ -1,8 +1,8 @@
 <div class="charge-result-wrap">
   <div class="charge-result-header">
     <span class="charge-result-title">
-      <mat-icon class="flex-shrink-0">credit_card</mat-icon>
-      <span class="flex-shrink-0 text-xl font-medium">Charge Card on File</span>
+      <mat-icon class="flex-shrink-0">{{ data.isAch ? 'account_balance' : 'credit_card' }}</mat-icon>
+      <span class="flex-shrink-0 text-xl font-medium">{{ data.isAch ? 'ACH Debit' : 'Charge Card on File' }}</span>
     </span>
   </div>
 
@@ -20,7 +20,7 @@
     @if (response) {
       <table class="details">
         <tr><th>Requested</th><td>{{ response.requestedAmount | currency }}</td></tr>
-        <tr><th>Approved</th><td>{{ response.approvedAmount | currency }}</td></tr>
+        <tr><th>{{ data.isAch ? 'Accepted' : 'Approved' }}</th><td>{{ response.approvedAmount | currency }}</td></tr>
         @if (kind === 'partial') {
           <tr><th>Still owed</th><td class="warn">{{ remaining | currency }}</td></tr>
         }
@@ -45,6 +45,9 @@
 
       @if (response.message) {
         <div class="explain warn">{{ response.message }}</div>
+      }
+      @if (data.isAch && kind === 'approved') {
+        <div class="explain">EasyPay accepted the debit. The bank can still return it within a few days (for example, insufficient funds).</div>
       }
 
       <div class="number-result">

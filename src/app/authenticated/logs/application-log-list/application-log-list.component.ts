@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { finalize, take } from 'rxjs';
 import { CommonMessage } from '../../../enums/common-message.enum';
 import { MaterialModule } from '../../../material.module';
@@ -8,6 +9,7 @@ import { DataTableComponent } from '../../shared/data-table/data-table.component
 import { DataTableFilterActionsDirective } from '../../shared/data-table/data-table-filter-actions.directive';
 import { ColumnSet } from '../../shared/data-table/models/column-data';
 import { ApplicationLogResponse } from '../models/log.model';
+import { NumberLogViewDialogComponent, NumberLogViewDialogData } from '../number-log-view-dialog/number-log-view-dialog.component';
 import { LogService } from '../services/log.service';
 import { ToastrService } from 'ngx-toastr';
 
@@ -28,8 +30,9 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
   private formatter = inject(FormatterService);
   private cdr = inject(ChangeDetectorRef);
   private toastr = inject(ToastrService);
+  private dialog = inject(MatDialog);
 
-  rows: Array<ApplicationLogResponse & { createdOnDate: string; copyHidden: boolean; copyTooltip: string }> = [];
+  rows: Array<ApplicationLogResponse & { createdOnDate: string; copyHidden: boolean; copyTooltip: string; viewHidden: boolean }> = [];
   isLoading = false;
   isDeleting = false;
   errorMessage: string | null = null;
@@ -37,7 +40,7 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
     level: { displayAs: 'Level', maxWidth: '10ch' },
     category: { displayAs: 'Category', maxWidth: '50ch' },
     message: { displayAs: 'Message', maxWidth: '75ch' },
-    createdOnDate: { displayAs: 'Created On', maxWidth: '12ch' }
+    createdOnDate: { displayAs: 'Created On', maxWidth: '22ch' }
   };
 
   //#region Application-Log-List
@@ -89,9 +92,10 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
       next: (rows: ApplicationLogResponse[]) => {
         this.rows = (rows || []).map(row => ({
           ...row,
-          createdOnDate: this.formatter.formatDateTimeOffsetAsDateOnly(row.createdOn) || '-',
-          // Copy button only on Number rows that carry a request, response or notification body.
+          createdOnDate: this.formatter.formatDateTimeOffsetAsDateTime(row.createdOn) || '-',
+          // View and Copy only on Number rows that carry a request, response or notification body.
           copyHidden: !this.isNumberRow(row),
+          viewHidden: !this.isNumberRow(row),
           copyTooltip: 'Copy EasyPay request / response'
         }));
         if (emitCallback) {
@@ -113,8 +117,27 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
     return message.startsWith('[EasyPay ') && /"(Request|Response|Body)"\s*:/.test(row?.properties ?? '');
   }
 
-  /** Copies a Number row as email-ready text: the action and direction, then the JSON body, formatted. */
+  /** Shows exactly what Copy puts on the clipboard. */
+  viewNumberRow(row: ApplicationLogResponse): void {
+    const data: NumberLogViewDialogData = { title: this.numberRowLabel(row), text: this.buildNumberRowText(row) };
+    this.dialog.open(NumberLogViewDialogComponent, { data, width: '60rem', maxWidth: '95vw' });
+  }
+
+  /** Copies a Number row as email-ready text. */
   copyNumberRow(row: ApplicationLogResponse): void {
+    navigator.clipboard.writeText(this.buildNumberRowText(row)).then(
+      () => this.toastr.success('EasyPay request / response copied.'),
+      () => this.toastr.error('Could not copy to the clipboard.')
+    );
+  }
+
+  /** The action and direction from "[EasyPay {Action}{Direction}] ...", e.g. CreateCardFormRequest. */
+  numberRowLabel(row: ApplicationLogResponse): string {
+    return (row.message ?? '').match(/^\[EasyPay ([^\]]+)\]/)?.[1] ?? 'EasyPay';
+  }
+
+  /** A Number row as email-ready text: the action and direction, the time, then the JSON body, formatted. */
+  buildNumberRowText(row: ApplicationLogResponse): string {
     let properties: Record<string, unknown> = {};
     try {
       properties = JSON.parse(row.properties || '{}') as Record<string, unknown>;
@@ -133,8 +156,8 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
       }
     };
 
-    const label = (row.message ?? '').match(/^\[EasyPay ([^\]]+)\]/)?.[1] ?? 'EasyPay';
-    const lines: string[] = [label, `Time: ${row.createdOn}`];
+    const time = this.formatter.formatDateTimeOffsetAsDateTime(row.createdOn) || row.createdOn;
+    const lines: string[] = [this.numberRowLabel(row), `Time: ${time}`];
     if (properties['Request'] !== undefined) {
       lines.push(`${properties['Method'] ?? ''} ${properties['Url'] ?? ''}`.trim(), '', 'Request:', pretty(properties['Request']));
     }
@@ -144,11 +167,7 @@ export class ApplicationLogListComponent implements OnInit, OnChanges, OnDestroy
     if (properties['Body'] !== undefined) {
       lines.push('', 'Body:', pretty(properties['Body']));
     }
-
-    navigator.clipboard.writeText(lines.join('\n')).then(
-      () => this.toastr.success('EasyPay request / response copied.'),
-      () => this.toastr.error('Could not copy to the clipboard.')
-    );
+    return lines.join('\n');
   }
 
   ngOnDestroy(): void {}
