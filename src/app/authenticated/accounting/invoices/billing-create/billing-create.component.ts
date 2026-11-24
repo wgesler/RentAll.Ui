@@ -887,7 +887,12 @@ export class BillingCreateComponent extends BaseDocumentComponent implements OnI
     const plainTextContent = '';
     const invoiceCode = this.selectedInvoice?.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || this.selectedInvoice?.invoiceId || 'Invoice';
     const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
-    const emailSubject = buildInvoiceEmailSubject(this.billingOrganization?.name, this.selectedInvoice?.accountingPeriod || this.selectedInvoice?.invoiceDate);
+    // Organization billing has no office preference, so the invoice number is always included.
+    const emailSubject = buildInvoiceEmailSubject(
+      this.billingOrganization?.name,
+      this.selectedInvoice?.accountingPeriod || this.selectedInvoice?.invoiceDate,
+      this.selectedInvoice?.invoiceCode
+    );
     const emailTemplateHtml = this.emailHtml?.billing || '';
     const emailBodyHtml = emailTemplateHtml
       .replace(/\{\{salutationName\}\}/g, salutationName)

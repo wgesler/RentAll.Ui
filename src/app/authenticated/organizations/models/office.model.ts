@@ -28,6 +28,7 @@ export interface OfficeRequest {
   useExternalRefNo: boolean
   petFeeTimesNoDogs: boolean
   sortPropertiesNumerically: boolean
+  excludeInvoiceFromSubject: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;
@@ -115,6 +116,7 @@ export interface OfficeResponse {
   useExternalRefNo: boolean
   petFeeTimesNoDogs: boolean
   sortPropertiesNumerically: boolean
+  excludeInvoiceFromSubject: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;

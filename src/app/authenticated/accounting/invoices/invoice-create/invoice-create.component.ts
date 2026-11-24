@@ -893,7 +893,12 @@ initializeInvoicePreview(): void {
     const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
     const emailTemplateHtml = (this.contact?.entityTypeId === EntityType.Company) ? (this.emailHtml?.corporateInvoice || '') : (this.emailHtml?.invoice || '');
 
-    const emailSubject = buildInvoiceEmailSubject(this.organization?.name, this.selectedInvoice?.accountingPeriod || this.selectedInvoice?.invoiceDate);
+    const emailSubject = buildInvoiceEmailSubject(
+      this.organization?.name,
+      this.selectedInvoice?.accountingPeriod || this.selectedInvoice?.invoiceDate,
+      this.selectedInvoice?.invoiceCode,
+      !!this.selectedOffice?.excludeInvoiceFromSubject
+    );
     const emailBodyHtml = emailTemplateHtml
       .replace(/\{\{salutationName\}\}/g, salutationName)
       .replace(/\{\{tenantName\}\}/g, tenantName)

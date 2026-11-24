@@ -1,15 +1,26 @@
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-export function buildInvoiceEmailSubject(companyName: string | null | undefined, period: string | null | undefined): string {
+/**
+ * Invoice email subject, e.g. "Invoice R-000000035-018 from AvenueWest – November 2026". The invoice number is left
+ * out when the office has Exclude Invoice from Subject checked.
+ */
+export function buildInvoiceEmailSubject(
+  companyName: string | null | undefined,
+  period: string | null | undefined,
+  invoiceCode?: string | null,
+  excludeInvoiceCode = false
+): string {
   const name = (companyName || '').trim();
   const monthYear = formatInvoiceSubjectMonthYear(period);
+  const code = excludeInvoiceCode ? '' : (invoiceCode || '').trim();
+  const invoice = code ? `Invoice ${code}` : 'Invoice';
   if (name && monthYear) {
-    return `Invoice from ${name} – ${monthYear}`;
+    return `${invoice} from ${name} – ${monthYear}`;
   }
   if (name) {
-    return `Invoice from ${name}`;
+    return `${invoice} from ${name}`;
   }
-  return monthYear ? `Invoice – ${monthYear}` : 'Invoice';
+  return monthYear ? `${invoice} – ${monthYear}` : invoice;
 }
 
 function formatInvoiceSubjectMonthYear(period: string | null | undefined): string {

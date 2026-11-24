@@ -227,7 +227,12 @@ export class InvoiceDocumentService {
         const invoiceCode = data.invoice.invoiceCode?.replace(/[^a-zA-Z0-9-]/g, '') || data.invoice.invoiceId || 'Invoice';
         const attachmentFileName = `Invoice_${invoiceCode}_${this.utilityService.todayAsCalendarDateString()}.pdf`;
         const emailTemplateHtml = isCompany ? (emailHtml?.corporateInvoice || '') : (emailHtml?.invoice || '');
-        const emailSubject = buildInvoiceEmailSubject(data.organization?.name, data.invoice.accountingPeriod || data.invoice.invoiceDate);
+        const emailSubject = buildInvoiceEmailSubject(
+          data.organization?.name,
+          data.invoice.accountingPeriod || data.invoice.invoiceDate,
+          data.invoice.invoiceCode,
+          !!data.office?.excludeInvoiceFromSubject
+        );
         const emailBodyHtml = emailTemplateHtml
           .replace(/\{\{salutationName\}\}/g, salutationName)
           .replace(/\{\{tenantName\}\}/g, tenantName)
