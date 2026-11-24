@@ -356,6 +356,14 @@ export interface PropertyCodeResponse {
   officeName: string;
 }
 
+/** Plain text order, character by character, ignoring case: 101..., 211..., 55BREM..., 577E..., 65... */
+export function comparePropertyCodesText(left: string | null | undefined, right: string | null | undefined): number {
+  const a = String(left || '').trim().toLocaleLowerCase();
+  const b = String(right || '').trim().toLocaleLowerCase();
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Code order: natural only when both codes start with a number, otherwise plain text (S1935, S200, S35). */
 export function comparePropertyCodes(left: string | null | undefined, right: string | null | undefined): number {
   const a = String(left || '').trim();
   const b = String(right || '').trim();

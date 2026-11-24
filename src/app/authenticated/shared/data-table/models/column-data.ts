@@ -24,7 +24,7 @@ export interface ColumnData {
     checkboxDisabledField?: string;
     options?: string[];
     buttonText?: string;
-    sortType?: 'default' | 'natural' | 'code'; // 'natural' pads numbers. 'code' natural-sorts a leading number, otherwise plain text.
+    sortType?: 'default' | 'natural' | 'code' | 'text'; // 'natural' pads numbers. 'code' natural-sorts a leading number, otherwise plain text. 'text' is plain text, numbers and all.
     editableType?: 'text' | 'date';
     suppressRowClick?: boolean;
     searchableDropdown?: boolean;

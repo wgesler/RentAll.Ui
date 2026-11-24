@@ -28,7 +28,7 @@ import { PropertyCalendarTesterDialogComponent } from '../../shared/modals/prope
 import { CalendarUrlResponse, PropertyCalendarUrlDialogData } from '../models/property-calendar';
 import { PropertyLeaseType, getPropertyStatuses, getPropertyLeaseType } from '../models/property-enums';
 import { PropertySelectionResponse } from '../models/property-selection.model';
-import { PropertyListDisplay, PropertyListDisplayRow, PropertyListResponse } from '../models/property.model';
+import { PropertyListDisplay, PropertyListDisplayRow, PropertyListResponse, comparePropertyCodes, comparePropertyCodesText } from '../models/property.model';
 import { PropertyCalendarUrlDialogComponent } from '../property-calendar-url-dialog/property-calendar-url-dialog.component';
 import { PropertySelectionFilterService } from '../services/property-selection-filter.service';
 import { PropertyListingShareService } from '../services/property-listing-share.service';
@@ -106,7 +106,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
   propertyStatusByLabel = new Map(this.propertyStatuses.map(status => [status.label, status.value]));
 
   fullPropertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: 'Code', maxWidth: '16ch', sortType: 'code', wrap: false },
+    'propertyCode': { displayAs: 'Code', maxWidth: '16ch', sortType: 'text', wrap: false },
     'contactName': { displayAs: 'Owner/Vendor', maxWidth: '25ch', wrap: false },
     'propertyStatusDropdown': { displayAs: 'Status', wrap: false, maxWidth: '15ch', sort: true, options: this.propertyStatusLabels },
     'bedrooms': { displayAs: 'Beds', wrap: false , maxWidth: '10ch', alignment: 'center'},
@@ -120,7 +120,7 @@ export class PropertyListComponent implements OnInit, OnDestroy, OnChanges {
     'isActive': { displayAs: 'IsActive', isCheckbox: true, checkboxEditable: true, wrap: false, alignment: 'center', maxWidth: '15ch' }
   };
   compactPropertiesDisplayedColumns: ColumnSet = {
-    'propertyCode': { displayAs: '', maxWidth: '16ch', sortType: 'code', wrap: false }
+    'propertyCode': { displayAs: '', maxWidth: '16ch', sortType: 'text', wrap: false }
   };
   propertiesDisplayedColumns: ColumnSet = this.fullPropertiesDisplayedColumns;
 
@@ -545,6 +545,7 @@ showPropertyCalendarUrlDialog(
     if (!this.officeScopeResolved) {
       return;
     }
+    this.applyPropertyCodeSortPreference();
 
     const officeScoped = (rows: PropertyListDisplayRow[]) => this.selectedOffice
       ? rows.filter(property => property.officeId === this.selectedOffice.officeId)
@@ -572,6 +573,8 @@ showPropertyCalendarUrlDialog(
     filtered.forEach(property => {
       (property as PropertyListDisplayRow & { rowActive?: boolean }).rowActive = this.selectedPropertyIds.has(property.propertyId);
     });
+    const compareCodes = this.usesCodeSort() ? comparePropertyCodes : comparePropertyCodesText;
+    filtered.sort((left, right) => compareCodes(left.propertyCode, right.propertyCode));
     this.propertiesDisplay = [...filtered];
   }
   //#endregion
@@ -798,6 +801,34 @@ showPropertyCalendarUrlDialog(
     }
 
     this.applyFilters();
+  }
+
+  /**
+   * The office's Sort Properties Numerically preference: checked sorts numbers by value (codes that start with a
+   * number), unchecked sorts as plain text. With All offices showing, numeric sort is used only if every office has it.
+   */
+  usesCodeSort(): boolean {
+    if (this.selectedOffice) {
+      return !!this.selectedOffice.sortPropertiesNumerically;
+    }
+    return this.offices.length > 0 && this.offices.every(office => !!office.sortPropertiesNumerically);
+  }
+
+  /** Points the Code column's header sort at the same order as the list. */
+  applyPropertyCodeSortPreference(): void {
+    const sortType: 'code' | 'text' = this.usesCodeSort() ? 'code' : 'text';
+    if (this.fullPropertiesDisplayedColumns['propertyCode'].sortType === sortType) {
+      return;
+    }
+    this.fullPropertiesDisplayedColumns = {
+      ...this.fullPropertiesDisplayedColumns,
+      propertyCode: { ...this.fullPropertiesDisplayedColumns['propertyCode'], sortType }
+    };
+    this.compactPropertiesDisplayedColumns = {
+      ...this.compactPropertiesDisplayedColumns,
+      propertyCode: { ...this.compactPropertiesDisplayedColumns['propertyCode'], sortType }
+    };
+    this.updateDisplayedColumns();
   }
 
   updateDisplayedColumns(): void {

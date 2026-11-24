@@ -513,6 +513,10 @@ export class DataTableComponent implements OnChanges, OnInit, AfterViewInit, OnD
       if (columnData?.sortType === 'code' && typeof value === 'string') {
         return this.codeSortKey(value);
       }
+      // Plain text: character by character, so "55BREM" sorts with the 5s (never read as a number or a date).
+      if (columnData?.sortType === 'text' && typeof value === 'string') {
+        return value.trim().toLocaleLowerCase();
+      }
       
       // For status columns, use the numeric ID if available (e.g., reservationStatusId)
       // This ensures proper ordering by enum value rather than alphabetically

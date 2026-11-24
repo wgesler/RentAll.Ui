@@ -27,6 +27,7 @@ export interface OfficeRequest {
   useStrictOnTickets: boolean
   useExternalRefNo: boolean
   petFeeTimesNoDogs: boolean
+  sortPropertiesNumerically: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;
@@ -113,6 +114,7 @@ export interface OfficeResponse {
   useStrictOnTickets: boolean
   useExternalRefNo: boolean
   petFeeTimesNoDogs: boolean
+  sortPropertiesNumerically: boolean
   daysToRefundDeposit: number;
   defaultDeposit: number;
   defaultSdw: number;
